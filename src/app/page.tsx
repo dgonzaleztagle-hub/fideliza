@@ -1,189 +1,311 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Fidelización Digital — Tarjetas de lealtad en Google Wallet',
-  description: 'Transforma la lealtad de tus clientes con tarjetas digitales en Google Wallet. Sin apps, sin cartón, sin complicaciones. Prueba gratis 14 días.',
+  title: 'Vuelve+ — Tus clientes siempre vuelven',
+  description: 'Tarjetas de lealtad digitales en Google Wallet. Tu negocio fideliza clientes sin apps, sin cartón, sin complicaciones. Prueba gratis 14 días.',
 }
 
 export default function Home() {
   return (
     <div className="landing">
       {/* NAV */}
-      <nav className="landing-nav">
-        <div className="landing-nav-inner">
-          <div className="landing-logo">
-            <span className="landing-logo-icon">💎</span>
-            <span className="landing-logo-text">Fideliza</span>
-          </div>
-          <a href="/registro" className="landing-nav-cta">
-            Empezar gratis
+      <nav className="nav">
+        <div className="nav-inner">
+          <a href="/" className="nav-brand">
+            <span className="nav-brand-text">Vuelve</span>
+            <span className="nav-brand-plus">+</span>
           </a>
+          <div className="nav-links">
+            <a href="#como-funciona">Cómo funciona</a>
+            <a href="#beneficios">Beneficios</a>
+            <a href="#precio">Precio</a>
+          </div>
+          <a href="/registro" className="nav-cta">Empezar gratis</a>
         </div>
       </nav>
 
       {/* HERO */}
-      <section className="landing-hero">
-        <div className="landing-hero-glow" />
-        <div className="landing-hero-content">
-          <div className="landing-hero-badge">🚀 14 días gratis · Sin tarjeta de crédito</div>
-          <h1 className="landing-hero-title">
-            Tarjetas de lealtad
+      <section className="hero">
+        <div className="hero-bg">
+          <video
+            className="hero-video"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+          >
+            <source src="/hero.mp4" type="video/mp4" />
+          </video>
+          <div className="hero-video-overlay" />
+          <div className="hero-orb hero-orb-1" />
+          <div className="hero-orb hero-orb-2" />
+        </div>
+
+        <div className="hero-content">
+          <div className="hero-pill">
+            <span className="hero-pill-dot" />
+            Nuevo · Tarjetas digitales para tu negocio
+          </div>
+
+          <h1 className="hero-title">
+            Tus clientes
             <br />
-            <span className="landing-hero-gradient">en el bolsillo</span>
-            <br />
-            de tu cliente
+            <span className="gradient-text">siempre vuelven</span>
           </h1>
-          <p className="landing-hero-subtitle">
-            Tus clientes escanean un QR, suman puntos y ganan premios.
-            Todo desde Google Wallet. Sin apps, sin cartón, sin complicaciones.
+
+          <p className="hero-subtitle">
+            Crea tu programa de lealtad digital en 2 minutos.<br />
+            Tus clientes suman puntos escaneando un QR, reciben su tarjeta en Google Wallet
+            y vuelven por más.
           </p>
-          <div className="landing-hero-actions">
-            <a href="/registro" className="landing-btn-primary">
+
+          <div className="hero-actions">
+            <a href="/registro" className="btn btn-primary btn-lg">
               Crear mi programa gratis
+              <span className="btn-arrow">→</span>
             </a>
-            <a href="#como-funciona" className="landing-btn-ghost">
-              ¿Cómo funciona? ↓
+            <a href="#como-funciona" className="btn btn-ghost">
+              Ver cómo funciona
             </a>
           </div>
-          <div className="landing-hero-stats">
-            <div className="landing-stat">
-              <span className="landing-stat-number">2 min</span>
-              <span className="landing-stat-label">Configurar</span>
+
+          <div className="hero-proof">
+            <div className="hero-proof-avatars">
+              <div className="hero-avatar" style={{ background: '#ff6b6b' }}>J</div>
+              <div className="hero-avatar" style={{ background: '#ee5a6f' }}>M</div>
+              <div className="hero-avatar" style={{ background: '#ff8e53' }}>C</div>
+              <div className="hero-avatar" style={{ background: '#ffb347' }}>R</div>
             </div>
-            <div className="landing-stat-divider" />
-            <div className="landing-stat">
-              <span className="landing-stat-number">$15.990</span>
-              <span className="landing-stat-label">/mes después del trial</span>
-            </div>
-            <div className="landing-stat-divider" />
-            <div className="landing-stat">
-              <span className="landing-stat-number">0</span>
-              <span className="landing-stat-label">Apps que instalar</span>
-            </div>
+            <p className="hero-proof-text">
+              <strong>14 días gratis</strong> · Sin tarjeta de crédito
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* SOCIAL PROOF BAR */}
+      <section className="proof-bar">
+        <div className="proof-bar-inner">
+          <div className="proof-item">
+            <span className="proof-number">2 min</span>
+            <span className="proof-label">Para crear tu programa</span>
+          </div>
+          <div className="proof-divider" />
+          <div className="proof-item">
+            <span className="proof-number">0$</span>
+            <span className="proof-label">Sin costo de setup</span>
+          </div>
+          <div className="proof-divider" />
+          <div className="proof-item">
+            <span className="proof-number">∞</span>
+            <span className="proof-label">Clientes ilimitados</span>
+          </div>
+          <div className="proof-divider" />
+          <div className="proof-item">
+            <span className="proof-number">24/7</span>
+            <span className="proof-label">Funciona siempre</span>
           </div>
         </div>
       </section>
 
       {/* CÓMO FUNCIONA */}
-      <section id="como-funciona" className="landing-section">
-        <h2 className="landing-section-title">¿Cómo funciona?</h2>
-        <p className="landing-section-subtitle">Tres pasos. Cinco minutos. Listo.</p>
-        <div className="landing-steps">
-          <div className="landing-step">
-            <div className="landing-step-number">1</div>
-            <div className="landing-step-icon">📋</div>
-            <h3>Configura tu programa</h3>
-            <p>Define cuántos puntos y qué premio. Sube tu logo y elige tus colores. Listo en 2 minutos.</p>
+      <section className="section section-gradient" id="como-funciona">
+        <div className="section-header">
+          <span className="section-tag">Cómo funciona</span>
+          <h2 className="section-title">
+            Tan simple como<br /><span className="gradient-text">contar hasta 3</span>
+          </h2>
+        </div>
+
+        <div className="steps">
+          <div className="step">
+            <div className="step-visual">
+              <div className="step-icon-wrap step-icon-glow">
+                <span className="step-icon">📱</span>
+              </div>
+              <div className="step-number">01</div>
+            </div>
+            <h3>Crea tu programa</h3>
+            <p>Define cuántos puntos y qué premio. Elige tus colores. En 2 minutos tienes todo listo.</p>
           </div>
-          <div className="landing-step-arrow">→</div>
-          <div className="landing-step">
-            <div className="landing-step-number">2</div>
-            <div className="landing-step-icon">📱</div>
-            <h3>Pega el QR en tu local</h3>
-            <p>Te generamos un QR único. Imprímelo y pégalo en el mostrador. Es todo lo que necesitas.</p>
+
+          <div className="step-connector">
+            <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="rgba(255,107,107,0.3)" strokeWidth="2" strokeDasharray="4 4" /></svg>
           </div>
-          <div className="landing-step-arrow">→</div>
-          <div className="landing-step">
-            <div className="landing-step-number">3</div>
-            <div className="landing-step-icon">🎉</div>
-            <h3>Los clientes suman puntos</h3>
-            <p>Escanean, ponen su WhatsApp, suman puntos. Cuando llegan a la meta, ganan su premio.</p>
+
+          <div className="step">
+            <div className="step-visual">
+              <div className="step-icon-wrap step-icon-glow">
+                <span className="step-icon">🖨️</span>
+              </div>
+              <div className="step-number">02</div>
+            </div>
+            <h3>Pega tu QR</h3>
+            <p>Imprime el QR que te damos y pégalo en tu mostrador. Tus clientes lo escanean al pagar.</p>
+          </div>
+
+          <div className="step-connector">
+            <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="rgba(255,107,107,0.3)" strokeWidth="2" strokeDasharray="4 4" /></svg>
+          </div>
+
+          <div className="step">
+            <div className="step-visual">
+              <div className="step-icon-wrap step-icon-glow">
+                <span className="step-icon">🎁</span>
+              </div>
+              <div className="step-number">03</div>
+            </div>
+            <h3>Fideliza automático</h3>
+            <p>Los puntos se suman solos. Al llegar a la meta, el premio se genera con un QR único.</p>
           </div>
         </div>
       </section>
 
-      {/* FEATURES */}
-      <section className="landing-section landing-section-alt">
-        <h2 className="landing-section-title">Todo lo que necesitas</h2>
-        <p className="landing-section-subtitle">Sin complicaciones. Sin letra chica.</p>
-        <div className="landing-features">
-          <div className="landing-feature">
-            <div className="landing-feature-icon">📲</div>
+      {/* BENEFICIOS */}
+      <section className="section section-dark" id="beneficios">
+        <div className="section-header">
+          <span className="section-tag">Beneficios</span>
+          <h2 className="section-title">
+            Todo lo que necesitas,<br /><span className="gradient-text">nada que no</span>
+          </h2>
+        </div>
+
+        <div className="features-grid">
+          <div className="feature-card feature-card-highlight">
+            <div className="feature-card-glow" />
+            <span className="feature-icon">📍</span>
+            <h3>Geofencing inteligente</h3>
+            <p>Tus clientes reciben una notificación cuando pasan cerca de tu local. &quot;¡Estás cerca! Te falta 1 punto para tu premio&quot;.</p>
+            <span className="feature-badge">Estrella</span>
+          </div>
+
+          <div className="feature-card">
+            <span className="feature-icon">💳</span>
             <h3>Google Wallet</h3>
-            <p>La tarjeta se guarda en la billetera del celular. Siempre ahí, nunca se pierde.</p>
+            <p>La tarjeta vive en la billetera del celular. Sin descargar apps, sin crear cuentas.</p>
           </div>
-          <div className="landing-feature">
-            <div className="landing-feature-icon">📍</div>
-            <h3>Geofencing</h3>
-            <p>Cuando tu cliente pasa cerca del local, recibe un recordatorio automático.</p>
+
+          <div className="feature-card">
+            <span className="feature-icon">🔒</span>
+            <h3>Anti-trampas</h3>
+            <p>Máximo 1 punto por día por cliente. Nadie puede escanearte 10 veces seguidas.</p>
           </div>
-          <div className="landing-feature">
-            <div className="landing-feature-icon">🎨</div>
-            <h3>Tu marca</h3>
-            <p>Logo, colores y nombre de tu negocio en la tarjeta. Es tuya, no nuestra.</p>
+
+          <div className="feature-card">
+            <span className="feature-icon">📊</span>
+            <h3>Panel con stats</h3>
+            <p>Ve cuántos clientes tienes, quién está cerca del premio, cuántas visitas hoy.</p>
           </div>
-          <div className="landing-feature">
-            <div className="landing-feature-icon">🔒</div>
-            <h3>Anti-trampa</h3>
-            <p>Máximo 1 punto por día. Premios con código único de un solo uso.</p>
+
+          <div className="feature-card">
+            <span className="feature-icon">🎯</span>
+            <h3>QR de premio único</h3>
+            <p>Cada premio genera un código irrepetible. Tú lo escaneas y validas al instante.</p>
           </div>
-          <div className="landing-feature">
-            <div className="landing-feature-icon">📊</div>
-            <h3>Panel de control</h3>
-            <p>Ve cuántos clientes tienes, puntos dados, premios canjeados. Todo en tiempo real.</p>
+
+          <div className="feature-card">
+            <span className="feature-icon">⚡</span>
+            <h3>Cero fricción</h3>
+            <p>El cliente escanea, pone su WhatsApp y listo. Sin apps, sin emails, sin esperas.</p>
           </div>
-          <div className="landing-feature">
-            <div className="landing-feature-icon">🔌</div>
-            <h3>API abierta</h3>
-            <p>¿Tienes web propia? Integra la fidelización directamente vía API.</p>
-          </div>
+        </div>
+      </section>
+
+      {/* PARA QUIÉN */}
+      <section className="section">
+        <div className="section-header">
+          <span className="section-tag">Para quién</span>
+          <h2 className="section-title">
+            Si vendes algo y quieres que<br /><span className="gradient-text">vuelvan a comprarte</span>
+          </h2>
+        </div>
+
+        <div className="rubros-grid">
+          {[
+            { emoji: '💈', nombre: 'Barberías', ejemplo: '10 cortes = 1 gratis' },
+            { emoji: '☕', nombre: 'Cafeterías', ejemplo: '8 cafés = 1 gratis' },
+            { emoji: '🍕', nombre: 'Restaurants', ejemplo: '5 visitas = postre gratis' },
+            { emoji: '💅', nombre: 'Centros de belleza', ejemplo: '6 sesiones = 20% off' },
+            { emoji: '🧺', nombre: 'Lavanderías', ejemplo: '10 lavados = 1 gratis' },
+            { emoji: '🏋️', nombre: 'Gimnasios', ejemplo: '30 visitas = 1 semana free' },
+          ].map((rubro) => (
+            <div key={rubro.nombre} className="rubro-card">
+              <span className="rubro-emoji">{rubro.emoji}</span>
+              <h4>{rubro.nombre}</h4>
+              <p>{rubro.ejemplo}</p>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* PRICING */}
-      <section className="landing-section">
-        <h2 className="landing-section-title">Un solo precio. Todo incluido.</h2>
-        <p className="landing-section-subtitle">Sin sorpresas. Sin planes ocultos.</p>
-        <div className="landing-pricing">
-          <div className="landing-price-card">
-            <div className="landing-price-badge">14 días gratis</div>
-            <div className="landing-price-amount">
-              <span className="landing-price-currency">$</span>
-              <span className="landing-price-number">15.990</span>
-              <span className="landing-price-period">/mes</span>
+      <section className="section section-dark" id="precio">
+        <div className="section-header">
+          <span className="section-tag">Precio</span>
+          <h2 className="section-title">
+            Simple y transparente.<br /><span className="gradient-text">Como debe ser.</span>
+          </h2>
+        </div>
+
+        <div className="pricing">
+          <div className="price-card">
+            <div className="price-card-ribbon">🚀 Lanzamiento</div>
+            <div className="price-top">
+              <h3>Plan Único</h3>
+              <p>Todo lo que necesitas para fidelizar</p>
             </div>
-            <ul className="landing-price-features">
-              <li>✅ Clientes ilimitados</li>
-              <li>✅ Puntos ilimitados</li>
-              <li>✅ QR personalizado</li>
-              <li>✅ Google Wallet</li>
-              <li>✅ Geofencing</li>
-              <li>✅ Panel de control</li>
-              <li>✅ Branding personalizado</li>
-              <li>✅ Soporte por WhatsApp</li>
+            <div className="price-amount">
+              <span className="price-currency">$</span>
+              <span className="price-number">19.990</span>
+              <span className="price-period">/mes</span>
+            </div>
+            <ul className="price-features">
+              <li><span className="check">✓</span> Clientes ilimitados</li>
+              <li><span className="check">✓</span> QR personalizado</li>
+              <li><span className="check">✓</span> Google Wallet integrado</li>
+              <li><span className="check">✓</span> Geofencing incluido</li>
+              <li><span className="check">✓</span> Panel de estadísticas</li>
+              <li><span className="check">✓</span> Validación de premios por QR</li>
+              <li><span className="check">✓</span> Notificaciones automáticas</li>
+              <li><span className="check">✓</span> Soporte por WhatsApp</li>
             </ul>
-            <a href="/registro" className="landing-btn-primary" style={{ width: '100%', textAlign: 'center' }}>
-              Empezar mi trial gratis
+            <a href="/registro" className="btn btn-primary btn-lg btn-full">
+              Empezar 14 días gratis
             </a>
+            <p className="price-note">Sin tarjeta de crédito · Cancela cuando quieras</p>
           </div>
         </div>
       </section>
 
       {/* CTA FINAL */}
-      <section className="landing-section landing-cta-section">
-        <div className="landing-cta-glow" />
-        <h2 className="landing-cta-title">¿Listo para fidelizar?</h2>
-        <p className="landing-cta-subtitle">
-          Configura tu programa en 2 minutos. Empieza a sumar clientes fieles hoy.
-        </p>
-        <a href="/registro" className="landing-btn-primary landing-btn-lg">
-          Crear mi programa gratis →
-        </a>
+      <section className="cta-section">
+        <div className="cta-content">
+          <h2 className="cta-title">
+            ¿Listo para que tus clientes<br />siempre vuelvan?
+          </h2>
+          <p className="cta-subtitle">
+            Crea tu programa de lealtad en 2 minutos.<br />
+            14 días gratis, sin compromiso.
+          </p>
+          <a href="/registro" className="btn btn-white btn-lg">
+            Crear mi programa ahora
+            <span className="btn-arrow">→</span>
+          </a>
+        </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="landing-footer">
-        <div className="landing-footer-inner">
-          <div className="landing-logo">
-            <span className="landing-logo-icon">💎</span>
-            <span className="landing-logo-text">Fideliza</span>
+      <footer className="footer">
+        <div className="footer-inner">
+          <div className="footer-brand">
+            <span className="nav-brand-text">Vuelve</span>
+            <span className="nav-brand-plus">+</span>
           </div>
-          <p className="landing-footer-text">
-            Fidelización digital para negocios que quieren crecer.
-          </p>
-          <p className="landing-footer-copy">
-            © 2026 Fideliza. Todos los derechos reservados.
-          </p>
+          <p className="footer-text">Tarjetas de lealtad digitales para negocios que quieren crecer.</p>
+          <div className="footer-bottom">
+            <p>© 2025 Vuelve+ · Un producto de HojaCero</p>
+          </div>
         </div>
       </footer>
     </div>

@@ -3,8 +3,8 @@ import './globals.css'
 import './landing.css'
 
 export const metadata: Metadata = {
-  title: 'Fideliza — Tarjetas de lealtad digitales para tu negocio',
-  description: 'Transforma la lealtad de tus clientes con tarjetas digitales en Google Wallet. Sin apps, sin cartón, sin complicaciones.',
+  title: 'Vuelve+ — Tus clientes siempre vuelven',
+  description: 'Tarjetas de lealtad digitales en Google Wallet para tu negocio. Sin apps, sin cartón. QR en tu mostrador, puntos automáticos, premios con un escaneo.',
 }
 
 export default function RootLayout({
