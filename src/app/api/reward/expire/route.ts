@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
             .from('rewards')
             .select('id, customer_id, tenant_id, qr_code')
             .eq('canjeado', false)
-            .lt('created_at', fechaLimite.toISOString())
+            .lt('fecha_generado', fechaLimite.toISOString())
 
         if (selectError) {
             console.error('Error buscando premios expirados:', selectError)
