@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Usamos service role para las APIs públicas del QR
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { getSupabase } from '@/lib/supabase/admin'
 
 // POST /api/customer/register
 // Registra un nuevo cliente para un tenant
 export async function POST(req: NextRequest) {
+    const supabase = getSupabase()
     try {
         const { tenant_id, nombre, whatsapp, email } = await req.json()
 

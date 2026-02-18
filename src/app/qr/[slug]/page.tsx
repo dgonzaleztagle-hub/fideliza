@@ -1,17 +1,13 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import QRPageClient from './QRPageClient'
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 interface Props {
     params: Promise<{ slug: string }>
 }
 
 export default async function QRPage({ params }: Props) {
+    const supabase = getSupabase()
     const { slug } = await params
 
     // Buscar el tenant por slug

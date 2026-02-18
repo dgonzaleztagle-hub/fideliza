@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '@/lib/supabase/admin'
 import { v4 as uuidv4 } from 'uuid'
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 // POST /api/stamp
 // Suma un punto al cliente (máximo 1 por día)
 // Si llega a la meta, genera premio automáticamente
 export async function POST(req: NextRequest) {
+    const supabase = getSupabase()
     try {
         const { tenant_id, whatsapp } = await req.json()
 
