@@ -19,6 +19,7 @@ export default function Home() {
             <a href="#como-funciona">Cómo funciona</a>
             <a href="#beneficios">Beneficios</a>
             <a href="#precio">Precio</a>
+            <a href="/cliente" className="nav-link-panel">Mi Panel</a>
           </div>
           <a href="/registro" className="nav-cta">Empezar gratis</a>
         </div>
@@ -303,6 +304,11 @@ export default function Home() {
             <span className="nav-brand-plus">+</span>
           </div>
           <p className="footer-text">Tarjetas de lealtad digitales para negocios que quieren crecer.</p>
+          <div className="footer-links">
+            <a href="/registro">Registrar mi negocio</a>
+            <a href="/cliente">Mi Panel</a>
+            <a href="/mi-tarjeta">Mi Tarjeta</a>
+          </div>
           <div className="footer-bottom">
             <p>© 2025 Vuelve+ · Un producto de HojaCero</p>
           </div>

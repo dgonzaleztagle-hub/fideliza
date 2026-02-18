@@ -989,6 +989,39 @@ h3 {
     color: var(--text-muted);
 }
 
+/* Nav Panel Link */
+.nav-link-panel {
+    padding: 0.35rem 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-pill, 50px);
+    font-size: 0.85rem !important;
+    transition: all 0.3s ease;
+}
+
+.nav-link-panel:hover {
+    border-color: var(--brand-coral, #ff6b6b) !important;
+    background: rgba(255, 107, 107, 0.06);
+}
+
+/* Footer Links */
+.footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.footer-links a {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    transition: color 0.2s;
+}
+
+.footer-links a:hover {
+    color: var(--brand-coral, #ff6b6b);
+}
+
 /* ANIMATIONS */
 @keyframes fadeInUp {
     from {
