@@ -111,7 +111,9 @@ export async function POST(req: NextRequest) {
         }
 
         // Generar URL del QR (apunta a la página de escaneo)
-        const qrUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/qr/${slug}`
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+            || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+        const qrUrl = `${baseUrl}/qr/${slug}`
 
         // Guardar QR URL en el tenant
         await supabase
