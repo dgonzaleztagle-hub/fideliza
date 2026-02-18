@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import AyudaPanel from './AyudaPanel'
 import './cliente.css'
+import './ayuda.css'
 
 interface TenantData {
     id: string
@@ -66,7 +68,7 @@ interface AnalyticsData {
     topClientes: CustomerData[]
 }
 
-type Tab = 'dashboard' | 'clientes' | 'configuracion' | 'qr' | 'analytics' | 'notificaciones'
+type Tab = 'dashboard' | 'clientes' | 'configuracion' | 'qr' | 'analytics' | 'notificaciones' | 'ayuda'
 
 export default function ClientePanel() {
     const [tab, setTab] = useState<Tab>('dashboard')
@@ -404,6 +406,7 @@ export default function ClientePanel() {
                         { key: 'analytics' as Tab, icon: '📈', label: 'Analytics' },
                         { key: 'notificaciones' as Tab, icon: '📢', label: 'Notificaciones' },
                         { key: 'configuracion' as Tab, icon: '⚙️', label: 'Configuración' },
+                        { key: 'ayuda' as Tab, icon: '❓', label: 'Ayuda' },
                     ]).map((item) => (
                         <button
                             key={item.key}
@@ -1076,6 +1079,13 @@ export default function ClientePanel() {
                                 )}
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* ═══════ AYUDA ═══════ */}
+                {tab === 'ayuda' && (
+                    <div className="cliente-content">
+                        <AyudaPanel />
                     </div>
                 )}
             </main>

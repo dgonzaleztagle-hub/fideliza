@@ -1,0 +1,325 @@
+/* ===================== */
+/* CENTRO DE AYUDA       */
+/* ===================== */
+
+.ayuda-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Search */
+.ayuda-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.ayuda-search-icon {
+    position: absolute;
+    left: 1rem;
+    font-size: 1rem;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.ayuda-search input {
+    width: 100%;
+    padding: 0.875rem 2.5rem 0.875rem 2.75rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.3s;
+}
+
+.ayuda-search input::placeholder {
+    color: var(--text-muted);
+}
+
+.ayuda-search input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.ayuda-search-clear {
+    position: absolute;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.2s;
+}
+
+.ayuda-search-clear:hover {
+    color: var(--text-primary);
+}
+
+/* Section Grid */
+.ayuda-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+    animation: fadeInUp 0.4s ease;
+}
+
+.ayuda-section-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+    color: inherit;
+    font-family: inherit;
+}
+
+.ayuda-section-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.ayuda-section-icon {
+    font-size: 1.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.ayuda-section-card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ayuda-section-card p {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.ayuda-section-count {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: auto;
+    padding-top: 0.5rem;
+}
+
+/* Detail view */
+.ayuda-detail {
+    animation: fadeInUp 0.3s ease;
+}
+
+.ayuda-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: none;
+    border: none;
+    color: #6366f1;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.25rem 0;
+    margin-bottom: 1rem;
+    font-family: inherit;
+    transition: opacity 0.2s;
+}
+
+.ayuda-back:hover {
+    opacity: 0.7;
+}
+
+.ayuda-search-results {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.ayuda-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.3rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.ayuda-section-title span {
+    font-size: 1.5rem;
+}
+
+/* Articles accordion */
+.ayuda-articles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ayuda-article {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+
+.ayuda-article.open {
+    border-color: rgba(99, 102, 241, 0.2);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.ayuda-article-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 1rem 1.25rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    color: var(--text-primary);
+    transition: background 0.2s;
+}
+
+.ayuda-article-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.ayuda-article-question {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.ayuda-article-chevron {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    transition: transform 0.3s;
+    flex-shrink: 0;
+}
+
+.ayuda-article-chevron.rotated {
+    transform: rotate(180deg);
+    color: #6366f1;
+}
+
+.ayuda-article-body {
+    padding: 0 1.25rem 1.25rem;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    animation: fadeIn 0.3s ease;
+}
+
+.ayuda-article-body strong {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.ayuda-article-body em {
+    color: #a78bfa;
+    font-style: italic;
+}
+
+/* No results */
+.ayuda-no-results {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.ayuda-no-results-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.ayuda-no-results p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.ayuda-no-results-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+}
+
+/* Footer */
+.ayuda-footer {
+    text-align: center;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 14px;
+}
+
+.ayuda-footer p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.ayuda-footer-hint {
+    font-size: 0.8rem !important;
+    color: var(--text-muted) !important;
+    font-weight: 400 !important;
+    margin-top: 0.25rem;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    .ayuda-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+
+    .ayuda-section-card {
+        padding: 1rem;
+    }
+
+    .ayuda-section-icon {
+        font-size: 1.5rem;
+    }
+}
