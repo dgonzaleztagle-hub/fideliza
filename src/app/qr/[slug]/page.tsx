@@ -24,7 +24,7 @@ export default async function QRPage({ params }: Props) {
     // Buscar programa activo
     const { data: program } = await supabase
         .from('programs')
-        .select('id, puntos_meta, descripcion_premio, tipo_premio, valor_premio')
+        .select('id, puntos_meta, descripcion_premio, tipo_premio, valor_premio, tipo_programa, config')
         .eq('tenant_id', tenant.id)
         .eq('activo', true)
         .single()

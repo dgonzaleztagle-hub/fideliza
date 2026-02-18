@@ -65,3 +65,76 @@ export async function GET(
         return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }
 }
+
+// PUT /api/tenant/[slug]
+// Actualiza configuración del negocio y programa
+export async function PUT(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> }
+) {
+    const supabase = getSupabase()
+    try {
+        const { slug } = await params
+        const body = await req.json()
+
+        // Buscar tenant
+        const { data: tenant, error: tenantError } = await supabase
+            .from('tenants')
+            .select('id')
+            .eq('slug', slug)
+            .single()
+
+        if (tenantError || !tenant) {
+            return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
+        }
+
+        // Actualizar datos del tenant
+        const tenantUpdates: Record<string, unknown> = {}
+        const tenantFields = ['nombre', 'rubro', 'direccion', 'logo_url', 'color_primario', 'lat', 'lng', 'mensaje_geofencing', 'telefono']
+        for (const field of tenantFields) {
+            if (body[field] !== undefined) {
+                tenantUpdates[field] = body[field]
+            }
+        }
+
+        if (Object.keys(tenantUpdates).length > 0) {
+            tenantUpdates.updated_at = new Date().toISOString()
+            const { error } = await supabase
+                .from('tenants')
+                .update(tenantUpdates)
+                .eq('id', tenant.id)
+            if (error) {
+                console.error('Error actualizando tenant:', error)
+                return NextResponse.json({ error: 'Error al actualizar negocio' }, { status: 500 })
+            }
+        }
+
+        // Actualizar programa si hay datos
+        const programUpdates: Record<string, unknown> = {}
+        const programFields = ['puntos_meta', 'descripcion_premio', 'tipo_premio', 'valor_premio', 'nombre', 'tipo_programa', 'config']
+        for (const field of programFields) {
+            if (body.program?.[field] !== undefined) {
+                programUpdates[field] = body.program[field]
+            }
+        }
+
+        if (Object.keys(programUpdates).length > 0) {
+            programUpdates.updated_at = new Date().toISOString()
+            const { error } = await supabase
+                .from('programs')
+                .update(programUpdates)
+                .eq('tenant_id', tenant.id)
+                .eq('activo', true)
+            if (error) {
+                console.error('Error actualizando programa:', error)
+                return NextResponse.json({ error: 'Error al actualizar programa' }, { status: 500 })
+            }
+        }
+
+        return NextResponse.json({ message: '✅ Configuración actualizada' })
+
+    } catch (error) {
+        console.error('Error actualizando tenant:', error)
+        return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    }
+}

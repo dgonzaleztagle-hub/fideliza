@@ -1,0 +1,158 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getSupabase } from '@/lib/supabase/admin'
+
+// GET /api/analytics/[slug]
+// Analytics avanzados del negocio
+export async function GET(
+    req: NextRequest,
+    { params }: { params: Promise<{ slug: string }> }
+) {
+    const supabase = getSupabase()
+    try {
+        const { slug } = await params
+
+        // Buscar tenant
+        const { data: tenant, error: tenantError } = await supabase
+            .from('tenants')
+            .select('id, nombre')
+            .eq('slug', slug)
+            .single()
+
+        if (tenantError || !tenant) {
+            return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
+        }
+
+        const tenantId = tenant.id
+
+        // 1. Total clientes
+        const { count: totalClientes } = await supabase
+            .from('customers')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+
+        // 2. Clientes nuevos esta semana
+        const hace7Dias = new Date()
+        hace7Dias.setDate(hace7Dias.getDate() - 7)
+        const { count: clientesNuevos } = await supabase
+            .from('customers')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+            .gte('created_at', hace7Dias.toISOString())
+
+        // 3. Clientes nuevos mes pasado (para comparación)
+        const hace30Dias = new Date()
+        hace30Dias.setDate(hace30Dias.getDate() - 30)
+        const hace60Dias = new Date()
+        hace60Dias.setDate(hace60Dias.getDate() - 60)
+        const { count: clientesMesPasado } = await supabase
+            .from('customers')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+            .gte('created_at', hace60Dias.toISOString())
+            .lt('created_at', hace30Dias.toISOString())
+
+        // 4. Stamps por día (últimos 30 días)
+        const { data: stampsData } = await supabase
+            .from('stamps')
+            .select('fecha')
+            .eq('tenant_id', tenantId)
+            .gte('fecha', hace30Dias.toISOString().split('T')[0])
+            .order('fecha', { ascending: true })
+
+        // Agrupar stamps por día
+        const stampsPorDia: Record<string, number> = {}
+        stampsData?.forEach(s => {
+            stampsPorDia[s.fecha] = (stampsPorDia[s.fecha] || 0) + 1
+        })
+
+        // 5. Visitas hoy
+        const hoy = new Date().toISOString().split('T')[0]
+        const visitasHoy = stampsPorDia[hoy] || 0
+
+        // 6. Total puntos dados
+        const { data: puntosData } = await supabase
+            .from('customers')
+            .select('total_puntos_historicos')
+            .eq('tenant_id', tenantId)
+
+        const totalPuntos = puntosData?.reduce((sum, c) => sum + (c.total_puntos_historicos || 0), 0) || 0
+
+        // 7. Total premios canjeados
+        const { count: totalRewards } = await supabase
+            .from('rewards')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+            .eq('canjeado', true)
+
+        // 8. Premios pendientes  
+        const { count: premiosPendientes } = await supabase
+            .from('rewards')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+            .eq('canjeado', false)
+
+        // 9. Tasa de retención (clientes con más de 1 visita / total)
+        const { data: retentionData } = await supabase
+            .from('customers')
+            .select('total_puntos_historicos')
+            .eq('tenant_id', tenantId)
+
+        const clientesRepetidos = retentionData?.filter(c => (c.total_puntos_historicos || 0) > 1).length || 0
+        const tasaRetencion = totalClientes && totalClientes > 0
+            ? Math.round((clientesRepetidos / totalClientes) * 100)
+            : 0
+
+        // 10. Top 10 clientes
+        const { data: topClientes } = await supabase
+            .from('customers')
+            .select('id, nombre, whatsapp, puntos_actuales, total_puntos_historicos, total_premios_canjeados')
+            .eq('tenant_id', tenantId)
+            .order('total_puntos_historicos', { ascending: false })
+            .limit(10)
+
+        // 11. Promedio de puntos por cliente
+        const promedioPuntos = totalClientes && totalClientes > 0
+            ? Math.round(totalPuntos / totalClientes)
+            : 0
+
+        // 12. Crecimiento porcentual de clientes
+        const { count: clientesMesActual } = await supabase
+            .from('customers')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+            .gte('created_at', hace30Dias.toISOString())
+
+        const crecimientoPct = clientesMesPasado && clientesMesPasado > 0
+            ? Math.round((((clientesMesActual || 0) - clientesMesPasado) / clientesMesPasado) * 100)
+            : 0
+
+        return NextResponse.json({
+            resumen: {
+                totalClientes: totalClientes || 0,
+                clientesNuevosSemana: clientesNuevos || 0,
+                visitasHoy,
+                totalPuntosDados: totalPuntos,
+                totalPremiosCanjeados: totalRewards || 0,
+                premiosPendientes: premiosPendientes || 0,
+                tasaRetencion,
+                promedioPuntosPorCliente: promedioPuntos,
+                crecimientoMensual: crecimientoPct
+            },
+            chartData: {
+                stampsPorDia: Object.entries(stampsPorDia).map(([fecha, count]) => ({
+                    fecha,
+                    visitas: count
+                }))
+            },
+            topClientes: topClientes || [],
+            periodo: {
+                desde: hace30Dias.toISOString().split('T')[0],
+                hasta: hoy
+            }
+        })
+
+    } catch (error) {
+        console.error('Error en analytics:', error)
+        return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    }
+}

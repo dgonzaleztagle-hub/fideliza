@@ -22,7 +22,9 @@ export async function POST(req: NextRequest) {
             puntos_meta,
             descripcion_premio,
             tipo_premio,
-            valor_premio
+            valor_premio,
+            tipo_programa,
+            config
         } = body
 
         if (!nombre || !email) {
@@ -97,6 +99,8 @@ export async function POST(req: NextRequest) {
                 descripcion_premio: descripcion_premio || 'Premio por tu lealtad',
                 tipo_premio: tipo_premio || 'descuento',
                 valor_premio: valor_premio || null,
+                tipo_programa: tipo_programa || 'sellos',
+                config: config || {},
                 activo: true
             })
             .select()

@@ -1,0 +1,416 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --bg-dark: #0a0a0f;
+    --bg-card: rgba(255, 255, 255, 0.04);
+    --bg-card-hover: rgba(255, 255, 255, 0.08);
+    --text-primary: #f0f0f5;
+    --text-secondary: #8b8b9e;
+    --text-muted: #5a5a6e;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-active: rgba(255, 255, 255, 0.15);
+    --success: #22c55e;
+    --radius: 16px;
+    --radius-sm: 10px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ===================== */
+/* PAGE LAYOUT           */
+/* ===================== */
+
+.mt-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    max-width: 540px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+/* ===================== */
+/* HEADER                */
+/* ===================== */
+
+.mt-header {
+    text-align: center;
+    padding: 2rem 0;
+    animation: fadeInDown 0.6s ease;
+}
+
+.mt-logo {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.mt-logo:hover {
+    color: var(--text-primary);
+}
+
+.mt-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin: 1rem 0 0.25rem;
+    background: linear-gradient(135deg, #f0f0f5, #6366f1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.mt-header p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+/* ===================== */
+/* SEARCH                */
+/* ===================== */
+
+.mt-search {
+    margin-bottom: 2rem;
+}
+
+.mt-search-field {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.mt-search-field input {
+    flex: 1;
+    padding: 0.875rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.3s;
+}
+
+.mt-search-field input::placeholder {
+    color: var(--text-muted);
+}
+
+.mt-search-field input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.mt-search-field button {
+    padding: 0.875rem 1.25rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.mt-search-field button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.mt-search-field button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ===================== */
+/* STATES                */
+/* ===================== */
+
+.mt-error {
+    padding: 0.75rem 1rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: var(--radius-sm);
+    color: #fca5a5;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.mt-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-secondary);
+}
+
+.mt-empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.mt-empty-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+}
+
+/* ===================== */
+/* CARDS                 */
+/* ===================== */
+
+.mt-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    animation: fadeInUp 0.6s ease;
+}
+
+.mt-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: all 0.3s;
+    border-top: 3px solid var(--card-color, #6366f1);
+}
+
+.mt-card:hover {
+    border-color: var(--border-active);
+    background: var(--bg-card-hover);
+}
+
+.mt-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem;
+}
+
+.mt-card-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+}
+
+.mt-card-logo-placeholder {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: white;
+    flex-shrink: 0;
+}
+
+.mt-card-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.mt-card-tipo {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* ===================== */
+/* CARD BODY             */
+/* ===================== */
+
+.mt-card-body {
+    padding: 0 1.25rem 1rem;
+}
+
+.mt-progress {
+    margin-bottom: 0.5rem;
+}
+
+.mt-progress-bar {
+    width: 100%;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 50px;
+    overflow: hidden;
+}
+
+.mt-progress-fill {
+    height: 100%;
+    border-radius: 50px;
+    transition: width 1s ease;
+}
+
+.mt-progress-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.4rem;
+    font-weight: 600;
+}
+
+.mt-premio {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+}
+
+/* Stats row */
+.mt-stats-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.mt-stat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+.mt-stat-value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.mt-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.2rem;
+}
+
+/* ===================== */
+/* PREMIOS SECTION       */
+/* ===================== */
+
+.mt-card-premios {
+    padding: 0 1.25rem 1rem;
+}
+
+.mt-premios-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.mt-premio-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    background: rgba(245, 158, 11, 0.05);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.4rem;
+}
+
+.mt-premio-item code {
+    font-size: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    color: #f59e0b;
+    font-family: 'Courier New', monospace;
+}
+
+.mt-premio-item span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* ===================== */
+/* CARD FOOTER           */
+/* ===================== */
+
+.mt-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.mt-card-link {
+    color: #6366f1;
+    text-decoration: none;
+    font-weight: 600;
+    transition: opacity 0.2s;
+}
+
+.mt-card-link:hover {
+    opacity: 0.8;
+}
+
+/* ===================== */
+/* MAIN & FOOTER         */
+/* ===================== */
+
+.mt-main {
+    flex: 1;
+    animation: fadeInUp 0.6s ease 0.2s both;
+}
+
+.mt-footer {
+    text-align: center;
+    padding: 2rem 0 1rem;
+    margin-top: auto;
+}
+
+.mt-footer p {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.mt-footer strong {
+    color: var(--text-secondary);
+}
+
+/* ===================== */
+/* ANIMATIONS            */
+/* ===================== */
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

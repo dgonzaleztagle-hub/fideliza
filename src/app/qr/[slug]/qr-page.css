@@ -248,7 +248,7 @@ body {
   margin-bottom: 0.5rem;
 }
 
-.qr-form > p {
+.qr-form>p {
   color: var(--text-secondary);
   margin-bottom: 1.5rem;
 }
@@ -412,12 +412,10 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent);
   animation: shimmer 2s infinite;
 }
 
@@ -437,6 +435,80 @@ body {
 
 .qr-next-prize strong {
   color: var(--primary, #6366f1);
+}
+
+/* ===================== */
+/* TYPE INFO CARDS       */
+/* ===================== */
+
+.qr-type-info-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin: 1rem 0;
+  text-align: left;
+}
+
+.qr-type-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+.qr-type-info-row:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.qr-type-info-row span {
+  color: var(--text-secondary);
+}
+
+.qr-type-info-row strong {
+  color: var(--text-primary);
+}
+
+.qr-highlight {
+  color: var(--primary, #6366f1) !important;
+  font-size: 1.2rem;
+}
+
+/* ===================== */
+/* GOOGLE WALLET BUTTON  */
+/* ===================== */
+
+.qr-wallet-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  margin-top: 1rem;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.qr-wallet-btn:hover {
+  background: linear-gradient(135deg, #16213e, #0f3460);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.qr-wallet-btn svg {
+  flex-shrink: 0;
 }
 
 /* ===================== */
@@ -467,6 +539,7 @@ body {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -478,6 +551,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -489,9 +563,11 @@ body {
     opacity: 0;
     transform: scale(0.8);
   }
+
   50% {
     transform: scale(1.05);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -499,9 +575,12 @@ body {
 }
 
 @keyframes bounce {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
@@ -511,6 +590,7 @@ body {
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }

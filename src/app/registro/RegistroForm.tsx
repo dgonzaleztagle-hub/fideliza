@@ -1,9 +1,68 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './registro.css'
 
-type OnboardingStep = 'negocio' | 'programa' | 'branding' | 'ubicacion' | 'listo'
+type OnboardingStep = 'negocio' | 'tipo' | 'programa' | 'branding' | 'ubicacion' | 'listo'
+
+const TIPOS_PROGRAMA = [
+    {
+        id: 'sellos',
+        icon: '⭐',
+        nombre: 'Tarjeta de Sellos',
+        descripcion: 'El clásico: cada visita = 1 sello. Al completar, ganan un premio.',
+        ejemplo: '10 cafés = 1 gratis'
+    },
+    {
+        id: 'cashback',
+        icon: '💰',
+        nombre: 'Cashback',
+        descripcion: 'Un % de cada compra se acumula como saldo a favor del cliente.',
+        ejemplo: '5% de cashback en cada compra'
+    },
+    {
+        id: 'multipase',
+        icon: '🎟️',
+        nombre: 'Multipase',
+        descripcion: 'Pack prepagado de usos. El cliente compra X servicios por un precio especial.',
+        ejemplo: '10 clases de yoga por $50.000'
+    },
+    {
+        id: 'membresia',
+        icon: '👑',
+        nombre: 'Membresía VIP',
+        descripcion: 'Clientes pagan una membresía mensual y obtienen beneficios exclusivos.',
+        ejemplo: 'VIP $15.000/mes = 10% dcto + prioridad'
+    },
+    {
+        id: 'descuento',
+        icon: '📊',
+        nombre: 'Descuento por Niveles',
+        descripcion: 'Mientras más visitas, mayor descuento permanente. Gamificación pura.',
+        ejemplo: '5 visitas = 5%, 15 visitas = 10%'
+    },
+    {
+        id: 'cupon',
+        icon: '🎫',
+        nombre: 'Cupón de Descuento',
+        descripcion: 'Cupón de un solo uso con descuento fijo. Ideal para promos puntuales.',
+        ejemplo: '15% de descuento en tu primera compra'
+    },
+    {
+        id: 'regalo',
+        icon: '🎁',
+        nombre: 'Gift Card',
+        descripcion: 'Tarjeta de regalo con saldo precargado. Perfecta para regalos.',
+        ejemplo: 'Gift card de $25.000'
+    },
+    {
+        id: 'afiliacion',
+        icon: '📱',
+        nombre: 'Afiliación',
+        descripcion: 'Sin puntos ni premios: solo registro y notificaciones. Para mantener el contacto.',
+        ejemplo: 'Recibe nuestras promos exclusivas'
+    }
+]
 
 export default function RegistroForm() {
     const [step, setStep] = useState<OnboardingStep>('negocio')
@@ -18,11 +77,36 @@ export default function RegistroForm() {
     const [telefono, setTelefono] = useState('')
     const [direccion, setDireccion] = useState('')
 
-    // Programa
+    // Tipo de programa
+    const [tipoPrograma, setTipoPrograma] = useState('sellos')
+
+    // Programa - Sellos
     const [puntosMeta, setPuntosMeta] = useState(10)
     const [descripcionPremio, setDescripcionPremio] = useState('')
     const [tipoPremio, setTipoPremio] = useState('descuento')
     const [valorPremio, setValorPremio] = useState('')
+
+    // Programa - Cashback
+    const [cashbackPorcentaje, setCashbackPorcentaje] = useState(5)
+    const [cashbackTope, setCashbackTope] = useState(10000)
+
+    // Programa - Multipase
+    const [multipaseUsos, setMultipaseUsos] = useState(10)
+    const [multipasePrecio, setMultipasePrecio] = useState(50000)
+    const [multipaseServicio, setMultipaseServicio] = useState('')
+
+    // Programa - Membresía
+    const [membresiaPrecio, setMembresiaPrecio] = useState(15000)
+    const [membresiaBeneficios, setMembresiaBeneficios] = useState('10% descuento, Prioridad en reservas')
+
+    // Programa - Descuento por niveles
+    const [descuentoNiveles, setDescuentoNiveles] = useState('5:5,15:10,30:15')
+
+    // Programa - Cupón
+    const [cuponDescuento, setCuponDescuento] = useState(15)
+
+    // Programa - Regalo
+    const [regaloValor, setRegaloValor] = useState(25000)
 
     // Branding
     const [colorPrimario, setColorPrimario] = useState('#6366f1')
@@ -52,6 +136,55 @@ export default function RegistroForm() {
         )
     }
 
+    function buildProgramConfig() {
+        switch (tipoPrograma) {
+            case 'cashback':
+                return {
+                    porcentaje: cashbackPorcentaje,
+                    tope_mensual: cashbackTope
+                }
+            case 'multipase':
+                return {
+                    cantidad_usos: multipaseUsos,
+                    precio_pack: multipasePrecio,
+                    servicio: multipaseServicio
+                }
+            case 'membresia':
+                return {
+                    precio_mensual: membresiaPrecio,
+                    beneficios: membresiaBeneficios.split(',').map(b => b.trim())
+                }
+            case 'descuento':
+                return {
+                    niveles: descuentoNiveles.split(',').map(n => {
+                        const [visitas, descuento] = n.split(':')
+                        return { visitas: Number(visitas), descuento: Number(descuento) }
+                    })
+                }
+            case 'cupon':
+                return { descuento_porcentaje: cuponDescuento }
+            case 'regalo':
+                return { valor_maximo: regaloValor }
+            default:
+                return {}
+        }
+    }
+
+    function buildDescripcionPremioAuto(): string {
+        if (descripcionPremio) return descripcionPremio
+        switch (tipoPrograma) {
+            case 'sellos': return valorPremio ? `${valorPremio} de descuento` : 'Premio al completar'
+            case 'cashback': return `${cashbackPorcentaje}% de cashback en cada compra`
+            case 'multipase': return `Pack de ${multipaseUsos} usos por $${multipasePrecio.toLocaleString()}`
+            case 'membresia': return `Membresía VIP $${membresiaPrecio.toLocaleString()}/mes`
+            case 'descuento': return 'Descuento progresivo por visitas'
+            case 'cupon': return `${cuponDescuento}% de descuento`
+            case 'regalo': return `Gift Card hasta $${regaloValor.toLocaleString()}`
+            case 'afiliacion': return 'Programa de notificaciones'
+            default: return ''
+        }
+    }
+
     async function handleSubmit() {
         setLoading(true)
         setError('')
@@ -66,10 +199,12 @@ export default function RegistroForm() {
                     email,
                     telefono,
                     direccion,
-                    puntos_meta: puntosMeta,
-                    descripcion_premio: descripcionPremio || `${valorPremio} de descuento`,
+                    puntos_meta: tipoPrograma === 'sellos' ? puntosMeta : 999,
+                    descripcion_premio: buildDescripcionPremioAuto(),
                     tipo_premio: tipoPremio,
                     valor_premio: valorPremio,
+                    tipo_programa: tipoPrograma,
+                    config: buildProgramConfig(),
                     color_primario: colorPrimario,
                     lat: lat ? parseFloat(lat) : null,
                     lng: lng ? parseFloat(lng) : null,
@@ -94,19 +229,22 @@ export default function RegistroForm() {
 
     const steps: { key: OnboardingStep; label: string; number: number }[] = [
         { key: 'negocio', label: 'Tu negocio', number: 1 },
-        { key: 'programa', label: 'Programa', number: 2 },
-        { key: 'branding', label: 'Diseño', number: 3 },
-        { key: 'ubicacion', label: 'Ubicación', number: 4 },
+        { key: 'tipo', label: 'Tipo', number: 2 },
+        { key: 'programa', label: 'Programa', number: 3 },
+        { key: 'branding', label: 'Diseño', number: 4 },
+        { key: 'ubicacion', label: 'Ubicación', number: 5 },
     ]
 
     const currentStepIndex = steps.findIndex(s => s.key === step)
+
+    const tipoActual = TIPOS_PROGRAMA.find(t => t.id === tipoPrograma)
 
     return (
         <div className="registro-page">
             {/* Header */}
             <header className="registro-header">
                 <a href="/" className="registro-logo">
-                    <span>💎</span> Fideliza
+                    <span>💎</span> Vuelve+
                 </a>
             </header>
 
@@ -167,6 +305,9 @@ export default function RegistroForm() {
                                 <option value="gym">Gimnasio</option>
                                 <option value="belleza">Centro de belleza</option>
                                 <option value="lavanderia">Lavandería</option>
+                                <option value="fitness">Yoga / Pilates / Fitness</option>
+                                <option value="salud">Salud / Clínica</option>
+                                <option value="auto">Lavado de autos</option>
                                 <option value="otro">Otro</option>
                             </select>
                         </div>
@@ -209,7 +350,7 @@ export default function RegistroForm() {
                                     return
                                 }
                                 setError('')
-                                setStep('programa')
+                                setStep('tipo')
                             }}
                         >
                             Siguiente →
@@ -217,91 +358,285 @@ export default function RegistroForm() {
                     </div>
                 )}
 
-                {/* PASO 2: Programa de lealtad */}
-                {step === 'programa' && (
-                    <div className="registro-card">
+                {/* PASO 2: Tipo de programa */}
+                {step === 'tipo' && (
+                    <div className="registro-card registro-card-wide">
                         <div className="registro-card-icon">🎯</div>
-                        <h2>Diseña tu programa</h2>
-                        <p>¿Cuántos puntos y qué premio?</p>
+                        <h2>¿Qué tipo de programa quieres?</h2>
+                        <p>Elige el que mejor se adapte a tu negocio. Puedes cambiarlo después.</p>
 
-                        <div className="registro-field">
-                            <label>¿Cuántos puntos para ganar?</label>
-                            <div className="registro-puntos-selector">
-                                {[5, 8, 10, 12, 15, 20].map((n) => (
-                                    <button
-                                        key={n}
-                                        className={`registro-punto-btn ${puntosMeta === n ? 'active' : ''}`}
-                                        onClick={() => setPuntosMeta(n)}
-                                        type="button"
-                                    >
-                                        {n}
-                                    </button>
-                                ))}
-                            </div>
-                            <p className="registro-field-hint">
-                                Recomendamos entre 8 y 12 para mantener la motivación
-                            </p>
-                        </div>
-
-                        <div className="registro-field">
-                            <label>Tipo de premio</label>
-                            <select value={tipoPremio} onChange={(e) => setTipoPremio(e.target.value)}>
-                                <option value="descuento">Descuento (%)</option>
-                                <option value="gratis">Producto/Servicio gratis</option>
-                                <option value="regalo">Regalo</option>
-                                <option value="otro">Otro</option>
-                            </select>
-                        </div>
-
-                        {tipoPremio === 'descuento' && (
-                            <div className="registro-field">
-                                <label>¿Cuánto descuento?</label>
-                                <div className="registro-descuento-selector">
-                                    {['10%', '15%', '20%', '25%', '30%', '50%'].map((v) => (
-                                        <button
-                                            key={v}
-                                            className={`registro-punto-btn ${valorPremio === v ? 'active' : ''}`}
-                                            onClick={() => {
-                                                setValorPremio(v)
-                                                setDescripcionPremio(`${v} de descuento en tu próxima compra`)
-                                            }}
-                                            type="button"
-                                        >
-                                            {v}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {tipoPremio !== 'descuento' && (
-                            <div className="registro-field">
-                                <label>Describe el premio</label>
-                                <input
-                                    type="text"
-                                    value={descripcionPremio}
-                                    onChange={(e) => setDescripcionPremio(e.target.value)}
-                                    placeholder="Ej: Un corte de pelo gratis"
-                                />
-                            </div>
-                        )}
-
-                        {/* Preview */}
-                        <div className="registro-preview">
-                            <p className="registro-preview-label">Así se verá:</p>
-                            <div className="registro-preview-card">
-                                🎯 <strong>{puntosMeta} puntos</strong> = {descripcionPremio || valorPremio || 'Tu premio'}
-                            </div>
+                        <div className="registro-tipo-grid">
+                            {TIPOS_PROGRAMA.map((tipo) => (
+                                <button
+                                    key={tipo.id}
+                                    className={`registro-tipo-card ${tipoPrograma === tipo.id ? 'selected' : ''}`}
+                                    onClick={() => setTipoPrograma(tipo.id)}
+                                    type="button"
+                                >
+                                    <span className="registro-tipo-icon">{tipo.icon}</span>
+                                    <strong className="registro-tipo-nombre">{tipo.nombre}</strong>
+                                    <p className="registro-tipo-desc">{tipo.descripcion}</p>
+                                    <span className="registro-tipo-ejemplo">Ej: {tipo.ejemplo}</span>
+                                </button>
+                            ))}
                         </div>
 
                         <div className="registro-btn-group">
                             <button className="registro-btn-back" onClick={() => setStep('negocio')}>
                                 ← Atrás
                             </button>
+                            <button className="registro-btn-next" onClick={() => setStep('programa')}>
+                                Siguiente →
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* PASO 3: Configuración del programa */}
+                {step === 'programa' && (
+                    <div className="registro-card">
+                        <div className="registro-card-icon">{tipoActual?.icon || '🎯'}</div>
+                        <h2>Configura tu {tipoActual?.nombre}</h2>
+                        <p>Ajusta los detalles de tu programa</p>
+
+                        {/* SELLOS */}
+                        {tipoPrograma === 'sellos' && (
+                            <>
+                                <div className="registro-field">
+                                    <label>¿Cuántos puntos para ganar?</label>
+                                    <div className="registro-puntos-selector">
+                                        {[5, 8, 10, 12, 15, 20].map((n) => (
+                                            <button
+                                                key={n}
+                                                className={`registro-punto-btn ${puntosMeta === n ? 'active' : ''}`}
+                                                onClick={() => setPuntosMeta(n)}
+                                                type="button"
+                                            >
+                                                {n}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="registro-field-hint">
+                                        Recomendamos entre 8 y 12 para mantener la motivación
+                                    </p>
+                                </div>
+
+                                <div className="registro-field">
+                                    <label>Tipo de premio</label>
+                                    <select value={tipoPremio} onChange={(e) => setTipoPremio(e.target.value)}>
+                                        <option value="descuento">Descuento (%)</option>
+                                        <option value="gratis">Producto/Servicio gratis</option>
+                                        <option value="regalo">Regalo</option>
+                                        <option value="otro">Otro</option>
+                                    </select>
+                                </div>
+
+                                {tipoPremio === 'descuento' && (
+                                    <div className="registro-field">
+                                        <label>¿Cuánto descuento?</label>
+                                        <div className="registro-descuento-selector">
+                                            {['10%', '15%', '20%', '25%', '30%', '50%'].map((v) => (
+                                                <button
+                                                    key={v}
+                                                    className={`registro-punto-btn ${valorPremio === v ? 'active' : ''}`}
+                                                    onClick={() => {
+                                                        setValorPremio(v)
+                                                        setDescripcionPremio(`${v} de descuento en tu próxima compra`)
+                                                    }}
+                                                    type="button"
+                                                >
+                                                    {v}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {tipoPremio !== 'descuento' && (
+                                    <div className="registro-field">
+                                        <label>Describe el premio</label>
+                                        <input
+                                            type="text"
+                                            value={descripcionPremio}
+                                            onChange={(e) => setDescripcionPremio(e.target.value)}
+                                            placeholder="Ej: Un corte de pelo gratis"
+                                        />
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* CASHBACK */}
+                        {tipoPrograma === 'cashback' && (
+                            <>
+                                <div className="registro-field">
+                                    <label>% de cashback por compra</label>
+                                    <div className="registro-puntos-selector">
+                                        {[3, 5, 7, 10, 15].map((n) => (
+                                            <button
+                                                key={n}
+                                                className={`registro-punto-btn ${cashbackPorcentaje === n ? 'active' : ''}`}
+                                                onClick={() => setCashbackPorcentaje(n)}
+                                                type="button"
+                                            >
+                                                {n}%
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="registro-field">
+                                    <label>Tope mensual de cashback ($)</label>
+                                    <input
+                                        type="number"
+                                        value={cashbackTope}
+                                        onChange={(e) => setCashbackTope(Number(e.target.value))}
+                                        placeholder="10000"
+                                    />
+                                    <p className="registro-field-hint">Para proteger tu margen</p>
+                                </div>
+                            </>
+                        )}
+
+                        {/* MULTIPASE */}
+                        {tipoPrograma === 'multipase' && (
+                            <>
+                                <div className="registro-field">
+                                    <label>Servicio del pack</label>
+                                    <input
+                                        type="text"
+                                        value={multipaseServicio}
+                                        onChange={(e) => setMultipaseServicio(e.target.value)}
+                                        placeholder="Ej: Clase de yoga, Lavado de auto"
+                                    />
+                                </div>
+                                <div className="registro-field">
+                                    <label>Cantidad de usos</label>
+                                    <div className="registro-puntos-selector">
+                                        {[5, 8, 10, 15, 20].map((n) => (
+                                            <button
+                                                key={n}
+                                                className={`registro-punto-btn ${multipaseUsos === n ? 'active' : ''}`}
+                                                onClick={() => setMultipaseUsos(n)}
+                                                type="button"
+                                            >
+                                                {n}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="registro-field">
+                                    <label>Precio del pack ($)</label>
+                                    <input
+                                        type="number"
+                                        value={multipasePrecio}
+                                        onChange={(e) => setMultipasePrecio(Number(e.target.value))}
+                                        placeholder="50000"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {/* MEMBRESÍA */}
+                        {tipoPrograma === 'membresia' && (
+                            <>
+                                <div className="registro-field">
+                                    <label>Precio mensual ($)</label>
+                                    <input
+                                        type="number"
+                                        value={membresiaPrecio}
+                                        onChange={(e) => setMembresiaPrecio(Number(e.target.value))}
+                                        placeholder="15000"
+                                    />
+                                </div>
+                                <div className="registro-field">
+                                    <label>Beneficios (separados por coma)</label>
+                                    <input
+                                        type="text"
+                                        value={membresiaBeneficios}
+                                        onChange={(e) => setMembresiaBeneficios(e.target.value)}
+                                        placeholder="10% descuento, Prioridad en reservas, Promos exclusivas"
+                                    />
+                                    <p className="registro-field-hint">Ej: 10% descuento, Prioridad, Promos exclusivas</p>
+                                </div>
+                            </>
+                        )}
+
+                        {/* DESCUENTO POR NIVELES */}
+                        {tipoPrograma === 'descuento' && (
+                            <div className="registro-field">
+                                <label>Niveles (visitas:descuento%, separados por coma)</label>
+                                <input
+                                    type="text"
+                                    value={descuentoNiveles}
+                                    onChange={(e) => setDescuentoNiveles(e.target.value)}
+                                    placeholder="5:5,15:10,30:15"
+                                />
+                                <p className="registro-field-hint">
+                                    Formato: 5 visitas = 5%, 15 visitas = 10%, etc.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* CUPÓN */}
+                        {tipoPrograma === 'cupon' && (
+                            <div className="registro-field">
+                                <label>% de descuento del cupón</label>
+                                <div className="registro-puntos-selector">
+                                    {[10, 15, 20, 25, 30, 50].map((n) => (
+                                        <button
+                                            key={n}
+                                            className={`registro-punto-btn ${cuponDescuento === n ? 'active' : ''}`}
+                                            onClick={() => setCuponDescuento(n)}
+                                            type="button"
+                                        >
+                                            {n}%
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* REGALO */}
+                        {tipoPrograma === 'regalo' && (
+                            <div className="registro-field">
+                                <label>Valor máximo de la gift card ($)</label>
+                                <input
+                                    type="number"
+                                    value={regaloValor}
+                                    onChange={(e) => setRegaloValor(Number(e.target.value))}
+                                    placeholder="25000"
+                                />
+                            </div>
+                        )}
+
+                        {/* AFILIACIÓN - No necesita config */}
+                        {tipoPrograma === 'afiliacion' && (
+                            <div className="registro-preview">
+                                <p className="registro-preview-label">Perfecto 👌</p>
+                                <div className="registro-preview-card">
+                                    📱 Tus clientes se registran y reciben tus promos y novedades
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Preview genérico */}
+                        {tipoPrograma !== 'afiliacion' && (
+                            <div className="registro-preview">
+                                <p className="registro-preview-label">Así se verá:</p>
+                                <div className="registro-preview-card">
+                                    {tipoActual?.icon} <strong>{tipoActual?.nombre}</strong> — {buildDescripcionPremioAuto()}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="registro-btn-group">
+                            <button className="registro-btn-back" onClick={() => setStep('tipo')}>
+                                ← Atrás
+                            </button>
                             <button
                                 className="registro-btn-next"
                                 onClick={() => {
-                                    if (!descripcionPremio && !valorPremio) {
+                                    if (tipoPrograma === 'sellos' && !descripcionPremio && !valorPremio) {
                                         setError('Define un premio para tus clientes')
                                         return
                                     }
@@ -315,7 +650,7 @@ export default function RegistroForm() {
                     </div>
                 )}
 
-                {/* PASO 3: Branding */}
+                {/* PASO 4: Branding */}
                 {step === 'branding' && (
                     <div className="registro-card">
                         <div className="registro-card-icon">🎨</div>
@@ -350,19 +685,26 @@ export default function RegistroForm() {
                                 <span>{nombre || 'Tu Negocio'}</span>
                             </div>
                             <div className="registro-card-preview-body">
-                                <p>Tarjeta de Lealtad</p>
-                                <div className="registro-card-preview-dots">
-                                    {Array.from({ length: Math.min(puntosMeta, 10) }).map((_, i) => (
-                                        <div
-                                            key={i}
-                                            className="registro-card-preview-dot"
-                                            style={{
-                                                background: i < 3 ? colorPrimario : 'rgba(255,255,255,0.1)',
-                                                borderColor: colorPrimario
-                                            }}
-                                        />
-                                    ))}
-                                </div>
+                                <p>{tipoActual?.nombre || 'Tarjeta de Lealtad'}</p>
+                                {tipoPrograma === 'sellos' && (
+                                    <div className="registro-card-preview-dots">
+                                        {Array.from({ length: Math.min(puntosMeta, 10) }).map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className="registro-card-preview-dot"
+                                                style={{
+                                                    background: i < 3 ? colorPrimario : 'rgba(255,255,255,0.1)',
+                                                    borderColor: colorPrimario
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                                {tipoPrograma !== 'sellos' && (
+                                    <p className="registro-card-preview-type-info">
+                                        {tipoActual?.icon} {buildDescripcionPremioAuto()}
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -377,7 +719,7 @@ export default function RegistroForm() {
                     </div>
                 )}
 
-                {/* PASO 4: Ubicación */}
+                {/* PASO 5: Ubicación */}
                 {step === 'ubicacion' && (
                     <div className="registro-card">
                         <div className="registro-card-icon">📍</div>
@@ -431,12 +773,12 @@ export default function RegistroForm() {
                     </div>
                 )}
 
-                {/* PASO 5: ¡Listo! */}
+                {/* PASO 6: ¡Listo! */}
                 {step === 'listo' && result && (
                     <div className="registro-card registro-success">
                         <div className="registro-success-confetti">🎉🚀✨</div>
                         <h2>¡Tu programa está listo!</h2>
-                        <p>Ya puedes empezar a fidelizar clientes</p>
+                        <p>Ya puedes empezar a fidelizar clientes con <strong>{tipoActual?.nombre}</strong></p>
 
                         <div className="registro-success-info">
                             <div className="registro-success-item">
@@ -463,9 +805,16 @@ export default function RegistroForm() {
                             </div>
 
                             <div className="registro-success-item">
-                                <span className="registro-success-label">Tu programa:</span>
+                                <span className="registro-success-label">Tipo de programa:</span>
                                 <span className="registro-success-value">
-                                    {result.program?.puntos_meta} puntos = {result.program?.descripcion_premio}
+                                    {tipoActual?.icon} {tipoActual?.nombre}
+                                </span>
+                            </div>
+
+                            <div className="registro-success-item">
+                                <span className="registro-success-label">Detalle:</span>
+                                <span className="registro-success-value">
+                                    {buildDescripcionPremioAuto()}
                                 </span>
                             </div>
                         </div>
@@ -476,6 +825,7 @@ export default function RegistroForm() {
                                 <li>📱 Abre el link del QR en tu celular para probarlo</li>
                                 <li>🖨️ Imprime el QR y pégalo en tu mostrador</li>
                                 <li>📊 Entra a tu panel para ver las estadísticas</li>
+                                <li>📢 Envía tu primera notificación a los clientes</li>
                             </ol>
                         </div>
 
