@@ -11,14 +11,37 @@ export async function GET(
     try {
         const { slug } = await params
 
-        // Buscar tenant
-        const { data: tenant, error: tenantError } = await supabase
+        // Normalizar: quitar espacios extra, lowercase, reemplazar espacios con guiones
+        const normalizedSlug = slug.trim().toLowerCase().replace(/\s+/g, '-')
+
+        // 1. Buscar por slug exacto
+        let { data: tenant } = await supabase
             .from('tenants')
             .select('*')
             .eq('slug', slug)
             .single()
 
-        if (tenantError || !tenant) {
+        // 2. Si no encuentra, intentar con slug normalizado
+        if (!tenant) {
+            const { data: t2 } = await supabase
+                .from('tenants')
+                .select('*')
+                .eq('slug', normalizedSlug)
+                .single()
+            tenant = t2
+        }
+
+        // 3. Si aún no, buscar por nombre (case-insensitive)
+        if (!tenant) {
+            const { data: t3 } = await supabase
+                .from('tenants')
+                .select('*')
+                .ilike('nombre', slug.trim())
+                .single()
+            tenant = t3
+        }
+
+        if (!tenant) {
             return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
         }
 

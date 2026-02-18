@@ -554,6 +554,60 @@
     text-decoration: underline;
 }
 
+/* Slug box */
+.registro-success-slug {
+    background: rgba(99, 102, 241, 0.06);
+    border: 1px solid rgba(99, 102, 241, 0.15) !important;
+    border-radius: 12px;
+    border-bottom: none !important;
+}
+
+.registro-slug-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.registro-slug-value {
+    flex: 1;
+    padding: 0.6rem 0.75rem;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #a78bfa;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.02em;
+}
+
+.registro-slug-copy {
+    padding: 0.6rem 0.75rem;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+    color: #a78bfa;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.registro-slug-copy:hover {
+    background: rgba(99, 102, 241, 0.25);
+}
+
+.registro-slug-warning {
+    font-size: 0.8rem !important;
+    color: #fbbf24 !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0 !important;
+    line-height: 1.5;
+}
+
 .registro-success-next {
     margin: 1.5rem 0;
     text-align: left;

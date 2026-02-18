@@ -356,14 +356,14 @@ export default function ClientePanel() {
                 <div className="cliente-login">
                     <div className="cliente-login-icon">💎</div>
                     <h1>Panel de Negocio</h1>
-                    <p>Ingresa el slug de tu negocio para acceder</p>
+                    <p>Ingresa el nombre de tu negocio para acceder</p>
                     <form onSubmit={(e) => { e.preventDefault(); loadTenantData(tenantSlug) }}>
                         <div className="cliente-login-field">
                             <input
                                 type="text"
                                 value={tenantSlug}
                                 onChange={(e) => setTenantSlug(e.target.value)}
-                                placeholder="ej: barberia-don-pedro"
+                                placeholder="Ej: Pizzeria El Benni"
                                 autoFocus
                             />
                         </div>

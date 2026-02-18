@@ -781,6 +781,29 @@ export default function RegistroForm() {
                         <p>Ya puedes empezar a fidelizar clientes con <strong>{tipoActual?.nombre}</strong></p>
 
                         <div className="registro-success-info">
+                            {/* SLUG - Prominente */}
+                            <div className="registro-success-item registro-success-slug">
+                                <span className="registro-success-label">🔑 Tu nombre de acceso al panel:</span>
+                                <div className="registro-slug-box">
+                                    <code className="registro-slug-value">{result.tenant?.slug || 'N/A'}</code>
+                                    <button
+                                        type="button"
+                                        className="registro-slug-copy"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(result.tenant?.slug || '')
+                                            const btn = document.querySelector('.registro-slug-copy') as HTMLButtonElement
+                                            if (btn) { btn.textContent = '✅ Copiado!'; setTimeout(() => { btn.textContent = '📋 Copiar' }, 2000) }
+                                        }}
+                                    >
+                                        📋 Copiar
+                                    </button>
+                                </div>
+                                <p className="registro-slug-warning">
+                                    ⚠️ <strong>Guarda este nombre.</strong> Lo necesitas para entrar a tu panel.
+                                    También puedes entrar escribiendo el nombre de tu negocio.
+                                </p>
+                            </div>
+
                             <div className="registro-success-item">
                                 <span className="registro-success-label">Tu QR para el local:</span>
                                 <a
