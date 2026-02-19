@@ -517,6 +517,39 @@ body {
 }
 
 /* ===================== */
+/* WHATSAPP SHARE BUTTON */
+/* ===================== */
+
+.qr-wa-share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.9rem 1.5rem;
+  margin-top: 1rem;
+  background: #25d366;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(37, 211, 102, 0.2);
+}
+
+.qr-wa-share-btn:hover {
+  background: #22c35e;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.3);
+}
+
+.qr-wa-share-btn:active {
+  transform: scale(0.98);
+}
+
+/* ===================== */
 /* FOOTER                */
 /* ===================== */
 

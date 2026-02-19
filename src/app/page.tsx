@@ -258,7 +258,7 @@ export default function Home() {
             </div>
             <div className="price-amount">
               <span className="price-currency">$</span>
-              <span className="price-number">19.990</span>
+              <span className="price-number">29.990</span>
               <span className="price-period">/mes</span>
             </div>
             <ul className="price-features">

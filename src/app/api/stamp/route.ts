@@ -140,77 +140,25 @@ async function safeInsertStamp(supabase: any, customer_id: string, tenant_id: st
 // ═══════════════════════════════════════════════════
 
 async function handleSellos(supabase: any, customer: any, program: any, tenant_id: string) {
-    // Intentar insertar el stamp (la constraint UNIQUE evita duplicados del mismo día)
-    const { error: stampError } = await supabase
-        .from('stamps')
-        .insert({
-            customer_id: customer.id,
-            tenant_id,
-            fecha: new Date().toISOString().split('T')[0]
-        })
+    // Llamar a la RPC atómica para procesar el stamp y el premio en una sola transacción
+    const { data, error: rpcError } = await supabase.rpc('process_stamp_and_reward', {
+        p_tenant_id: tenant_id,
+        p_whatsapp: customer.whatsapp
+    })
 
-    if (stampError) {
-        if (stampError.code === '23505') {
-            return NextResponse.json({
-                message: '¡Ya sumaste tu punto hoy! Vuelve mañana 😊',
-                puntos_actuales: customer.puntos_actuales,
-                puntos_meta: program.puntos_meta,
-                tipo_programa: 'sellos',
-                alreadyStamped: true
-            })
-        }
-        console.error('Error insertando stamp:', stampError)
-        return NextResponse.json({ error: 'Error sumando punto' }, { status: 500 })
+    if (rpcError) {
+        console.error('Error en RPC handleSellos:', rpcError)
+        return NextResponse.json({ error: 'Error procesando punto de forma atómica' }, { status: 500 })
     }
 
-    const nuevosPuntos = customer.puntos_actuales + 1
-    const nuevoTotal = (customer.total_puntos_historicos || 0) + 1
-    const llegoAMeta = nuevosPuntos >= program.puntos_meta
-    let reward = null
-
-    if (llegoAMeta) {
-        const rewardQR = `PREMIO-${uuidv4().slice(0, 8).toUpperCase()}`
-        const { data: newReward, error: rewardError } = await supabase
-            .from('rewards')
-            .insert({
-                customer_id: customer.id,
-                tenant_id,
-                program_id: program.id,
-                qr_code: rewardQR,
-                descripcion: program.descripcion_premio
-            })
-            .select()
-            .single()
-
-        if (!rewardError) reward = newReward
-
-        await supabase
-            .from('customers')
-            .update({
-                puntos_actuales: 0,
-                total_puntos_historicos: nuevoTotal,
-                total_premios_canjeados: (customer.total_premios_canjeados || 0)
-            })
-            .eq('id', customer.id)
-    } else {
-        await supabase
-            .from('customers')
-            .update({
-                puntos_actuales: nuevosPuntos,
-                total_puntos_historicos: nuevoTotal
-            })
-            .eq('id', customer.id)
+    if (data.error) {
+        return NextResponse.json({ error: data.error }, { status: 400 })
     }
 
+    // Adaptar respuesta de RPC a lo que el frontend espera
     return NextResponse.json({
-        message: llegoAMeta
-            ? `🎉 ¡Felicidades! Llegaste a ${program.puntos_meta} puntos. ${program.descripcion_premio}`
-            : `✅ ¡Punto sumado! Llevas ${nuevosPuntos}/${program.puntos_meta}`,
-        puntos_actuales: llegoAMeta ? 0 : nuevosPuntos,
-        puntos_meta: program.puntos_meta,
-        tipo_programa: 'sellos',
-        llegoAMeta,
-        reward: reward ? { qr_code: reward.qr_code, descripcion: reward.descripcion } : null
+        ...data,
+        puntos_meta: program.puntos_meta // Asegurar que viaja el meta para la UI
     })
 }
 

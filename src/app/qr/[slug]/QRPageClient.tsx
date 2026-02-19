@@ -240,6 +240,14 @@ export default function QRPageClient({ tenant, program }: Props) {
                                 <p className="qr-reward-instructions">
                                     📱 Guarda este código. Muéstralo en tu próxima visita para canjear tu premio.
                                 </p>
+                                <a
+                                    href={`https://wa.me/?text=${encodeURIComponent(`¡Mira! Acabo de ganar un premio en ${tenant.nombre}: ${result.reward.descripcion}. Mi código es: ${result.reward.qr_code}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="qr-wa-share-btn"
+                                >
+                                    <span>📩 Guardar en mi WhatsApp</span>
+                                </a>
                             </div>
                         )}
                     </div>

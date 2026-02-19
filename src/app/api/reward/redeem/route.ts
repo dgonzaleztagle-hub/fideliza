@@ -15,64 +15,29 @@ export async function POST(req: NextRequest) {
             )
         }
 
-        // Buscar el reward
-        const { data: reward, error: rewardError } = await supabase
-            .from('rewards')
-            .select('*, customers(nombre, whatsapp)')
-            .eq('qr_code', qr_code)
-            .eq('tenant_id', tenant_id)
-            .single()
+        // Llamar a la RPC atómica para el canje
+        const { data, error: rpcError } = await supabase.rpc('redeem_reward_atomic', {
+            p_qr_code: qr_code,
+            p_tenant_id: tenant_id
+        })
 
-        if (rewardError || !reward) {
+        if (rpcError) {
+            console.error('Error en RPC redeem_reward_atomic:', rpcError)
+            return NextResponse.json({ error: 'Error al procesar el canje de forma atómica' }, { status: 500 })
+        }
+
+        if (data.error) {
             return NextResponse.json({
-                error: 'Premio no encontrado o no pertenece a este negocio',
+                error: data.error,
                 valid: false
-            }, { status: 404 })
-        }
-
-        if (reward.canjeado) {
-            return NextResponse.json({
-                message: '❌ Este premio ya fue canjeado',
-                valid: false,
-                fecha_canjeado: reward.fecha_canjeado
-            })
-        }
-
-        // Marcar como canjeado
-        const { error: updateError } = await supabase
-            .from('rewards')
-            .update({
-                canjeado: true,
-                fecha_canjeado: new Date().toISOString()
-            })
-            .eq('id', reward.id)
-
-        if (updateError) {
-            console.error('Error canjeando premio:', updateError)
-            return NextResponse.json({ error: 'Error al canjear premio' }, { status: 500 })
-        }
-
-        // Actualizar contador del cliente
-        const { data: customer } = await supabase
-            .from('customers')
-            .select('total_premios_canjeados')
-            .eq('id', reward.customer_id)
-            .single()
-
-        if (customer) {
-            await supabase
-                .from('customers')
-                .update({
-                    total_premios_canjeados: (customer.total_premios_canjeados || 0) + 1
-                })
-                .eq('id', reward.customer_id)
+            }, { status: 400 })
         }
 
         return NextResponse.json({
-            message: '✅ ¡Premio canjeado exitosamente!',
+            message: data.message,
             valid: true,
-            premio: reward.descripcion,
-            cliente: reward.customers
+            premio: data.premio,
+            cliente: { nombre: data.cliente }
         })
 
     } catch (error) {
