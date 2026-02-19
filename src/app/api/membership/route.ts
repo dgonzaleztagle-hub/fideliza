@@ -237,3 +237,59 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }
 }
+
+// DELETE /api/membership
+// Desactivar membresía de un cliente
+export async function DELETE(req: NextRequest) {
+    const supabase = getSupabase()
+    try {
+        const { tenant_id, whatsapp } = await req.json()
+
+        if (!tenant_id || !whatsapp) {
+            return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })
+        }
+
+        // Buscar cliente
+        const { data: customer } = await supabase
+            .from('customers')
+            .select('id, nombre')
+            .eq('tenant_id', tenant_id)
+            .eq('whatsapp', whatsapp)
+            .single()
+
+        if (!customer) {
+            return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
+        }
+
+        // Buscar membresía activa
+        const { data: membership } = await supabase
+            .from('memberships')
+            .select('id')
+            .eq('customer_id', customer.id)
+            .eq('tenant_id', tenant_id)
+            .eq('estado', 'activo')
+            .single()
+
+        if (!membership) {
+            return NextResponse.json({ error: 'No tiene membresía activa' }, { status: 404 })
+        }
+
+        // Desactivar
+        const { error } = await supabase
+            .from('memberships')
+            .update({ estado: 'cancelado', updated_at: new Date().toISOString() })
+            .eq('id', membership.id)
+
+        if (error) {
+            return NextResponse.json({ error: 'Error al desactivar' }, { status: 500 })
+        }
+
+        return NextResponse.json({
+            message: `❌ Membresía desactivada para ${customer.nombre}`
+        })
+
+    } catch (error) {
+        console.error('Error desactivando membresía:', error)
+        return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    }
+}

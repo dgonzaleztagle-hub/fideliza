@@ -134,13 +134,36 @@ export default function ClientePanel() {
 
     // Membresía
     const [activatingMembership, setActivatingMembership] = useState<string | null>(null)
+    const [membershipStatus, setMembershipStatus] = useState<Record<string, boolean>>({})
 
-    async function handleActivateMembership(customer: CustomerData) {
+    async function loadMembershipStatuses() {
+        if (!tenant || !customers.length) return
+        const statuses: Record<string, boolean> = {}
+        await Promise.all(customers.map(async (c) => {
+            try {
+                const res = await fetch(`/api/membership?tenant_id=${tenant.id}&whatsapp=${encodeURIComponent(c.whatsapp)}`)
+                const data = await res.json()
+                statuses[c.id] = data.total > 0
+            } catch {
+                statuses[c.id] = false
+            }
+        }))
+        setMembershipStatus(statuses)
+    }
+
+    async function handleToggleMembership(customer: CustomerData) {
         if (!tenant) return
+        const hasVIP = membershipStatus[customer.id]
+
+        if (hasVIP) {
+            const ok = confirm(`¿Desactivar la membresía VIP de ${customer.nombre}?`)
+            if (!ok) return
+        }
+
         setActivatingMembership(customer.id)
         try {
             const res = await fetch('/api/membership', {
-                method: 'POST',
+                method: hasVIP ? 'DELETE' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     tenant_id: tenant.id,
@@ -149,11 +172,13 @@ export default function ClientePanel() {
             })
             const data = await res.json()
             if (res.ok) {
-                alert(`✅ ${data.message}`)
+                alert(`${hasVIP ? '❌' : '✅'} ${data.message}`)
+                setMembershipStatus(prev => ({ ...prev, [customer.id]: !hasVIP }))
             } else if (res.status === 409) {
                 alert('⚠️ Este cliente ya tiene una membresía activa')
+                setMembershipStatus(prev => ({ ...prev, [customer.id]: true }))
             } else {
-                alert(`❌ ${data.error || 'Error al activar membresía'}`)
+                alert(`❌ ${data.error || 'Error'}`)
             }
         } catch {
             alert('❌ Error de conexión')
@@ -362,6 +387,9 @@ export default function ClientePanel() {
         }
         if (tab === 'notificaciones' && tenant) {
             loadNotifHistorial()
+        }
+        if (tab === 'clientes' && tenant && customers.length > 0 && program && ['membresia', 'multipase'].includes(program.tipo_programa)) {
+            loadMembershipStatuses()
         }
     }, [tab, tenant])
 
@@ -607,12 +635,11 @@ export default function ClientePanel() {
                                                 {program && ['membresia', 'multipase'].includes(program.tipo_programa) && (
                                                     <td>
                                                         <button
-                                                            className="cliente-btn-activate"
-                                                            onClick={() => handleActivateMembership(c)}
+                                                            className={membershipStatus[c.id] ? 'cliente-btn-deactivate' : 'cliente-btn-activate'}
+                                                            onClick={() => handleToggleMembership(c)}
                                                             disabled={activatingMembership === c.id}
                                                         >
-                                                            {activatingMembership === c.id ? '⏳' : '👑'}
-                                                            {activatingMembership === c.id ? ' Activando...' : ' Activar VIP'}
+                                                            {activatingMembership === c.id ? '⏳ ...' : membershipStatus[c.id] ? '❌ Desactivar' : '👑 Activar VIP'}
                                                         </button>
                                                     </td>
                                                 )}
