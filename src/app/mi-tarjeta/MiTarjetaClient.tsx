@@ -72,6 +72,36 @@ export default function MiTarjetaClient() {
         }
     }
 
+    async function savePreferences() {
+        if (!editingPrefs) return
+        setSavingPrefs(true)
+        try {
+            const res = await fetch('/api/customer/preferences', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customer_id: editingPrefs,
+                    preferences: prefForm
+                })
+            })
+            if (!res.ok) throw new Error('Error al guardar')
+
+            // Actualizar el estado local
+            setTarjetas(tarjetas.map(t =>
+                t.customer.id === editingPrefs
+                    ? { ...t, customer: { ...t.customer, preferences: prefForm } }
+                    : t
+            ))
+
+            setEditingPrefs(null)
+            alert('✅ Preferencias guardadas')
+        } catch (err: any) {
+            alert('❌ ' + err.message)
+        } finally {
+            setSavingPrefs(false)
+        }
+    }
+
     function renderTipoLabel(tipo: string): string {
         const labels: Record<string, string> = {
             sellos: '⭐ Tarjeta de Sellos',
