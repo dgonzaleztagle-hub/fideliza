@@ -139,7 +139,7 @@ export default function CajeroPage() {
                         <div className="scanner-mock">
                             {/* Aquí IRÁ el componente Scanner real en el siguiente paso */}
                             <div className="scanner-placeholder">
-                                <LucideCamera size={48} />
+                                <Camera size={48} />
                                 <p>Escanea el código del cliente</p>
                             </div>
                         </div>
