@@ -132,6 +132,36 @@ export default function ClientePanel() {
     const [notifResult, setNotifResult] = useState<any>(null)
     const [notifHistorial, setNotifHistorial] = useState<any[]>([])
 
+    // Membresía
+    const [activatingMembership, setActivatingMembership] = useState<string | null>(null)
+
+    async function handleActivateMembership(customer: CustomerData) {
+        if (!tenant) return
+        setActivatingMembership(customer.id)
+        try {
+            const res = await fetch('/api/membership', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tenant_id: tenant.id,
+                    whatsapp: customer.whatsapp
+                })
+            })
+            const data = await res.json()
+            if (res.ok) {
+                alert(`✅ ${data.message}`)
+            } else if (res.status === 409) {
+                alert('⚠️ Este cliente ya tiene una membresía activa')
+            } else {
+                alert(`❌ ${data.error || 'Error al activar membresía'}`)
+            }
+        } catch {
+            alert('❌ Error de conexión')
+        } finally {
+            setActivatingMembership(null)
+        }
+    }
+
     async function loadTenantData(slug: string) {
         setLoading(true)
         try {
@@ -550,6 +580,9 @@ export default function ClientePanel() {
                                             <th>Puntos</th>
                                             <th>Premios</th>
                                             <th>Registro</th>
+                                            {program && ['membresia', 'multipase'].includes(program.tipo_programa) && (
+                                                <th>Acciones</th>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -571,6 +604,18 @@ export default function ClientePanel() {
                                                 <td className="cliente-table-date">
                                                     {new Date(c.created_at).toLocaleDateString('es-CL')}
                                                 </td>
+                                                {program && ['membresia', 'multipase'].includes(program.tipo_programa) && (
+                                                    <td>
+                                                        <button
+                                                            className="cliente-btn-activate"
+                                                            onClick={() => handleActivateMembership(c)}
+                                                            disabled={activatingMembership === c.id}
+                                                        >
+                                                            {activatingMembership === c.id ? '⏳' : '👑'}
+                                                            {activatingMembership === c.id ? ' Activando...' : ' Activar VIP'}
+                                                        </button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
