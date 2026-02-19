@@ -3,6 +3,7 @@ import { getSupabase } from '@/lib/supabase/admin'
 import { v4 as uuidv4 } from 'uuid'
 import { calculateTier, processStreak } from '@/lib/gamification'
 import { sendWalletNotification } from '@/lib/walletNotifications'
+import { triggerWalletPush } from '@/lib/wallet/push'
 
 // POST /api/stamp
 // Motor universal: suma punto, registra cashback, consume multipase, calcula descuento, etc.
@@ -155,16 +156,6 @@ async function safeInsertStamp(supabase: any, customer_id: string, tenant_id: st
     }
 }
 
-/**
- * Helper para enviar notificaciones push a la Wallet
- */
-async function triggerWalletPush(customer: any, titulo: string, mensaje: string) {
-    const issuerId = process.env.GOOGLE_WALLET_ISSUER_ID
-    if (!issuerId || !customer.tenants?.slug) return
-
-    const objectId = `${issuerId}.vuelve-${customer.tenants.slug}-${customer.id}`
-    await sendWalletNotification(objectId, titulo, mensaje)
-}
 
 /**
  * Programa una solicitud de reseña automática
@@ -213,11 +204,12 @@ async function handleSellos(supabase: any, customer: any, program: any, tenant_i
         }).eq('id', customer.id)
 
         // Wallet Push
-        await triggerWalletPush(
-            customer,
-            `¡Sello sumado en ${customer.tenants?.nombre}!`,
-            `Llevas ${data.points_actual} / ${program.puntos_meta} sellos. ¡Falta poco!`
-        )
+        await triggerWalletPush({
+            customer_id: customer.id,
+            tenant_slug: customer.tenants?.slug,
+            titulo: `¡Sello sumado en ${customer.tenants?.nombre}!`,
+            mensaje: `Llevas ${data.points_actual} / ${program.puntos_meta} sellos. ¡Falta poco!`
+        })
     }
 
     // Adaptar respuesta de RPC a lo que el frontend espera
@@ -284,11 +276,12 @@ async function handleCashback(supabase: any, customer: any, program: any, tenant
         .eq('id', customer.id)
 
     // Wallet Push
-    await triggerWalletPush(
-        customer,
-        `💰 ¡Cashback en ${customer.tenants?.nombre}!`,
-        `Ganaste $${cashbackGanado}. Nuevo saldo: $${saldoActual + cashbackGanado}`
-    )
+    await triggerWalletPush({
+        customer_id: customer.id,
+        tenant_slug: customer.tenants?.slug,
+        titulo: `💰 ¡Cashback en ${customer.tenants?.nombre}!`,
+        mensaje: `Ganaste $${cashbackGanado}. Nuevo saldo: $${saldoActual + cashbackGanado}`
+    })
 
     return NextResponse.json({
         message: `💰 ¡Ganaste $${cashbackGanado} de cashback! (${porcentaje}% de $${monto_compra})`,
@@ -342,13 +335,14 @@ async function handleMultipase(supabase: any, customer: any, program: any, tenan
         .eq('id', customer.id)
 
     // Wallet Push
-    await triggerWalletPush(
-        customer,
-        `🎟️ Pase usado en ${customer.tenants?.nombre}`,
-        nuevosUsos > 0
+    await triggerWalletPush({
+        customer_id: customer.id,
+        tenant_slug: customer.tenants?.slug,
+        titulo: `🎟️ Pase usado en ${customer.tenants?.nombre}`,
+        mensaje: nuevosUsos > 0
             ? `Te quedan ${nuevosUsos} usos en tu multipase.`
             : `¡Pack completado! ¡Gracias por tu visita!`
-    )
+    })
 
     return NextResponse.json({
         message: nuevosUsos > 0
@@ -410,13 +404,14 @@ async function handleDescuentoNiveles(supabase: any, customer: any, program: any
     const subioDeNivel = nuevoTotal === nivelActual.visitas && nivelActual.descuento > 0
 
     // Wallet Push
-    await triggerWalletPush(
-        customer,
-        subioDeNivel ? `🎉 ¡Subiste de nivel en ${customer.tenants?.nombre}!` : `✅ Visita registrada`,
-        subioDeNivel
+    await triggerWalletPush({
+        customer_id: customer.id,
+        tenant_slug: customer.tenants?.slug,
+        titulo: subioDeNivel ? `🎉 ¡Subiste de nivel en ${customer.tenants?.nombre}!` : `✅ Visita registrada`,
+        mensaje: subioDeNivel
             ? `Ahora tienes ${nivelActual.descuento}% de descuento permanente.`
             : `Llevas ${nuevoTotal} visitas. ¡Faltan ${nivelSiguiente?.visitas ? nivelSiguiente.visitas - nuevoTotal : '?'} para el próximo nivel!`
-    )
+    })
 
     return NextResponse.json({
         message: subioDeNivel
@@ -487,11 +482,12 @@ async function handleMembresia(supabase: any, customer: any, program: any, tenan
         .eq('id', customer.id)
 
     // Wallet Push
-    await triggerWalletPush(
-        customer,
-        `👑 ¡Bienvenido VIP a ${customer.tenants?.nombre}!`,
-        `Tu visita ha sido registrada. ¡Disfruta tus beneficios!`
-    )
+    await triggerWalletPush({
+        customer_id: customer.id,
+        tenant_slug: customer.tenants?.slug,
+        titulo: `👑 ¡Bienvenido VIP a ${customer.tenants?.nombre}!`,
+        mensaje: `Tu visita ha sido registrada. ¡Disfruta tus beneficios!`
+    })
 
     const beneficios = program.config?.beneficios || []
 
@@ -525,11 +521,12 @@ async function handleAfiliacion(supabase: any, customer: any, tenant_id: string)
         .eq('id', customer.id)
 
     // Wallet Push
-    await triggerWalletPush(
-        customer,
-        `✅ Visita registrada en ${customer.tenants?.nombre}`,
-        `¡Gracias por visitarnos! Recibirás promos exclusivas por aquí.`
-    )
+    await triggerWalletPush({
+        customer_id: customer.id,
+        tenant_slug: customer.tenants?.slug,
+        titulo: `✅ Visita registrada en ${customer.tenants?.nombre}`,
+        mensaje: `¡Gracias por visitarnos! Recibirás promos exclusivas por aquí.`
+    })
 
     return NextResponse.json({
         message: '✅ ¡Visita registrada! Te avisaremos de promos y novedades',
@@ -584,11 +581,12 @@ async function handleCupon(supabase: any, customer: any, program: any, tenant_id
         .single()
 
     // Wallet Push
-    await triggerWalletPush(
-        customer,
-        `🎫 ¡Cupón generado en ${customer.tenants?.nombre}!`,
-        `Tienes un ${descuentoPorcentaje}% de descuento listo para usar.`
-    )
+    await triggerWalletPush({
+        customer_id: customer.id,
+        tenant_slug: customer.tenants?.slug,
+        titulo: `🎫 ¡Cupón generado en ${customer.tenants?.nombre}!`,
+        mensaje: `Tienes un ${descuentoPorcentaje}% de descuento listo para usar.`
+    })
 
     // Marcar como usado en memberships
     if (membership) {
@@ -639,11 +637,12 @@ async function handleRegalo(supabase: any, customer: any, program: any, tenant_i
     await safeInsertStamp(supabase, customer.id, tenant_id)
 
     // Wallet Push
-    await triggerWalletPush(
-        customer,
-        `🎁 Saldo Gift Card en ${customer.tenants?.nombre}`,
-        `Tu saldo actual es de $${membership.saldo_cashback}.`
-    )
+    await triggerWalletPush({
+        customer_id: customer.id,
+        tenant_slug: customer.tenants?.slug,
+        titulo: `🎁 Saldo Gift Card en ${customer.tenants?.nombre}`,
+        mensaje: `Tu saldo actual es de $${membership.saldo_cashback}.`
+    })
 
     return NextResponse.json({
         message: `🎁 Tu Gift Card tiene $${membership.saldo_cashback} disponibles. Muestra este código en caja`,

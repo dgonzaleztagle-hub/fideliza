@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
                 try {
                     await triggerWalletPush({
                         tenant_slug: tenantInfo.slug,
-                        whatsapp: c.whatsapp,
+                        customer_id: c.id,
                         titulo: `¡Feliz Cumpleaños! 🎂`,
                         mensaje: bdayMsg
                     })
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
         if (campaigns) {
             for (const camp of campaigns) {
                 // Obtener todos los clientes según segmento
-                let query = supabase.from('customers').select('whatsapp').eq('tenant_id', camp.tenant_id)
+                let query = supabase.from('customers').select('id, whatsapp').eq('tenant_id', camp.tenant_id)
 
                 // Aplicar segmentación básica
                 if (camp.segmento === 'activos') {
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
                         try {
                             await triggerWalletPush({
                                 tenant_slug: (camp.tenants as any).slug,
-                                whatsapp: cust.whatsapp,
+                                customer_id: cust.id,
                                 titulo: camp.titulo_notif,
                                 mensaje: camp.mensaje_notif
                             })
