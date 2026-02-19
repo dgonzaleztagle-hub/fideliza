@@ -5,11 +5,15 @@ import './mi-tarjeta.css'
 
 interface TarjetaData {
     customer: {
+        id: string
         nombre: string
         puntos_actuales: number
         total_puntos_historicos: number
         total_premios_canjeados: number
         miembro_desde: string
+        tier?: 'bronce' | 'plata' | 'oro'
+        current_streak?: number
+        preferences?: Record<string, any>
     }
     negocio: {
         nombre: string
@@ -43,6 +47,9 @@ export default function MiTarjetaClient() {
     const [error, setError] = useState('')
     const [tarjetas, setTarjetas] = useState<TarjetaData[]>([])
     const [searched, setSearched] = useState(false)
+    const [editingPrefs, setEditingPrefs] = useState<string | null>(null) // ID del customer
+    const [prefForm, setPrefForm] = useState<Record<string, any>>({})
+    const [savingPrefs, setSavingPrefs] = useState(false)
 
     async function handleSearch(e: React.FormEvent) {
         e.preventDefault()
@@ -259,9 +266,21 @@ export default function MiTarjetaClient() {
                                     )}
                                     <div>
                                         <h3>{tarjeta.negocio?.nombre || 'Negocio'}</h3>
-                                        <span className="mt-card-tipo">
-                                            {renderTipoLabel(tarjeta.programa?.tipo_programa || 'sellos')}
-                                        </span>
+                                        <div className="mt-card-badges">
+                                            <span className="mt-card-tipo">
+                                                {renderTipoLabel(tarjeta.programa?.tipo_programa || 'sellos')}
+                                            </span>
+                                            {tarjeta.customer.tier && (
+                                                <span className={`mt-badge-tier ${tarjeta.customer.tier}`}>
+                                                    {tarjeta.customer.tier === 'oro' ? '🥇 ORO' : tarjeta.customer.tier === 'plata' ? '🥈 PLATA' : '🥉 BRONCE'}
+                                                </span>
+                                            )}
+                                            {(tarjeta.customer.current_streak || 0) > 1 && (
+                                                <span className="mt-badge-streak">
+                                                    🔥 {tarjeta.customer.current_streak} Semanas
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -281,14 +300,87 @@ export default function MiTarjetaClient() {
                                     </div>
                                 )}
 
+                                {/* --- SISTEMA DE REFERIDOS --- */}
+                                <div className="mt-referral">
+                                    <div className="mt-referral-info">
+                                        <p><strong>¡Gana puntos invitando amigos!</strong></p>
+                                        <p>Por cada amigo que se registre y sume su primer punto, ¡tú ganas 1 punto de regalo! 🎁</p>
+                                    </div>
+                                    <button
+                                        className="mt-referral-btn"
+                                        onClick={() => {
+                                            const refLink = `${window.location.origin}/qr/${tarjeta.negocio?.slug}?ref=${tarjeta.customer.id}`
+                                            const waMsg = `¡Hola! Te invito a sumarte al programa de lealtad de ${tarjeta.negocio?.nombre}. Regístrate aquí y empieza a ganar premios: ${refLink}`
+                                            window.open(`https://wa.me/?text=${encodeURIComponent(waMsg)}`, '_blank')
+                                        }}
+                                    >
+                                        🚀 Invitar amigos por WhatsApp
+                                    </button>
+                                </div>
+
                                 <div className="mt-card-footer">
                                     <span>Miembro desde {new Date(tarjeta.customer.miembro_desde).toLocaleDateString('es-CL')}</span>
                                     <a href={`/qr/${tarjeta.negocio?.slug}`} className="mt-card-link">
                                         Ir al negocio →
                                     </a>
                                 </div>
+
+                                <button
+                                    className="mt-prefs-trigger"
+                                    onClick={() => {
+                                        setEditingPrefs(tarjeta.customer.id)
+                                        setPrefForm(tarjeta.customer.preferences || {})
+                                    }}
+                                >
+                                    ⚙️ Editar mis preferencias
+                                </button>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {editingPrefs && (
+                    <div className="mt-modal">
+                        <div className="mt-modal-content">
+                            <h3>🎯 Mis Gustos y Preferencias</h3>
+                            <p>Ayúdanos a conocerte mejor para darte premios que de verdad te gusten.</p>
+
+                            <div className="mt-prefs-form">
+                                <label>
+                                    <span>Mi ingrediente/servicio favorito:</span>
+                                    <input
+                                        type="text"
+                                        value={prefForm.favorito || ''}
+                                        onChange={e => setPrefForm({ ...prefForm, favorito: e.target.value })}
+                                        placeholder="Ej: Café Vainilla, Pizza Pepperoni..."
+                                    />
+                                </label>
+                                <label>
+                                    <span>¿Alguna alergia o restricción?</span>
+                                    <input
+                                        type="text"
+                                        value={prefForm.restriccion || ''}
+                                        onChange={e => setPrefForm({ ...prefForm, restriccion: e.target.value })}
+                                        placeholder="Ej: Sin lactosa, vegano..."
+                                    />
+                                </label>
+                                <label>
+                                    <span>¿Cuándo es tu cumpleaños?</span>
+                                    <input
+                                        type="date"
+                                        value={prefForm.cumpleanos || ''}
+                                        onChange={e => setPrefForm({ ...prefForm, cumpleanos: e.target.value })}
+                                    />
+                                </label>
+                            </div>
+
+                            <div className="mt-modal-actions">
+                                <button className="mt-btn-cancel" onClick={() => setEditingPrefs(null)}>Cancelar</button>
+                                <button className="mt-btn-save" onClick={savePreferences} disabled={savingPrefs}>
+                                    {savingPrefs ? 'Guardando...' : 'Guardar Preferencias'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </main>

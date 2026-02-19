@@ -59,6 +59,8 @@ export async function generateSaveLink(options: {
         throw new Error('Faltan credenciales de Google Wallet en .env.local');
     }
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vuelveplus.cl';
+
     const fullClassId = `${ISSUER_ID}.${options.classId}`;
     const fullObjectId = `${ISSUER_ID}.${options.objectId}`;
 
@@ -91,6 +93,15 @@ export async function generateSaveLink(options: {
                 int: options.points
             }
         },
+        linksModuleData: {
+            uris: [
+                {
+                    uri: `${appUrl}/mi-tarjeta?whatsapp=${options.objectId.split('-').pop()}`,
+                    description: '💎 Ver mis beneficios y medallas',
+                    id: 'pwa-link'
+                }
+            ]
+        }
     }
 
     // Agregar locations para geofencing

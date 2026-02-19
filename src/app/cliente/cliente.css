@@ -275,6 +275,92 @@
     background: linear-gradient(90deg, #22c55e, #4ade80);
 }
 
+.stat-purple {
+    background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+}
+
+.stat-pink {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+}
+
+/* Marketing Config */
+.full-width {
+    grid-column: 1 / -1 !important;
+}
+
+.marketing-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.marketing-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 768px) {
+    .marketing-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.marketing-form label textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+    color: white;
+    font-size: 0.9rem;
+    resize: none;
+    transition: all 0.3s ease;
+}
+
+.marketing-form label textarea:focus {
+    border-color: var(--coral);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
+}
+
+.marketing-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.m-item {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+}
+
+.m-item span {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    display: block;
+    margin-bottom: 0.3rem;
+}
+
+.m-item p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Badge Referido */
+.badge-referral {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.6rem;
+    background: rgba(236, 72, 153, 0.1);
+    color: #ec4899;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
 .cliente-stat-card.stat-orange::before {
     background: linear-gradient(90deg, #f97316, #fb923c);
 }
@@ -399,6 +485,78 @@
     color: #4ade80;
 }
 
+.cliente-export-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.cliente-export-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--coral-primary);
+    transform: translateY(-2px);
+}
+
+.badge-tier-small {
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 99px;
+    white-space: nowrap;
+}
+
+.badge-tier-small.bronce {
+    background: #78350f;
+    color: #fcd34d;
+}
+
+.badge-tier-small.plata {
+    background: #334155;
+    color: #e2e8f0;
+    border: 1px solid #94a3b8;
+}
+
+.badge-tier-small.oro {
+    background: #854d0e;
+    color: #fef3c7;
+    border: 1px solid #fbbf24;
+}
+
+.badge-streak-small {
+    background: #450a0a;
+    color: #fca5a5;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    border: 1px solid #991b1b;
+}
+
+.cliente-btn-prefs {
+    background: rgba(99, 102, 241, 0.1);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cliente-btn-prefs:hover {
+    background: #6366f1;
+    color: white;
+}
+
 /* ═══ Search bar ═══ */
 .cliente-searchbar {
     display: flex;
@@ -520,6 +678,25 @@
 .cliente-table-date {
     color: var(--text-muted);
     font-size: 0.85rem;
+}
+
+/* Dashboard section cards */
+.stat-purple {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: rgba(167, 139, 250, 0.2);
+}
+
+.stat-purple .cliente-stat-number {
+    color: #a78bfa;
+}
+
+.stat-pink {
+    background: rgba(244, 114, 182, 0.1);
+    border-color: rgba(244, 114, 182, 0.2);
+}
+
+.stat-pink .cliente-stat-number {
+    color: #f472b6;
 }
 
 .cliente-btn-activate {
@@ -795,6 +972,147 @@
     background: var(--bg-card);
     font-size: 0.8rem;
     color: var(--text-muted);
+}
+
+/* ═══ Scanner Pro Extensions ═══ */
+.cliente-manual-search-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.cliente-manual-results {
+    margin-top: 1rem;
+    max-height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+}
+
+.cliente-manual-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.cliente-manual-result-item:hover {
+    border-color: var(--brand-coral);
+    background: var(--bg-card-hover);
+}
+
+.cliente-manual-result-item.selected {
+    border-color: var(--brand-coral);
+    background: rgba(255, 107, 107, 0.08);
+}
+
+.cliente-manual-result-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.cliente-manual-result-info strong {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.cliente-manual-result-info span {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.cliente-manual-result-points {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--brand-coral);
+    background: rgba(255, 107, 107, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 50px;
+}
+
+.cliente-manual-selected {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(255, 107, 107, 0.05);
+    border: 1px solid rgba(255, 107, 107, 0.2);
+    border-radius: var(--radius-sm);
+    animation: fadeIn 0.3s ease;
+}
+
+.cliente-manual-selected-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.cliente-manual-selected-header button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.2rem;
+}
+
+.cliente-manual-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.cliente-btn-add-p {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--brand-coral);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.cliente-pin-validation {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.cliente-pin-validation input {
+    flex: 1;
+    padding: 0.75rem;
+    background: var(--bg-card-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    text-align: center;
+    font-size: 1.2rem;
+    letter-spacing: 0.5rem;
+    font-family: monospace;
+}
+
+.cliente-btn-pin {
+    padding: 0 1.5rem;
+    background: #22c55e;
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.cliente-btn-pin:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Redeem */
@@ -1310,5 +1628,175 @@
 
 .cliente-gps-btn:disabled {
     opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* 🧠 IA Advisor Styles */
+.cliente-advisor-container {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.cliente-advisor-container::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    width: 150px;
+    height: 150px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+    z-index: 0;
+}
+
+.advisor-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    position: relative;
+    z-index: 1;
+}
+
+.advisor-icon {
+    font-size: 1.5rem;
+}
+
+.advisor-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.advisor-badge {
+    font-size: 0.65rem;
+    font-weight: 800;
+    background: #6366f1;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 100px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.advisor-insights {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    position: relative;
+    z-index: 1;
+}
+
+.insight-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 1rem;
+    transition: transform 0.2s ease;
+}
+
+.insight-card:hover {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.insight-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.insight-message {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+}
+
+.insight-action {
+    font-size: 0.8rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+.insight-card.alert {
+    border-left: 4px solid #ef4444;
+}
+
+.insight-card.opportunity {
+    border-left: 4px solid #f59e0b;
+}
+
+.insight-card.success {
+    border-left: 4px solid #10b981;
+}
+
+.insight-card.info {
+    border-left: 4px solid #3b82f6;
+}
+
+/* ❓ Onboarding Helpers */
+.label-with-help {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.help-icon-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: help;
+    transition: all 0.2s ease;
+}
+
+.help-icon-btn:hover {
+    background: #6366f1;
+    color: white;
+    border-color: #6366f1;
+}
+
+/* 📅 Campañas Programadas */
+.cliente-notif-scheduled {
+    border-top: 1px dashed var(--border);
+    padding-top: 2rem;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.status-badge.pendiente {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.status-badge.enviada {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.cliente-save-btn:disabled {
+    opacity: 0.5;
     cursor: not-allowed;
 }

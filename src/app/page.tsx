@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import HeroLogin from './components/HeroLogin'
 
 export const metadata: Metadata = {
   title: 'Vuelve+ — Tus clientes siempre vuelven',
@@ -43,44 +44,50 @@ export default function Home() {
           <div className="hero-orb hero-orb-2" />
         </div>
 
-        <div className="hero-content">
-          <div className="hero-pill">
-            <span className="hero-pill-dot" />
-            Nuevo · Tarjetas digitales para tu negocio
-          </div>
-
-          <h1 className="hero-title">
-            Tus clientes
-            <br />
-            <span className="gradient-text">siempre vuelven</span>
-          </h1>
-
-          <p className="hero-subtitle">
-            Crea tu programa de lealtad digital en 2 minutos.<br />
-            Tus clientes suman puntos escaneando un QR, reciben su tarjeta en Google Wallet
-            y vuelven por más.
-          </p>
-
-          <div className="hero-actions">
-            <a href="/registro" className="btn btn-primary btn-lg">
-              Crear mi programa gratis
-              <span className="btn-arrow">→</span>
-            </a>
-            <a href="#como-funciona" className="btn btn-ghost">
-              Ver cómo funciona
-            </a>
-          </div>
-
-          <div className="hero-proof">
-            <div className="hero-proof-avatars">
-              <div className="hero-avatar" style={{ background: '#ff6b6b' }}>J</div>
-              <div className="hero-avatar" style={{ background: '#ee5a6f' }}>M</div>
-              <div className="hero-avatar" style={{ background: '#ff8e53' }}>C</div>
-              <div className="hero-avatar" style={{ background: '#ffb347' }}>R</div>
+        <div className="hero-container">
+          <div className="hero-content">
+            <div className="hero-pill">
+              <span className="hero-pill-dot" />
+              Nuevo · Tarjetas digitales para tu negocio
             </div>
-            <p className="hero-proof-text">
-              <strong>14 días gratis</strong> · Sin tarjeta de crédito
+
+            <h1 className="hero-title">
+              Tus clientes
+              <br />
+              <span className="gradient-text">siempre vuelven</span>
+            </h1>
+
+            <p className="hero-subtitle">
+              Crea tu programa de lealtad digital en 2 minutos.<br />
+              Tus clientes suman puntos escaneando un QR, reciben su tarjeta en Google Wallet
+              y vuelven por más.
             </p>
+
+            <div className="hero-actions">
+              <a href="/registro" className="btn btn-primary btn-lg">
+                Crear mi programa gratis
+                <span className="btn-arrow">→</span>
+              </a>
+              <a href="#como-funciona" className="btn btn-ghost">
+                Ver cómo funciona
+              </a>
+            </div>
+
+            <div className="hero-proof">
+              <div className="hero-proof-avatars">
+                <div className="hero-avatar" style={{ background: '#ff6b6b' }}>J</div>
+                <div className="hero-avatar" style={{ background: '#ee5a6f' }}>M</div>
+                <div className="hero-avatar" style={{ background: '#ff8e53' }}>C</div>
+                <div className="hero-avatar" style={{ background: '#ffb347' }}>R</div>
+              </div>
+              <p className="hero-proof-text">
+                <strong>14 días gratis</strong> · Sin tarjeta de crédito
+              </p>
+            </div>
+          </div>
+
+          <div className="hero-visual">
+            <HeroLogin />
           </div>
         </div>
       </section>

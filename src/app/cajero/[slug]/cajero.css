@@ -1,0 +1,264 @@
+:root {
+    --cajero-bg: #0f172a;
+    --cajero-surface: #1e293b;
+    --cajero-accent: #ff6b6b;
+    --cajero-text: #f8fafc;
+    --cajero-text-muted: #94a3b8;
+    --cajero-border: #334155;
+}
+
+.cajero-login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cajero-bg);
+    padding: 2rem;
+}
+
+.cajero-login-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--cajero-surface);
+    padding: 2.5rem;
+    border-radius: 24px;
+    text-align: center;
+    border: 1px solid var(--cajero-border);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.cajero-logo {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 2rem;
+}
+
+.cajero-login-card h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--cajero-text);
+}
+
+.cajero-login-card p {
+    color: var(--cajero-text-muted);
+    margin-bottom: 2rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+}
+
+.pin-input-group input {
+    width: 100%;
+    padding: 1.25rem;
+    font-size: 1.5rem;
+    text-align: center;
+    letter-spacing: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: 2px solid var(--cajero-border);
+    border-radius: 16px;
+    color: var(--cajero-text);
+    margin-bottom: 1.5rem;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.pin-input-group input:focus {
+    border-color: var(--cajero-accent);
+    box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.2);
+}
+
+.cajero-login-card button {
+    width: 100%;
+    padding: 1.25rem;
+    background: var(--cajero-accent);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    font-weight: 700;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.cajero-login-card button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.cajero-login-card button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.login-error {
+    color: #f87171;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* Cajero Layout */
+.cajero-layout {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--cajero-bg);
+    color: var(--cajero-text);
+}
+
+.cajero-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--cajero-surface);
+    border-bottom: 1px solid var(--cajero-border);
+}
+
+.cajero-header-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.tenant-name {
+    font-weight: 800;
+    font-size: 1rem;
+}
+
+.staff-name {
+    font-size: 0.85rem;
+    color: var(--cajero-text-muted);
+}
+
+.logout-btn {
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    border: none;
+    border-radius: 10px;
+    padding: 0.6rem;
+    cursor: pointer;
+}
+
+.cajero-content {
+    flex: 1;
+    padding: 1.5rem;
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.mode-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.mode-selector button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--cajero-surface);
+    border: 1px solid var(--cajero-border);
+    border-radius: 16px;
+    color: var(--cajero-text-muted);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.mode-selector button.active {
+    background: rgba(255, 107, 107, 0.1);
+    border-color: var(--cajero-accent);
+    color: var(--cajero-accent);
+}
+
+/* Scanner View */
+.scanner-mock {
+    background: #000;
+    border-radius: 24px;
+    aspect-ratio: 4/5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--cajero-border);
+    overflow: hidden;
+    position: relative;
+}
+
+.scanner-placeholder {
+    text-align: center;
+    color: var(--cajero-text-muted);
+}
+
+.scanner-placeholder p {
+    margin-top: 1rem;
+    font-weight: 500;
+}
+
+/* Result Overlay */
+.result-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.result-overlay.success {
+    background: #15803d;
+}
+
+.result-overlay.error {
+    background: #b91c1c;
+}
+
+.result-overlay h2 {
+    font-size: 2rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.result-overlay button {
+    padding: 1.25rem 3rem;
+    background: white;
+    color: black;
+    border: none;
+    border-radius: 16px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Search Bar */
+.search-bar input {
+    width: 100%;
+    padding: 1.25rem;
+    background: var(--cajero-surface);
+    border: 1px solid var(--cajero-border);
+    border-radius: 16px;
+    color: var(--cajero-text);
+    font-size: 1rem;
+    outline: none;
+}
+
+.search-bar input:focus {
+    border-color: var(--cajero-accent);
+}

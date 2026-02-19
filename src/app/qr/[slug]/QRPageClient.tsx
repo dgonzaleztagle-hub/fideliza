@@ -72,10 +72,13 @@ export default function QRPageClient({ tenant, program }: Props) {
     const [error, setError] = useState('')
     const [result, setResult] = useState<StampResult | null>(null)
 
-    // Registro
     const [nombre, setNombre] = useState('')
     const [whatsapp, setWhatsapp] = useState('')
     const [email, setEmail] = useState('')
+    const [fechaNacimiento, setFechaNacimiento] = useState('')
+
+    // Referidos
+    const [referrerId, setReferrerId] = useState<string | null>(null)
 
     // Returning
     const [returningWhatsapp, setReturningWhatsapp] = useState('')
@@ -89,6 +92,15 @@ export default function QRPageClient({ tenant, program }: Props) {
 
     const primaryColor = tenant.color_primario || '#6366f1'
     const tipoPrograma = program?.tipo_programa || 'sellos'
+
+    // Capturar referrer de la URL
+    useState(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search)
+            const ref = params.get('ref')
+            if (ref) setReferrerId(ref)
+        }
+    })
 
     // Helper: texto según tipo
     function getProgramBadge(): string {
@@ -119,6 +131,45 @@ export default function QRPageClient({ tenant, program }: Props) {
         return tipoPrograma === 'cashback'
     }
 
+    const [socialLoading, setSocialLoading] = useState(false)
+
+    // Detectar si venimos de un login social exitoso
+    useState(() => {
+        const checkUser = async () => {
+            const { createClient } = await import('@/lib/supabase/client')
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+
+            if (user) {
+                // Pre-completar con datos de Google/Apple
+                if (user.user_metadata?.full_name && !nombre) {
+                    setNombre(user.user_metadata.full_name)
+                }
+                if (user.email && !email) {
+                    setEmail(user.email)
+                }
+                // Si ya tenemos los datos básicos mínimos, podemos sugerir el paso de registro
+                if (step === 'welcome' || step === 'register') {
+                    setStep('register')
+                }
+            }
+        }
+        checkUser()
+    })
+
+    async function handleSocialLogin(provider: 'google' | 'apple') {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        setSocialLoading(true)
+
+        await supabase.auth.signInWithOAuth({
+            provider,
+            options: {
+                redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
+            }
+        })
+    }
+
     async function handleRegister(e: React.FormEvent) {
         e.preventDefault()
         setLoading(true)
@@ -132,17 +183,17 @@ export default function QRPageClient({ tenant, program }: Props) {
                     tenant_id: tenant.id,
                     nombre,
                     whatsapp,
-                    email: email || undefined
+                    email: email || undefined,
+                    fecha_nacimiento: fechaNacimiento || undefined,
+                    referido_por: referrerId || undefined
                 })
             })
 
             const regData = await regRes.json()
             if (!regRes.ok) throw new Error(regData.error || 'Error al registrar')
 
-            if (!regData.isNew) {
-                await handleStamp(whatsapp)
-                return
-            }
+            // Si el registro fue exitoso mediante social login, podríamos querer limpiar la sesión de auth
+            // Pero por ahora la mantendremos para evitar fricción si recarga.
 
             await handleStamp(whatsapp)
         } catch (err: any) {
@@ -216,6 +267,7 @@ export default function QRPageClient({ tenant, program }: Props) {
         setNombre('')
         setWhatsapp('')
         setEmail('')
+        setFechaNacimiento('')
         setReturningWhatsapp('')
         setMontoCompra('')
         setWalletLink(null)
@@ -374,7 +426,7 @@ export default function QRPageClient({ tenant, program }: Props) {
                     <h2>{result.message}</h2>
                     {result.beneficios && result.beneficios.length > 0 && (
                         <div className="qr-type-info-card">
-                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                                 Tus beneficios VIP:
                             </p>
                             {result.beneficios.map((b, i) => (
@@ -538,67 +590,107 @@ export default function QRPageClient({ tenant, program }: Props) {
 
                 {/* PASO 2A: Registro */}
                 {step === 'register' && (
-                    <form onSubmit={handleRegister} className="qr-form">
-                        <h2>Registro rápido ✨</h2>
-                        <div className="qr-field">
-                            <label htmlFor="nombre">Tu nombre</label>
-                            <input
-                                id="nombre"
-                                type="text"
-                                value={nombre}
-                                onChange={(e) => setNombre(e.target.value)}
-                                placeholder="¿Cómo te llamas?"
-                                required
-                                autoFocus
-                            />
-                        </div>
-                        <div className="qr-field">
-                            <label htmlFor="whatsapp">WhatsApp</label>
-                            <input
-                                id="whatsapp"
-                                type="tel"
-                                value={whatsapp}
-                                onChange={(e) => setWhatsapp(e.target.value)}
-                                placeholder="+56 9 1234 5678"
-                                required
-                            />
-                        </div>
-                        <div className="qr-field">
-                            <label htmlFor="email">Email <span className="qr-optional">(opcional)</span></label>
-                            <input
-                                id="email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="tu@email.com"
-                            />
-                        </div>
-                        {needsMontoCompra() && (
+                    <div className="qr-form-container">
+                        <form onSubmit={handleRegister} className="qr-form">
+                            <h2>Registro rápido ✨</h2>
+
+                            {/* Social Signup Options */}
+                            <div className="qr-social-signup">
+                                <p className="qr-social-hint">Pre-completa tus datos:</p>
+                                <div className="qr-social-buttons">
+                                    <button
+                                        type="button"
+                                        className="btn-social google"
+                                        onClick={() => handleSocialLogin('google')}
+                                        disabled={socialLoading}
+                                    >
+                                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" />
+                                        Google
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-social apple"
+                                        onClick={() => handleSocialLogin('apple')}
+                                        disabled={socialLoading}
+                                    >
+                                        <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="" />
+                                        Apple
+                                    </button>
+                                </div>
+                                <div className="qr-social-divider">
+                                    <span>o usa tus datos manuales</span>
+                                </div>
+                            </div>
+
                             <div className="qr-field">
-                                <label htmlFor="monto">Monto de tu compra ($)</label>
+                                <label htmlFor="nombre">Tu nombre</label>
                                 <input
-                                    id="monto"
-                                    type="number"
-                                    value={montoCompra}
-                                    onChange={(e) => setMontoCompra(e.target.value)}
-                                    placeholder="Ej: 15000"
+                                    id="nombre"
+                                    type="text"
+                                    value={nombre}
+                                    onChange={(e) => setNombre(e.target.value)}
+                                    placeholder="¿Cómo te llamas?"
                                     required
-                                    min="1"
+                                    autoFocus
                                 />
                             </div>
-                        )}
-                        <button
-                            type="submit"
-                            className="qr-btn qr-btn-primary"
-                            style={{ background: primaryColor }}
-                            disabled={loading}
-                        >
-                            {loading ? '⏳ Registrando...' : `🎉 Registrarme y ${getStampButtonText().toLowerCase()}`}
-                        </button>
-                        <button type="button" onClick={() => setStep('welcome')} className="qr-btn-link">
-                            ← Volver
-                        </button>
-                    </form>
+                            <div className="qr-field">
+                                <label htmlFor="whatsapp">WhatsApp</label>
+                                <input
+                                    id="whatsapp"
+                                    type="tel"
+                                    value={whatsapp}
+                                    onChange={(e) => setWhatsapp(e.target.value)}
+                                    placeholder="+56 9 1234 5678"
+                                    required
+                                />
+                            </div>
+                            <div className="qr-field">
+                                <label htmlFor="email">Email <span className="qr-optional">(opcional)</span></label>
+                                <input
+                                    id="email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="tu@email.com"
+                                />
+                            </div>
+                            <div className="qr-field">
+                                <label htmlFor="nacimiento">Fecha de Nacimiento <span className="qr-optional">(opcional)</span></label>
+                                <input
+                                    id="nacimiento"
+                                    type="date"
+                                    value={fechaNacimiento}
+                                    onChange={(e) => setFechaNacimiento(e.target.value)}
+                                />
+                            </div>
+                            {needsMontoCompra() && (
+                                <div className="qr-field">
+                                    <label htmlFor="monto">Monto de tu compra ($)</label>
+                                    <input
+                                        id="monto"
+                                        type="number"
+                                        value={montoCompra}
+                                        onChange={(e) => setMontoCompra(e.target.value)}
+                                        placeholder="Ej: 15000"
+                                        required
+                                        min="1"
+                                    />
+                                </div>
+                            )}
+                            <button
+                                type="submit"
+                                className="qr-btn qr-btn-primary"
+                                style={{ background: primaryColor }}
+                                disabled={loading}
+                            >
+                                {loading ? '⏳ Registrando...' : `🎉 Registrarme y ${getStampButtonText().toLowerCase()}`}
+                            </button>
+                            <button type="button" onClick={() => setStep('welcome')} className="qr-btn-link">
+                                ← Volver
+                            </button>
+                        </form>
+                    </div>
                 )}
 
                 {/* PASO 2B: Ya tengo cuenta */}

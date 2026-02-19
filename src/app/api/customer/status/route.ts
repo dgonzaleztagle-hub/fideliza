@@ -90,6 +90,7 @@ export async function GET(req: NextRequest) {
 
             results.push({
                 customer: {
+                    id: customer.id,
                     nombre: customer.nombre,
                     puntos_actuales: customer.puntos_actuales,
                     total_puntos_historicos: customer.total_puntos_historicos,

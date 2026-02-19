@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { v4 as uuidv4 } from 'uuid'
+import { calculateTier, processStreak } from '@/lib/gamification'
+import { sendWalletNotification } from '@/lib/walletNotifications'
 
 // POST /api/stamp
 // Motor universal: suma punto, registra cashback, consume multipase, calcula descuento, etc.
@@ -18,10 +20,25 @@ export async function POST(req: NextRequest) {
             )
         }
 
-        // Buscar al cliente
+        // Buscar al cliente y el tenant (para el slug y branding)
         const { data: customer, error: customerError } = await supabase
             .from('customers')
-            .select('id, nombre, puntos_actuales, total_puntos_historicos, total_premios_canjeados')
+            .select(`
+                id, 
+                nombre, 
+                whatsapp, 
+                puntos_actuales, 
+                total_puntos_historicos, 
+                total_premios_canjeados, 
+                tier, 
+                current_streak, 
+                last_visit_at,
+                tenants (
+                    slug,
+                    nombre,
+                    color_primario
+                )
+            `)
             .eq('tenant_id', tenant_id)
             .eq('whatsapp', whatsapp)
             .single()
@@ -132,7 +149,36 @@ async function safeInsertStamp(supabase: any, customer_id: string, tenant_id: st
     // Ignorar duplicado (23505 = unique_violation)
     if (error && error.code !== '23505') {
         console.error('Error insertando stamp:', error)
+    } else {
+        // Si el stamp fue exitoso, programar solicitud de reseña para 2 horas más tarde
+        await scheduleReview(supabase, customer_id, tenant_id)
     }
+}
+
+/**
+ * Helper para enviar notificaciones push a la Wallet
+ */
+async function triggerWalletPush(customer: any, titulo: string, mensaje: string) {
+    const issuerId = process.env.GOOGLE_WALLET_ISSUER_ID
+    if (!issuerId || !customer.tenants?.slug) return
+
+    const objectId = `${issuerId}.vuelve-${customer.tenants.slug}-${customer.id}`
+    await sendWalletNotification(objectId, titulo, mensaje)
+}
+
+/**
+ * Programa una solicitud de reseña automática
+ */
+async function scheduleReview(supabase: any, customer_id: string, tenant_id: string) {
+    const scheduledFor = new Date()
+    scheduledFor.setHours(scheduledFor.getHours() + 2)
+
+    await supabase.from('pending_reviews').insert({
+        customer_id,
+        tenant_id,
+        scheduled_for: scheduledFor.toISOString(),
+        enviado: false
+    })
 }
 
 // ═══════════════════════════════════════════════════
@@ -151,8 +197,27 @@ async function handleSellos(supabase: any, customer: any, program: any, tenant_i
         return NextResponse.json({ error: 'Error procesando punto de forma atómica' }, { status: 500 })
     }
 
-    if (data.error) {
-        return NextResponse.json({ error: data.error }, { status: 400 })
+    if (data.points_added > 0) {
+        await scheduleReview(supabase, customer.id, tenant_id)
+
+        // Gamificación para Sellos
+        const { newStreak } = processStreak(customer.last_visit_at, customer.current_streak || 0)
+        const nuevasVisitasHistoricas = (customer.total_puntos_historicos || 0) + data.points_added
+        const nuevoTier = calculateTier(nuevasVisitasHistoricas)
+
+        await supabase.from('customers').update({
+            total_puntos_historicos: nuevasVisitasHistoricas,
+            tier: nuevoTier,
+            current_streak: newStreak,
+            last_visit_at: new Date().toISOString()
+        }).eq('id', customer.id)
+
+        // Wallet Push
+        await triggerWalletPush(
+            customer,
+            `¡Sello sumado en ${customer.tenants?.nombre}!`,
+            `Llevas ${data.points_actual} / ${program.puntos_meta} sellos. ¡Falta poco!`
+        )
     }
 
     // Adaptar respuesta de RPC a lo que el frontend espera
@@ -201,14 +266,29 @@ async function handleCashback(supabase: any, customer: any, program: any, tenant
         })
     }
 
+    // Gamificación
+    const { newStreak, streakUpdated } = processStreak(customer.last_visit_at, customer.current_streak || 0)
+    const nuevasVisitasHistoricas = (customer.total_puntos_historicos || 0) + 1
+    const nuevoTier = calculateTier(nuevasVisitasHistoricas)
+
     // Actualizar puntos del cliente
     await supabase
         .from('customers')
         .update({
             puntos_actuales: customer.puntos_actuales + 1,
-            total_puntos_historicos: (customer.total_puntos_historicos || 0) + 1
+            total_puntos_historicos: nuevasVisitasHistoricas,
+            tier: nuevoTier,
+            current_streak: newStreak,
+            last_visit_at: new Date().toISOString()
         })
         .eq('id', customer.id)
+
+    // Wallet Push
+    await triggerWalletPush(
+        customer,
+        `💰 ¡Cashback en ${customer.tenants?.nombre}!`,
+        `Ganaste $${cashbackGanado}. Nuevo saldo: $${saldoActual + cashbackGanado}`
+    )
 
     return NextResponse.json({
         message: `💰 ¡Ganaste $${cashbackGanado} de cashback! (${porcentaje}% de $${monto_compra})`,
@@ -261,6 +341,15 @@ async function handleMultipase(supabase: any, customer: any, program: any, tenan
         })
         .eq('id', customer.id)
 
+    // Wallet Push
+    await triggerWalletPush(
+        customer,
+        `🎟️ Pase usado en ${customer.tenants?.nombre}`,
+        nuevosUsos > 0
+            ? `Te quedan ${nuevosUsos} usos en tu multipase.`
+            : `¡Pack completado! ¡Gracias por tu visita!`
+    )
+
     return NextResponse.json({
         message: nuevosUsos > 0
             ? `🎟️ ¡Pase usado! Te quedan ${nuevosUsos} usos`
@@ -287,11 +376,19 @@ async function handleDescuentoNiveles(supabase: any, customer: any, program: any
 
     const nuevoTotal = (customer.total_puntos_historicos || 0) + 1
 
+    // Gamificación
+    const { newStreak, streakUpdated } = processStreak(customer.last_visit_at, customer.current_streak || 0)
+    const nuevasVisitasHistoricas = nuevoTotal
+    const nuevoTier = calculateTier(nuevasVisitasHistoricas)
+
     await supabase
         .from('customers')
         .update({
             puntos_actuales: customer.puntos_actuales + 1,
-            total_puntos_historicos: nuevoTotal
+            total_puntos_historicos: nuevoTotal,
+            tier: nuevoTier,
+            current_streak: newStreak,
+            last_visit_at: new Date().toISOString()
         })
         .eq('id', customer.id)
 
@@ -311,6 +408,15 @@ async function handleDescuentoNiveles(supabase: any, customer: any, program: any
     }
 
     const subioDeNivel = nuevoTotal === nivelActual.visitas && nivelActual.descuento > 0
+
+    // Wallet Push
+    await triggerWalletPush(
+        customer,
+        subioDeNivel ? `🎉 ¡Subiste de nivel en ${customer.tenants?.nombre}!` : `✅ Visita registrada`,
+        subioDeNivel
+            ? `Ahora tienes ${nivelActual.descuento}% de descuento permanente.`
+            : `Llevas ${nuevoTotal} visitas. ¡Faltan ${nivelSiguiente?.visitas ? nivelSiguiente.visitas - nuevoTotal : '?'} para el próximo nivel!`
+    )
 
     return NextResponse.json({
         message: subioDeNivel
@@ -364,13 +470,28 @@ async function handleMembresia(supabase: any, customer: any, program: any, tenan
     // Registrar visita
     await safeInsertStamp(supabase, customer.id, tenant_id)
 
+    // Gamificación
+    const { newStreak } = processStreak(customer.last_visit_at, customer.current_streak || 0)
+    const nuevasVisitasHistoricas = (customer.total_puntos_historicos || 0) + 1
+    const nuevoTier = calculateTier(nuevasVisitasHistoricas)
+
     await supabase
         .from('customers')
         .update({
             puntos_actuales: customer.puntos_actuales + 1,
-            total_puntos_historicos: (customer.total_puntos_historicos || 0) + 1
+            total_puntos_historicos: nuevasVisitasHistoricas,
+            tier: nuevoTier,
+            current_streak: newStreak,
+            last_visit_at: new Date().toISOString()
         })
         .eq('id', customer.id)
+
+    // Wallet Push
+    await triggerWalletPush(
+        customer,
+        `👑 ¡Bienvenido VIP a ${customer.tenants?.nombre}!`,
+        `Tu visita ha sido registrada. ¡Disfruta tus beneficios!`
+    )
 
     const beneficios = program.config?.beneficios || []
 
@@ -387,13 +508,28 @@ async function handleAfiliacion(supabase: any, customer: any, tenant_id: string)
     // Solo registrar la visita — afiliación es para recibir notificaciones
     await safeInsertStamp(supabase, customer.id, tenant_id)
 
+    // Gamificación
+    const { newStreak } = processStreak(customer.last_visit_at, customer.current_streak || 0)
+    const nuevasVisitasHistoricas = (customer.total_puntos_historicos || 0) + 1
+    const nuevoTier = calculateTier(nuevasVisitasHistoricas)
+
     await supabase
         .from('customers')
         .update({
             puntos_actuales: customer.puntos_actuales + 1,
-            total_puntos_historicos: (customer.total_puntos_historicos || 0) + 1
+            total_puntos_historicos: nuevasVisitasHistoricas,
+            tier: nuevoTier,
+            current_streak: newStreak,
+            last_visit_at: new Date().toISOString()
         })
         .eq('id', customer.id)
+
+    // Wallet Push
+    await triggerWalletPush(
+        customer,
+        `✅ Visita registrada en ${customer.tenants?.nombre}`,
+        `¡Gracias por visitarnos! Recibirás promos exclusivas por aquí.`
+    )
 
     return NextResponse.json({
         message: '✅ ¡Visita registrada! Te avisaremos de promos y novedades',
@@ -447,6 +583,13 @@ async function handleCupon(supabase: any, customer: any, program: any, tenant_id
         .select()
         .single()
 
+    // Wallet Push
+    await triggerWalletPush(
+        customer,
+        `🎫 ¡Cupón generado en ${customer.tenants?.nombre}!`,
+        `Tienes un ${descuentoPorcentaje}% de descuento listo para usar.`
+    )
+
     // Marcar como usado en memberships
     if (membership) {
         await supabase.from('memberships').update({ estado: 'usado' }).eq('id', membership.id)
@@ -494,6 +637,13 @@ async function handleRegalo(supabase: any, customer: any, program: any, tenant_i
 
     // Registrar uso
     await safeInsertStamp(supabase, customer.id, tenant_id)
+
+    // Wallet Push
+    await triggerWalletPush(
+        customer,
+        `🎁 Saldo Gift Card en ${customer.tenants?.nombre}`,
+        `Tu saldo actual es de $${membership.saldo_cashback}.`
+    )
 
     return NextResponse.json({
         message: `🎁 Tu Gift Card tiene $${membership.saldo_cashback} disponibles. Muestra este código en caja`,

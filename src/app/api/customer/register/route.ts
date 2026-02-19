@@ -6,7 +6,7 @@ import { getSupabase } from '@/lib/supabase/admin'
 export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     try {
-        const { tenant_id, nombre, whatsapp, email } = await req.json()
+        const { tenant_id, nombre, whatsapp, email, referido_por, fecha_nacimiento } = await req.json()
 
         if (!tenant_id || !nombre || !whatsapp) {
             return NextResponse.json(
@@ -54,7 +54,9 @@ export async function POST(req: NextRequest) {
                 nombre,
                 whatsapp,
                 email: email || null,
-                puntos_actuales: 0
+                fecha_nacimiento: fecha_nacimiento || null,
+                puntos_actuales: 0,
+                referido_por: referido_por || null
             })
             .select()
             .single()

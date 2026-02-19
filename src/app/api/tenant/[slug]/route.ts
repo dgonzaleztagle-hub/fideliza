@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
 // GET /api/tenant/[slug]
 // Obtiene datos completos de un tenant por su slug
@@ -103,7 +104,7 @@ export async function PUT(
         // Buscar tenant
         const { data: tenant, error: tenantError } = await supabase
             .from('tenants')
-            .select('id')
+            .select('id, auth_user_id')
             .eq('slug', slug)
             .single()
 
@@ -111,9 +112,17 @@ export async function PUT(
             return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
         }
 
+        // VALIDACIÓN DE SEGURIDAD
+        const supabaseServer = await createClient()
+        const { data: { user } } = await supabaseServer.auth.getUser()
+
+        if (!user || user.id !== tenant.auth_user_id) {
+            return NextResponse.json({ error: 'No autorizado para editar este negocio' }, { status: 401 })
+        }
+
         // Actualizar datos del tenant
         const tenantUpdates: Record<string, unknown> = {}
-        const tenantFields = ['nombre', 'rubro', 'direccion', 'logo_url', 'color_primario', 'lat', 'lng', 'mensaje_geofencing', 'telefono']
+        const tenantFields = ['nombre', 'rubro', 'direccion', 'logo_url', 'color_primario', 'lat', 'lng', 'mensaje_geofencing', 'telefono', 'google_business_url', 'validation_pin']
         for (const field of tenantFields) {
             if (body[field] !== undefined) {
                 tenantUpdates[field] = body[field]
