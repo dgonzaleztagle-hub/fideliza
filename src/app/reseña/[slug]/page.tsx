@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import { Star, MessageSquare, Send, CheckCircle } from 'lucide-react'
+import { useParams } from 'next/navigation'
 import './review.css'
 
-export default function ReviewPage({ params }: { params: { slug: string } }) {
-    const { slug } = params
+export default function ReviewPage() {
+    const params = useParams()
+    const slug = params.slug as string
     const [rating, setRating] = useState(0)
     const [hover, setHover] = useState(0)
     const [comment, setComment] = useState('')

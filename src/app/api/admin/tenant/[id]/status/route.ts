@@ -5,10 +5,10 @@ import { getSupabase } from '@/lib/supabase/admin'
 // Actualizar plan/estado del tenant (Activación manual)
 export async function POST(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const supabase = getSupabase()
-    const { id } = params
+    const { id } = await params
 
     try {
         const body = await req.json()
