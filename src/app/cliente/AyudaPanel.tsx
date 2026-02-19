@@ -221,6 +221,23 @@ Saldo cargado que el cliente puede gastar.
 <em>Ejemplo: "Gift card de $20.000"</em>`
             },
             {
+                question: '¿Cómo activo la Membresía VIP?',
+                answer: `Activar el modo VIP es muy sencillo y te permite dar un trato preferencial a tus clientes más leales.
+
+<strong>Pasos para activar:</strong>
+1. Ve a la pestaña <strong>"Dashboard"</strong>
+2. En la parte superior derecha, verás un botón con una corona que dice <strong>"👑 Activar VIP"</strong>
+3. Al presionarlo, tu programa cambiará automáticamente al modo Membresía
+4. Tus clientes empezarán a ver los beneficios de ser socios VIP en sus tarjetas digitales
+
+<strong>¿Qué cambia al ser VIP?</strong>
+• Los clientes se sienten parte de un club exclusivo
+• Puedes definir beneficios permanentes (como descuentos fijos)
+• Las tarjetas en Google Wallet muestran el estatus VIP del cliente
+
+<em>Tip: ¡Puedes activar y desactivar este modo cuando quieras! Si quieres volver al sistema de sellos tradicional, solo vuelve a presionar el botón de gestión en el Dashboard.</em>`
+            },
+            {
                 question: '¿Puedo cambiar el tipo de programa después?',
                 answer: `Sí, puedes cambiar el tipo de programa desde la pestaña <strong>"Configuración"</strong>.
 

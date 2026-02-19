@@ -112,6 +112,7 @@ export default function RegistroForm() {
     const [colorPrimario, setColorPrimario] = useState('#6366f1')
 
     // Ubicación
+    const [enLocal, setEnLocal] = useState<boolean | null>(null)
     const [lat, setLat] = useState('')
     const [lng, setLng] = useState('')
     const [mensajeGeo, setMensajeGeo] = useState('¡Estás cerca! Pasa a sumar puntos 🎉')
@@ -726,22 +727,55 @@ export default function RegistroForm() {
                         <h2>Ubicación del local</h2>
                         <p>Para que tus clientes reciban notificaciones al pasar cerca</p>
 
-                        <button
-                            className="registro-btn-location"
-                            onClick={detectarUbicacion}
-                            disabled={detectingLocation}
-                            type="button"
-                        >
-                            {detectingLocation ? '📡 Detectando...' : '📍 Usar mi ubicación actual'}
-                        </button>
+                        <div className="registro-ubicacion-pregunta">
+                            <p><strong>¿Estás ahora mismo en tu local?</strong></p>
+                            <div className="registro-btn-group" style={{ marginTop: '1rem', marginBottom: '1.5rem' }}>
+                                <button
+                                    className={`registro-btn-choice ${enLocal === true ? 'active' : ''}`}
+                                    onClick={() => setEnLocal(true)}
+                                >
+                                    Sí, aquí estoy
+                                </button>
+                                <button
+                                    className={`registro-btn-choice ${enLocal === false ? 'active' : ''}`}
+                                    onClick={() => {
+                                        setEnLocal(false)
+                                        setLat('')
+                                        setLng('')
+                                    }}
+                                >
+                                    No, estoy en otro lugar
+                                </button>
+                            </div>
+                        </div>
 
-                        {lat && lng && (
-                            <div className="registro-location-detected">
-                                ✅ Ubicación detectada ({parseFloat(lat).toFixed(4)}, {parseFloat(lng).toFixed(4)})
+                        {enLocal === true && (
+                            <div className="registro-ubicacion-activa">
+                                <button
+                                    className="registro-btn-location"
+                                    onClick={detectarUbicacion}
+                                    disabled={detectingLocation}
+                                    type="button"
+                                >
+                                    {detectingLocation ? '📡 Detectando...' : '📍 Capturar mi ubicación actual'}
+                                </button>
+                                {lat && lng && (
+                                    <div className="registro-location-detected">
+                                        ✅ Ubicación detectada ({parseFloat(lat).toFixed(4)}, {parseFloat(lng).toFixed(4)})
+                                    </div>
+                                )}
                             </div>
                         )}
 
-                        <div className="registro-field">
+                        {enLocal === false && (
+                            <div className="registro-ubicacion-remota">
+                                <div className="registro-info-alert">
+                                    💡 <strong>No te preocupes.</strong> Puedes crear tu programa ahora y registrar la ubicación después desde tu panel cuando estés físicamente en el local.
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="registro-field" style={{ marginTop: '1.5rem' }}>
                             <label>Mensaje de geofencing</label>
                             <input
                                 type="text"
@@ -750,13 +784,9 @@ export default function RegistroForm() {
                                 placeholder="¡Estás cerca! Pasa a sumar puntos 🎉"
                             />
                             <p className="registro-field-hint">
-                                Este mensaje aparece cuando un cliente pasa cerca de tu local
+                                Mensaje que verá el cliente al pasar cerca
                             </p>
                         </div>
-
-                        <p className="registro-skip-hint">
-                            Si no quieres geofencing por ahora, puedes saltarte este paso
-                        </p>
 
                         <div className="registro-btn-group">
                             <button className="registro-btn-back" onClick={() => setStep('branding')}>
@@ -765,7 +795,7 @@ export default function RegistroForm() {
                             <button
                                 className="registro-btn-next registro-btn-final"
                                 onClick={handleSubmit}
-                                disabled={loading}
+                                disabled={loading || (enLocal === true && !lat)}
                             >
                                 {loading ? '⏳ Creando...' : '🚀 Crear mi programa'}
                             </button>

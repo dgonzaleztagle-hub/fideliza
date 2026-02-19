@@ -111,6 +111,7 @@ export default function ClientePanel() {
     })
     const [saving, setSaving] = useState(false)
     const [saveMessage, setSaveMessage] = useState('')
+    const [detectingLocation, setDetectingLocation] = useState(false)
 
     // Scanner
     const [scannerActive, setScannerActive] = useState(false)
@@ -403,10 +404,35 @@ export default function ClientePanel() {
     })
 
     const topClientes = [...customers].sort((a, b) => b.total_puntos_historicos - a.total_puntos_historicos).slice(0, 5)
+
     const clientesNuevos = customers.filter(c => {
         const daysSince = (Date.now() - new Date(c.created_at).getTime()) / (1000 * 60 * 60 * 24)
         return daysSince <= 7
     })
+
+    const detectarUbicacion = () => {
+        if (!navigator.geolocation) {
+            alert('Tu navegador no soporta geolocalización')
+            return
+        }
+        setDetectingLocation(true)
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setConfigForm(prev => ({
+                    ...prev,
+                    lat: pos.coords.latitude.toString(),
+                    lng: pos.coords.longitude.toString()
+                }))
+                setDetectingLocation(false)
+            },
+            (err) => {
+                console.error('Error geolocalización:', err)
+                alert('No se pudo obtener la ubicación. Asegúrate de dar permisos de GPS en tu navegador.')
+                setDetectingLocation(false)
+            },
+            { enableHighAccuracy: true }
+        )
+    }
 
     if (needsSlug) {
         return (
@@ -1095,6 +1121,16 @@ export default function ClientePanel() {
                                                 placeholder="Ej: -70.6693"
                                             />
                                         </label>
+
+                                        <button
+                                            type="button"
+                                            className="cliente-gps-btn"
+                                            onClick={detectarUbicacion}
+                                            disabled={detectingLocation}
+                                        >
+                                            {detectingLocation ? '📡 Detectando...' : '📍 Capturar mi ubicación actual'}
+                                        </button>
+
                                         <label>
                                             <span>Mensaje de proximidad</span>
                                             <textarea
@@ -1105,7 +1141,7 @@ export default function ClientePanel() {
                                             />
                                         </label>
                                         <p className="cliente-config-hint">
-                                            💡 Tip: Busca las coordenadas de tu negocio en Google Maps, haz clic derecho y copia la latitud y longitud.
+                                            💡 Tip: Si no estás en el local, busca las coordenadas en Google Maps, haz clic derecho y copia la latitud y longitud.
                                         </p>
                                     </div>
                                 ) : (

@@ -368,6 +368,42 @@
     margin: 0.5rem 0 0;
 }
 
+/* Choice Buttons */
+.registro-btn-choice {
+    flex: 1;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: var(--text-secondary, #a0a0b0);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.registro-btn-choice:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.registro-btn-choice.active {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: #6366f1;
+    color: #a5b4fc;
+}
+
+.registro-info-alert {
+    padding: 1rem;
+    background: rgba(59, 130, 246, 0.08);
+    border-left: 4px solid #3b82f6;
+    border-radius: 8px;
+    color: #93c5fd;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
 /* ═══ Color Grid ═══ */
 .registro-color-grid {
     display: flex;

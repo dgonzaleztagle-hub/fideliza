@@ -651,10 +651,13 @@ export default function QRPageClient({ tenant, program }: Props) {
                                 rel="noopener noreferrer"
                                 className="qr-wallet-btn"
                             >
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                                    <path d="M21.2 5H2.8C1.8 5 1 5.8 1 6.8v10.4c0 1 .8 1.8 1.8 1.8h18.4c1 0 1.8-.8 1.8-1.8V6.8c0-1-.8-1.8-1.8-1.8zm-9.2 11c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z" />
-                                </svg>
-                                Agregar a Google Wallet
+                                <img
+                                    src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Wallet_Icon_2022.svg"
+                                    width="24"
+                                    height="24"
+                                    alt="Google Wallet"
+                                />
+                                <span>Añadir a Google Wallet</span>
                             </a>
                         )}
                         {walletLoading && (
