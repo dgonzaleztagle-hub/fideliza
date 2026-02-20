@@ -333,6 +333,8 @@ export default function Home() {
             <a href="/registro">Registrar mi negocio</a>
             <a href="/cliente">Mi Panel</a>
             <a href="/mi-tarjeta">Mi Tarjeta</a>
+            <a href="https://web.facebook.com/vuelve.vip" target="_blank" rel="noopener noreferrer">Facebook</a>
+            <a href="mailto:contacto@vuelve.vip">contacto@vuelve.vip</a>
           </div>
           <div className="footer-bottom">
             <p>© 2025 Vuelve+ · Un producto de HojaCero</p>
