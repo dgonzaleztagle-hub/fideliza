@@ -290,14 +290,12 @@ export default function Home() {
 
             <div className="payment-methods">
               <div className="payment-secure">
-                <span className="lock-icon">🔒</span> Pagos seguros vía Flow
+                <span className="lock-icon">🔒</span> Pagos seguros verificados por Flow
               </div>
               <div className="payment-brands">
-                <span>Webpay</span>
-                <span>·</span>
-                <span>Visa</span>
-                <span>·</span>
-                <span>Mastercard</span>
+                <img src="https://www.flow.cl/img/botones/pagar-webpay.png" alt="Webpay Plus" className="payment-logo" />
+                <img src="https://www.flow.cl/img/botones/pagar-mach.png" alt="Mach" className="payment-logo" />
+                <img src="https://www.flow.cl/img/botones/pagar-servipag.png" alt="Servipag" className="payment-logo" />
               </div>
             </div>
           </div>
