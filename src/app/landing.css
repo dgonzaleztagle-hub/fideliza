@@ -889,13 +889,30 @@ h3 {
     text-transform: uppercase;
 }
 
+.price-amount-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem 0;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.price-old {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    text-decoration: line-through;
+    font-weight: 600;
+    opacity: 0.6;
+    margin-bottom: -0.5rem;
+}
+
 .price-amount {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.25rem;
-    padding: 2rem 0;
-    background: rgba(255, 255, 255, 0.02);
+    padding: 0;
+    background: transparent;
 }
 
 .price-currency {
@@ -1161,4 +1178,40 @@ h3 {
         width: 220px;
         height: 440px;
     }
+}
+
+/* PAYMENT METHODS */
+.payment-methods {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.payment-secure {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 500;
+}
+
+.lock-icon {
+    font-size: 0.9rem;
+}
+
+.payment-brands {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }

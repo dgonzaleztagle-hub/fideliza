@@ -228,12 +228,65 @@ export default function QRPageClient({ tenant, program }: Props) {
         }
     }
 
+    // Geolocation
+    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+    const [locationError, setLocationError] = useState('')
+
+    async function getLocation(): Promise<{ lat: number; lng: number } | null> {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Tu navegador no soporta geolocalización'))
+                return
+            }
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    resolve({
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    })
+                },
+                (err) => {
+                    let msg = 'Error obteniendo ubicación'
+                    if (err.code === 1) msg = 'Debes permitir el acceso a tu ubicación para sumar puntos'
+                    reject(new Error(msg))
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            )
+        })
+    }
+
     async function handleStamp(wsp: string) {
+        setLoading(true)
+        setError('')
+        setLocationError('')
+
         try {
+            // 1. Obtener ubicación (Obligatorio para evitar fraude)
+            let coords = userLocation
+            if (!coords) {
+                try {
+                    coords = await getLocation()
+                    setUserLocation(coords)
+                } catch (locErr: any) {
+                    // Si falla la ubicación, mostramos el error pero permitimos intentar (el backend decidirá si es bloqueante o no según configuración del tenant)
+                    // En este caso, para seguridad estricta, podríamos bloquear aquí. 
+                    // Pero mejor enviamos null y que el backend decida.
+                    console.warn('No se pudo obtener ubicación:', locErr)
+                    setLocationError(locErr.message)
+                    // Si es error de permiso (code 1), lanzamos error para bloquear en UI si queremos ser estrictos
+                    if (locErr.message.includes('permitir')) {
+                        throw locErr
+                    }
+                }
+            }
+
             const bodyData: any = {
                 tenant_id: tenant.id,
-                whatsapp: wsp
+                whatsapp: wsp,
+                lat: coords?.lat,
+                lng: coords?.lng
             }
+
             // Para cashback, enviar monto
             if (needsMontoCompra() && montoCompra) {
                 bodyData.monto_compra = Number(montoCompra)

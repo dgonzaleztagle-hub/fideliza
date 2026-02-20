@@ -6,6 +6,7 @@ import StatusAlert from '@/components/cliente/StatusAlert'
 import { generateAdvisorInsights, Insight } from '@/lib/advisor'
 import './cliente.css'
 import './ayuda.css'
+import SetupWizard from '@/app/components/SetupWizard'
 
 interface TenantData {
     id: string
@@ -28,6 +29,7 @@ interface TenantData {
     flow_subscription_id?: string | null
     last_payment_date?: string | null
     next_billing_date?: string | null
+    onboarding_completado?: boolean
 }
 
 interface ProgramData {
@@ -884,6 +886,13 @@ export default function ClientePanel() {
 
     return (
         <div className="cliente-page">
+            {tenant && !tenant.onboarding_completado && (
+                <SetupWizard
+                    tenant={tenant}
+                    program={program}
+                    onComplete={() => loadTenantData(tenant.slug)}
+                />
+            )}
             {/* Sidebar */}
             <aside className={`cliente-sidebar ${mobileMenuOpen ? 'open' : ''}`}>
                 <div className="cliente-sidebar-header">

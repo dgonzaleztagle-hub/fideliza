@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     try {
         const body = await req.json()
-        const { tenant_id, whatsapp, monto_compra } = body
+        const { tenant_id, whatsapp, monto_compra, lat, lng } = body
 
         if (!tenant_id || !whatsapp) {
             return NextResponse.json(
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
             )
         }
 
-        // Buscar al cliente y el tenant (para el slug y branding)
+        // Buscar al cliente y el tenant (para el slug, branding y ubicación)
         const { data: customer, error: customerError } = await supabase
             .from('customers')
             .select(`
@@ -37,7 +37,10 @@ export async function POST(req: NextRequest) {
                 tenants (
                     slug,
                     nombre,
-                    color_primario
+                    color_primario,
+                    lat,
+                    lng,
+                    mensaje_geofencing
                 )
             `)
             .eq('tenant_id', tenant_id)
@@ -46,6 +49,36 @@ export async function POST(req: NextRequest) {
 
         if (customerError || !customer) {
             return NextResponse.json({ error: 'Cliente no encontrado. ¿Ya te registraste?' }, { status: 404 })
+        }
+
+        // ═══════════════════════════════════════════════════
+        // VALIDACIÓN DE UBICACIÓN (GPS ANTI-FRAUDE)
+        // ═══════════════════════════════════════════════════
+        const tenantData: any = Array.isArray(customer.tenants) ? customer.tenants[0] : customer.tenants
+
+        if (tenantData?.lat && tenantData?.lng) {
+            // Si el negocio tiene ubicación configurada, exigimos validación
+            if (!lat || !lng) {
+                return NextResponse.json({
+                    error: '📍 Ubicación requerida. Por seguridad, debes permitir el acceso a tu ubicación para sumar puntos.'
+                }, { status: 400 })
+            }
+
+            const distanciaMetros = calculateDistance(
+                Number(lat),
+                Number(lng),
+                Number(tenantData.lat),
+                Number(tenantData.lng)
+            )
+
+            console.log(`[GPS CHECK] User: ${lat},${lng} | Shop: ${tenantData.lat},${tenantData.lng} | Dist: ${distanciaMetros}m`)
+
+            // Umbral de 200 metros (ajustable)
+            if (distanciaMetros > 200) {
+                return NextResponse.json({
+                    error: `📍 Estás demasiado lejos del local (${Math.round(distanciaMetros)}m). Debes estar presencialmente para sumar puntos.`
+                }, { status: 403 })
+            }
         }
 
         // Buscar el programa activo del tenant
@@ -136,6 +169,24 @@ export async function POST(req: NextRequest) {
 // ═══════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════
+
+/**
+ * Fórmula de Haversine para calcular distancia en metros entre dos coordenadas
+ */
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371e3; // Radio de la tierra en metros
+    const φ1 = lat1 * Math.PI / 180; // φ, λ en radianes
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distancia en metros
+}
 
 /**
  * Inserta un stamp de forma segura. Si ya existe uno hoy (constraint UNIQUE),

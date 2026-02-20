@@ -263,10 +263,15 @@ export default function Home() {
               <h3>Plan Único</h3>
               <p>Todo lo que necesitas para fidelizar</p>
             </div>
-            <div className="price-amount">
-              <span className="price-currency">$</span>
-              <span className="price-number">29.990</span>
-              <span className="price-period">/mes</span>
+            <div className="price-amount-wrapper">
+              <div className="price-old">
+                $60.000
+              </div>
+              <div className="price-amount">
+                <span className="price-currency">$</span>
+                <span className="price-number">34.990</span>
+                <span className="price-period">/mes</span>
+              </div>
             </div>
             <ul className="price-features">
               <li><span className="check">✓</span> Clientes ilimitados</li>
@@ -282,6 +287,19 @@ export default function Home() {
               Empezar 14 días gratis
             </a>
             <p className="price-note">Sin tarjeta de crédito · Cancela cuando quieras</p>
+
+            <div className="payment-methods">
+              <div className="payment-secure">
+                <span className="lock-icon">🔒</span> Pagos seguros vía Flow
+              </div>
+              <div className="payment-brands">
+                <span>Webpay</span>
+                <span>·</span>
+                <span>Visa</span>
+                <span>·</span>
+                <span>Mastercard</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>

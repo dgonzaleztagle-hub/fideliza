@@ -122,7 +122,7 @@ export async function PUT(
 
         // Actualizar datos del tenant
         const tenantUpdates: Record<string, unknown> = {}
-        const tenantFields = ['nombre', 'rubro', 'direccion', 'logo_url', 'color_primario', 'lat', 'lng', 'mensaje_geofencing', 'telefono', 'google_business_url', 'validation_pin']
+        const tenantFields = ['nombre', 'rubro', 'direccion', 'logo_url', 'color_primario', 'lat', 'lng', 'mensaje_geofencing', 'telefono', 'google_business_url', 'validation_pin', 'onboarding_completado']
         for (const field of tenantFields) {
             if (body[field] !== undefined) {
                 tenantUpdates[field] = body[field]
