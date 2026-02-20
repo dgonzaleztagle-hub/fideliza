@@ -920,6 +920,9 @@ export default function ClientePanel() {
                     gap: 0.5rem;
                     margin-bottom: 0.25rem;
                 }
+            `}</style>
+        </div>
+    )
 
     return (
         <div className="cliente-page">
