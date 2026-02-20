@@ -154,6 +154,9 @@ export default function ClientePanel() {
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
     const [loadingAnalytics, setLoadingAnalytics] = useState(false)
 
+    // Iframe Detection
+    const [isIframe, setIsIframe] = useState(false)
+
     // Notificaciones
     const [notifTitulo, setNotifTitulo] = useState('')
     const [notifMensaje, setNotifMensaje] = useState('')
@@ -606,6 +609,14 @@ export default function ClientePanel() {
         }
         fetchMyTenants()
 
+        // Hide sidebar if embedded
+        if (typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search)
+            if (urlParams.get('iframe') === 'true' || window.self !== window.top) {
+                setIsIframe(true)
+            }
+        }
+
         return () => {
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop())
@@ -926,7 +937,7 @@ export default function ClientePanel() {
     )
 
     return (
-        <div className="cliente-page">
+        <div className={`cliente-page ${isIframe ? 'iframe-mode' : ''}`}>
             {tenant && !tenant.onboarding_completado && (
                 <SetupWizard
                     tenant={tenant}
@@ -987,6 +998,33 @@ export default function ClientePanel() {
             </button>
 
             <main className="cliente-main">
+                {/* ═══════ TOP NAV (SOLO IFRAME) ═══════ */}
+                {isIframe && (
+                    <nav className="cliente-top-nav">
+                        {([
+                            { key: 'dashboard' as Tab, label: 'Dashboard' },
+                            { key: 'clientes' as Tab, label: 'Clientes', hidden: isRestricted },
+                            { key: 'qr' as Tab, label: 'QR y Canje', hidden: isRestricted },
+                            { key: 'analytics' as Tab, label: 'Analytics', hidden: isRestricted },
+                            { key: 'notificaciones' as Tab, label: 'Notificaciones', hidden: isRestricted },
+                            { key: 'personal' as Tab, label: 'Personal', hidden: isRestricted },
+                            { key: 'configuracion' as Tab, label: 'Config.', hidden: isRestricted },
+                        ]).map((item) => (
+                            <button
+                                key={item.key}
+                                className={`cliente-top-btn ${tab === item.key ? 'active' : ''} ${item.hidden ? 'nav-disabled' : ''}`}
+                                onClick={() => {
+                                    if (item.hidden) return
+                                    setTab(item.key)
+                                    if (item.key === 'personal') loadStaff()
+                                }}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </nav>
+                )}
+
                 {/* ═══════ DASHBOARD ═══════ */}
                 {tab === 'dashboard' && (
                     <div className="cliente-content">
