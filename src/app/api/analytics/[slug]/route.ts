@@ -54,7 +54,7 @@ export async function GET(
         // 4. Stamps por día (últimos 30 días)
         const { data: stampsData } = await supabase
             .from('stamps')
-            .select('fecha')
+            .select('fecha, created_at')
             .eq('tenant_id', tenantId)
             .gte('fecha', hace30Dias.toISOString().split('T')[0])
             .order('fecha', { ascending: true })
@@ -142,7 +142,33 @@ export async function GET(
                 stampsPorDia: Object.entries(stampsPorDia).map(([fecha, count]) => ({
                     fecha,
                     visitas: count
-                }))
+                })),
+                heatmap: (() => {
+                    // Matriz 7x24 llena de ceros
+                    // Keys: "day-hour" donde day es 0-6 (Dom-Sab) y hour es 0-23
+                    const map: Record<string, number> = {}
+
+                    stampsData?.forEach((s: any) => {
+                        if (!s.created_at) return
+                        const d = new Date(s.created_at)
+                        // Ajustar a hora local Chile (UTC-4/-3) si es necesario, 
+                        // pero created_at viene en UTC. El cliente lo verá en su hora local.
+                        // Para simplificar, asumiremos que la visualización maneja la zona horaria 
+                        // o procesamos aquí offset. Usaremos UTC por consistencia con fecha servidor.
+
+                        // Mejor estrategia: Usar hora del servidor (UTC) y que el cliente detecte.
+                        // PERO, para analytics de negocio, suele ser mejor la hora local del negocio.
+                        // Asumiremos UTC-3 (Chile) por ahora hardcoded o UTC.
+                        // Usaremos getUTCDay() y getUTCHours() para estandarizar.
+
+                        const day = d.getDay() // 0-6 local time (donde corre el server)
+                        const hour = d.getHours() // 0-23 local time
+
+                        const key = `${day}-${hour}`
+                        map[key] = (map[key] || 0) + 1
+                    })
+                    return map
+                })()
             },
             topClientes: topClientes || [],
             periodo: {

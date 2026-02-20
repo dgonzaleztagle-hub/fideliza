@@ -31,6 +31,7 @@ interface AdminStats {
         pausados: number
     }
     mrrProyectado: number
+    activeCustomers: number
 }
 
 interface TenantAdminData {
@@ -170,6 +171,11 @@ export default function AdminPanel() {
                                             ${stats.mrrProyectado.toLocaleString('es-CL')}
                                         </span>
                                         <span className="admin-stat-desc">En base a {stats.statsPlan.pro} planes Pro</span>
+                                    </div>
+                                    <div className="admin-stat-card">
+                                        <span className="admin-stat-label">Usuarios Activos (30d)</span>
+                                        <span className="admin-stat-value">{stats.activeCustomers}</span>
+                                        <span className="admin-stat-desc">Clientes con visitas recientes</span>
                                     </div>
                                     <div className="admin-stat-card">
                                         <span className="admin-stat-label">Total Negocios</span>

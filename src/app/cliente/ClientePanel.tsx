@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import AyudaPanel from './AyudaPanel'
 import StatusAlert from '@/components/cliente/StatusAlert'
 import { generateAdvisorInsights, Insight } from '@/lib/advisor'
@@ -81,6 +81,7 @@ interface AnalyticsData {
     }
     chartData: {
         stampsPorDia: { fecha: string; visitas: number }[]
+        heatmap: Record<string, number>
     }
     topClientes: CustomerData[]
 }
@@ -1498,6 +1499,53 @@ export default function ClientePanel() {
                                                         </div>
                                                     )
                                                 })()}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Heatmap - Horarios Punta */}
+                                    {analytics.chartData.heatmap && Object.keys(analytics.chartData.heatmap).length > 0 && (
+                                        <div className="cliente-section-card">
+                                            <h3>🔥 Mapa de Calor: Horarios Punta</h3>
+                                            <p className="cliente-content-subtitle" style={{ marginBottom: '1rem' }}>
+                                                Intensidad de visitas por día y hora (Últimos 30 días)
+                                            </p>
+
+                                            <div className="heatmap-container">
+                                                <div className="heatmap-grid">
+                                                    {/* Header Días */}
+                                                    <div className="heatmap-header-cell"></div>
+                                                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+                                                        <div key={d} className="heatmap-header-cell">{d}</div>
+                                                    ))}
+
+                                                    {/* Filas por Hora (agrupadas cada 2h o 1h?) hagamos bloques de 3h para simplificar visualmente o lista de horas clave. 
+                                                        Mejor: 12pm a 10pm suele ser lo activo. 
+                                                        Mostremos rango 09:00 a 23:00 */}
+                                                    {Array.from({ length: 15 }, (_, i) => i + 9).map(hour => (
+                                                        <React.Fragment key={hour}>
+                                                            <div className="heatmap-time-cell">{hour}:00</div>
+                                                            {[0, 1, 2, 3, 4, 5, 6].map(day => {
+                                                                const count = analytics.chartData.heatmap[`${day}-${hour}`] || 0
+                                                                // Calcular intensidad max relativa? 
+                                                                // Necesitamos el max global para normalizar
+                                                                const allValues = Object.values(analytics.chartData.heatmap)
+                                                                const maxVal = Math.max(...allValues, 1)
+                                                                const intensity = Math.min(Math.ceil((count / maxVal) * 4), 4) // 0-4 niveles
+
+                                                                return (
+                                                                    <div
+                                                                        key={`${day}-${hour}`}
+                                                                        className={`heatmap-cell intensity-${intensity}`}
+                                                                        title={`${['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][day]} ${hour}:00 - ${count} visitas`}
+                                                                    >
+                                                                        {count > 0 && <span className="heatmap-value">{count}</span>}
+                                                                    </div>
+                                                                )
+                                                            })}
+                                                        </React.Fragment>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     )}
