@@ -818,16 +818,35 @@ export default function ClientePanel() {
                         : 'Tu periodo de prueba de 14 días ha finalizado.'}
                 </p>
                 <div className="cliente-blocked-info">
-                    Para activar tu cuenta y seguir fidelizando a tus clientes, solicita tu plan <strong>Vuelve+ Pro ($29.990/mes)</strong>.
+                    Para activar tu cuenta y seguir fidelizando a tus clientes, solicita tu plan <strong>Vuelve+ Pro ($34.990/mes)</strong>.
                 </div>
+
+                <button
+                    className="cliente-blocked-btn primary"
+                    onClick={handleUpgrade}
+                    disabled={subscribing}
+                >
+                    {subscribing ? '🚀 Procesando...' : '💳 Pague Aquí (Activar Plan)'}
+                </button>
+
                 <a
                     href="https://wa.me/56972739105?text=hola%20necesito%20pagar%20la%20suscripcion%20de%20vuelve%2B"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="cliente-blocked-btn"
+                    style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.7)' }}
                 >
                     💬 Contactar por WhatsApp
                 </a>
+
+                <div className="cliente-blocked-trust">
+                    <div className="trust-row">
+                        <span>🔒</span> <strong>Pagos seguros vía Flow</strong>
+                    </div>
+                    <div className="trust-row" style={{ opacity: 0.7, fontSize: '0.75rem' }}>
+                        Webpay · Visa · Mastercard
+                    </div>
+                </div>
             </div>
 
             <style jsx>{`
@@ -875,14 +894,32 @@ export default function ClientePanel() {
                     border-radius: 12px;
                     font-weight: 700;
                     transition: transform 0.2s;
+                    border: none;
+                    cursor: pointer;
+                    margin-top: 0.5rem;
+                }
+                .cliente-blocked-btn.primary {
+                    background: var(--primary, #6366f1);
+                    margin-bottom: 0.5rem;
                 }
                 .cliente-blocked-btn:hover {
                     transform: translateY(-2px);
-                    background: #128c7e;
+                    filter: brightness(1.1);
                 }
-            `}</style>
-        </div>
-    )
+                .cliente-blocked-trust {
+                    margin-top: 1.5rem;
+                    padding-top: 1rem;
+                    border-top: 1px solid rgba(255, 255, 255, 0.1);
+                    font-size: 0.8rem;
+                    color: rgba(255, 255, 255, 0.5);
+                }
+                .trust-row {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                    margin-bottom: 0.25rem;
+                }
 
     return (
         <div className="cliente-page">
@@ -1711,8 +1748,11 @@ export default function ClientePanel() {
                                                         onClick={handleUpgrade}
                                                         disabled={subscribing}
                                                     >
-                                                        {subscribing ? '🚀 Preparando...' : 'Activar Vuelve+ Pro ($29.990)'}
+                                                        {subscribing ? '🚀 Preparando...' : 'Activar Vuelve+ Pro ($34.990)'}
                                                     </button>
+                                                    <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', opacity: 0.6, textAlign: 'center' }}>
+                                                        🔒 Pagos seguros vía Flow
+                                                    </div>
                                                 </>
                                             ) : (
                                                 <>
