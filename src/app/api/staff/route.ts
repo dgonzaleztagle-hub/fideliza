@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireTenantOwnerById } from '@/lib/authz'
+import { hashPin, isValidPin } from '@/lib/security/pin'
 
 export async function GET(req: Request) {
     try {
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
         const supabase = getSupabase()
         const { data: staff, error } = await supabase
             .from('staff_profiles')
-            .select('*')
+            .select('id, nombre, rol, activo, created_at')
             .eq('tenant_id', tenant_id)
             .order('created_at', { ascending: false })
 
@@ -37,23 +38,36 @@ export async function POST(req: Request) {
         if (!tenant_id || !nombre || !pin) {
             return NextResponse.json({ error: 'Faltan campos: tenant_id, nombre, pin' }, { status: 400 })
         }
+        if (!isValidPin(pin)) {
+            return NextResponse.json({ error: 'El PIN debe tener 4 dígitos numéricos' }, { status: 400 })
+        }
 
         const owner = await requireTenantOwnerById(tenant_id)
         if (!owner.ok) return owner.response
 
         const supabase = getSupabase()
+        const pinHash = hashPin(pin)
         const { data: staff, error } = await supabase
             .from('staff_profiles')
             .insert([{
                 tenant_id,
                 nombre,
-                pin,
+                pin_hash: pinHash,
+                pin: null,
                 rol: rol || 'cajero'
             }])
-            .select()
+            .select('id, nombre, rol, activo, created_at')
             .single()
 
-        if (error) throw error
+        if (error) {
+            if (error.message?.includes('pin_hash')) {
+                return NextResponse.json(
+                    { error: 'Falta aplicar migración de seguridad de PIN (pin_hash).' },
+                    { status: 503 }
+                )
+            }
+            throw error
+        }
 
         return NextResponse.json({ success: true, staff })
     } catch (error: unknown) {

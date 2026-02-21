@@ -30,7 +30,7 @@ export default function CajeroPage() {
     // App State
     const [activeMode, setActiveMode] = useState<'scan' | 'search'>('scan')
     const [searchQuery, setSearchQuery] = useState('')
-    const [foundCustomers, setFoundCustomers] = useState<any[]>([])
+    const [foundCustomers, setFoundCustomers] = useState<unknown[]>([])
     const [searching, setSearching] = useState(false)
 
     // Transaction State

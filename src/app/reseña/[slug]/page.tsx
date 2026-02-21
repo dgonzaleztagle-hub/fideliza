@@ -1,9 +1,16 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, type CSSProperties } from 'react'
 import { Star, MessageSquare, Send, CheckCircle } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import './review.css'
+
+type ReviewTenant = {
+    nombre: string
+    logo_url: string | null
+    color_primario: string | null
+    google_business_url: string | null
+}
 
 export default function ReviewPage() {
     const params = useParams()
@@ -12,7 +19,7 @@ export default function ReviewPage() {
     const [hover, setHover] = useState(0)
     const [comment, setComment] = useState('')
     const [status, setStatus] = useState<'rating' | 'feedback' | 'thanks'>('rating')
-    const [tenant, setTenant] = useState<any>(null)
+    const [tenant, setTenant] = useState<ReviewTenant | null>(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -37,9 +44,10 @@ export default function ReviewPage() {
         setRating(value)
         if (value >= 4) {
             // Alta calificación -> Redirigir a Google si existe
-            if (tenant?.google_business_url) {
+            const googleBusinessUrl = tenant?.google_business_url
+            if (googleBusinessUrl) {
                 setTimeout(() => {
-                    window.location.href = tenant.google_business_url
+                    window.location.href = googleBusinessUrl
                 }, 1000)
             }
             setStatus('thanks')
@@ -78,8 +86,10 @@ export default function ReviewPage() {
     if (loading) return <div className="review-loading">Cargando...</div>
     if (!tenant) return <div className="review-error">Negocio no encontrado</div>
 
+    const reviewStyle = { '--primary-color': tenant.color_primario || '#6366f1' } as CSSProperties & Record<'--primary-color', string>
+
     return (
-        <div className="review-container" style={{ '--primary-color': tenant.color_primario || '#6366f1' } as any}>
+        <div className="review-container" style={reviewStyle}>
             <div className="review-card">
                 <div className="review-header">
                     {tenant.logo_url && <img src={tenant.logo_url} alt={tenant.nombre} className="review-logo" />}

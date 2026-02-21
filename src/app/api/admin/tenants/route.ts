@@ -22,7 +22,13 @@ export async function GET(_req: NextRequest) {
         if (error) throw error
 
         // Mapear para limpiar conteos
-        const result = tenants.map((t: any) => ({
+        type TenantAggregate = {
+            customers?: Array<{ count: number | null }>
+            stamps?: Array<{ count: number | null }>
+            rewards?: Array<{ count: number | null }>
+        } & Record<string, unknown>
+
+        const result = (tenants as TenantAggregate[]).map((t) => ({
             ...t,
             total_customers: t.customers?.[0]?.count || 0,
             total_stamps: t.stamps?.[0]?.count || 0,
@@ -31,8 +37,9 @@ export async function GET(_req: NextRequest) {
 
         return NextResponse.json({ tenants: result })
 
-    } catch (error) {
-        console.error('Error fetching admin tenants:', error)
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Error interno'
+        console.error('Error fetching admin tenants:', message)
         return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }
 }

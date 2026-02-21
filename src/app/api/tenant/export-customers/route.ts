@@ -51,8 +51,9 @@ export async function GET(req: NextRequest) {
             }
         })
 
-    } catch (error: any) {
-        console.error('Error exportando clientes:', error)
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Error interno al exportar'
+        console.error('Error exportando clientes:', message)
         return NextResponse.json({ error: 'Error interno al exportar' }, { status: 500 })
     }
 }

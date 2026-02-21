@@ -19,7 +19,7 @@ interface Program {
     tipo_premio: string
     valor_premio: string | null
     tipo_programa: string
-    config: Record<string, any>
+    config: Record<string, unknown>
 }
 
 interface Props {
@@ -92,6 +92,9 @@ export default function QRPageClient({ tenant, program }: Props) {
 
     const primaryColor = tenant.color_primario || '#6366f1'
     const tipoPrograma = program?.tipo_programa || 'sellos'
+    const cashbackPorcentaje = typeof program?.config?.porcentaje === 'number' ? program.config.porcentaje : 5
+    const cuponPorcentaje = typeof program?.config?.descuento_porcentaje === 'number' ? program.config.descuento_porcentaje : 15
+    const cantidadUsosPrograma = typeof program?.config?.cantidad_usos === 'number' ? program.config.cantidad_usos : 10
 
     // Capturar referrer de la URL
     useEffect(() => {
@@ -105,11 +108,11 @@ export default function QRPageClient({ tenant, program }: Props) {
     function getProgramBadge(): string {
         const badges: Record<string, string> = {
             sellos: `🎯 ${program?.puntos_meta} puntos = ${program?.descripcion_premio}`,
-            cashback: `💰 ${program?.config?.porcentaje || 5}% de cashback en cada compra`,
+            cashback: `💰 ${cashbackPorcentaje}% de cashback en cada compra`,
             multipase: `🎟️ Pack de usos prepagados`,
             membresia: `👑 Membresía VIP con beneficios exclusivos`,
             descuento: `📊 Más visitas = mayor descuento permanente`,
-            cupon: `🎫 Cupón de ${program?.config?.descuento_porcentaje || 15}% de descuento`,
+            cupon: `🎫 Cupón de ${cuponPorcentaje}% de descuento`,
             regalo: `🎁 Gift Card con saldo disponible`,
             afiliacion: `📱 Recibe promos y novedades exclusivas`
         }
@@ -194,8 +197,8 @@ export default function QRPageClient({ tenant, program }: Props) {
             // Pero por ahora la mantendremos para evitar fricción si recarga.
 
             await handleStamp(whatsapp)
-        } catch (err: any) {
-            setError(err.message || 'Error inesperado')
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Error inesperado')
             setLoading(false)
         }
     }
@@ -265,20 +268,21 @@ export default function QRPageClient({ tenant, program }: Props) {
                 try {
                     coords = await getLocation()
                     setUserLocation(coords)
-                } catch (locErr: any) {
+                } catch (locErr: unknown) {
                     // Si falla la ubicación, mostramos el error pero permitimos intentar (el backend decidirá si es bloqueante o no según configuración del tenant)
                     // En este caso, para seguridad estricta, podríamos bloquear aquí. 
                     // Pero mejor enviamos null y que el backend decida.
                     console.warn('No se pudo obtener ubicación:', locErr)
-                    setLocationError(locErr.message)
+                    const locationMessage = locErr instanceof Error ? locErr.message : 'No se pudo obtener ubicación'
+                    setLocationError(locationMessage)
                     // Si es error de permiso (code 1), lanzamos error para bloquear en UI si queremos ser estrictos
-                    if (locErr.message.includes('permitir')) {
+                    if (locationMessage.includes('permitir')) {
                         throw locErr
                     }
                 }
             }
 
-            const bodyData: any = {
+            const bodyData: Record<string, unknown> = {
                 tenant_id: tenant.id,
                 whatsapp: wsp,
                 lat: coords?.lat,
@@ -312,8 +316,8 @@ export default function QRPageClient({ tenant, program }: Props) {
 
             // Intentar obtener link de Google Wallet en background
             fetchWalletLink(wsp)
-        } catch (err: any) {
-            setError(err.message || 'Error inesperado')
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Error inesperado')
         } finally {
             setLoading(false)
         }
@@ -428,7 +432,7 @@ export default function QRPageClient({ tenant, program }: Props) {
                                 <div
                                     className="qr-progress-fill"
                                     style={{
-                                        width: `${Math.max(10, ((result.usos_restantes || 0) / (program?.config?.cantidad_usos || 10)) * 100)}%`,
+                                        width: `${Math.max(10, ((result.usos_restantes || 0) / cantidadUsosPrograma) * 100)}%`,
                                         background: primaryColor
                                     }}
                                 />

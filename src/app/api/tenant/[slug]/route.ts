@@ -1,6 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { getOptionalAuthenticatedUser, requireTenantOwnerBySlug } from '@/lib/authz'
+import { isProgramType } from '@/lib/programTypes'
+
+type TenantRow = {
+    id: string
+    nombre: string
+    slug: string
+    rubro: string | null
+    direccion: string | null
+    email: string | null
+    telefono: string | null
+    estado: string | null
+    plan: string | null
+    trial_hasta: string | null
+    logo_url: string | null
+    color_primario: string | null
+    lat: number | null
+    lng: number | null
+    mensaje_geofencing: string | null
+    google_business_url: string | null
+    validation_pin: string | null
+    onboarding_completado: boolean | null
+    auth_user_id: string | null
+    created_at: string
+    updated_at: string
+}
+
+type CustomerStatsRow = {
+    total_puntos_historicos: number | null
+    total_premios_canjeados: number | null
+}
 
 // GET /api/tenant/[slug]
 // Público: solo datos de vitrina
@@ -15,7 +45,7 @@ export async function GET(
         const { slug } = await params
         const normalizedSlug = slug.trim().toLowerCase().replace(/\s+/g, '-')
 
-        let tenant: any = null
+        let tenant: TenantRow | null = null
 
         const findBySlug = async (value: string) => supabase
             .from('tenants')
@@ -28,11 +58,11 @@ export async function GET(
             .maybeSingle()
 
         const { data: byExact } = await findBySlug(slug)
-        tenant = byExact
+        tenant = (byExact as TenantRow | null) || null
 
         if (!tenant) {
             const { data: byNormalized } = await findBySlug(normalizedSlug)
-            tenant = byNormalized
+            tenant = (byNormalized as TenantRow | null) || null
         }
 
         if (!tenant) {
@@ -45,7 +75,7 @@ export async function GET(
                 `)
                 .ilike('nombre', slug.trim())
                 .maybeSingle()
-            tenant = byName
+            tenant = (byName as TenantRow | null) || null
         }
 
         if (!tenant) {
@@ -70,12 +100,9 @@ export async function GET(
                     slug: tenant.slug,
                     rubro: tenant.rubro,
                     direccion: tenant.direccion,
-                    telefono: tenant.telefono,
                     estado: tenant.estado,
                     logo_url: tenant.logo_url,
                     color_primario: tenant.color_primario,
-                    lat: tenant.lat,
-                    lng: tenant.lng,
                     mensaje_geofencing: tenant.mensaje_geofencing,
                     google_business_url: tenant.google_business_url
                 },
@@ -101,8 +128,8 @@ export async function GET(
 
         const stats = {
             totalClientes: customers?.length || 0,
-            totalPuntosDados: customers?.reduce((sum: number, c: any) => sum + (c.total_puntos_historicos || 0), 0) || 0,
-            totalPremiosCanjeados: customers?.reduce((sum: number, c: any) => sum + (c.total_premios_canjeados || 0), 0) || 0,
+            totalPuntosDados: (customers as CustomerStatsRow[] | null)?.reduce((sum: number, c) => sum + (c.total_puntos_historicos || 0), 0) || 0,
+            totalPremiosCanjeados: (customers as CustomerStatsRow[] | null)?.reduce((sum: number, c) => sum + (c.total_premios_canjeados || 0), 0) || 0,
             clientesHoy: stampsHoy || 0
         }
 
@@ -161,6 +188,9 @@ export async function PUT(
         }
         if (!body.program || !body.program.descripcion_premio) {
             return NextResponse.json({ error: 'La descripción del premio es obligatoria' }, { status: 400 })
+        }
+        if (body.program?.tipo_programa !== undefined && !isProgramType(body.program.tipo_programa)) {
+            return NextResponse.json({ error: 'Tipo de programa inválido' }, { status: 400 })
         }
 
         const tenantUpdates: Record<string, unknown> = {}

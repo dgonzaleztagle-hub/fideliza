@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, type CSSProperties } from 'react'
 import {
     Layout,
     Palette,
@@ -14,14 +14,23 @@ import {
 import './setup-wizard.css'
 
 interface SetupWizardProps {
-    tenant: any
-    program: any
+    tenant: {
+        nombre?: string | null
+        color_primario?: string | null
+        logo_url?: string | null
+        slug?: string
+    } | null
+    program: {
+        tipo_programa?: string | null
+        puntos_meta?: number | null
+        descripcion_premio?: string | null
+    } | null
     onComplete: () => void
 }
 
 type WizardStep = 'welcome' | 'identity' | 'strategy' | 'reward' | 'preview' | 'finish'
 
-const STEPS: { id: WizardStep; label: string; icon: any }[] = [
+const STEPS: { id: WizardStep; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
     { id: 'welcome', label: 'Bienvenida', icon: Layout },
     { id: 'identity', label: 'Identidad', icon: Palette },
     { id: 'strategy', label: 'Estrategia', icon: Star },
@@ -54,6 +63,7 @@ export default function SetupWizard({ tenant, program, onComplete }: SetupWizard
         descripcionPremio: program?.descripcion_premio || '',
         logo_url: tenant?.logo_url || ''
     })
+    const walletCardStyle = { '--accent': formData.color } as CSSProperties & Record<'--accent', string>
 
     const currentStepIndex = STEPS.findIndex(s => s.id === step)
 
@@ -90,6 +100,10 @@ export default function SetupWizard({ tenant, program, onComplete }: SetupWizard
         }
         if (!formData.descripcionPremio.trim()) {
             alert("Por favor, ingresa una descripción para tu premio.");
+            return;
+        }
+        if (!tenant?.slug) {
+            alert('No encontramos el identificador del negocio. Recarga la página e intenta de nuevo.');
             return;
         }
 
@@ -295,7 +309,7 @@ export default function SetupWizard({ tenant, program, onComplete }: SetupWizard
 
                             <div className="sw-preview-container">
                                 <div className="sw-phone-mock">
-                                    <div className="sw-wallet-card" style={{ '--accent': formData.color } as any}>
+                                    <div className="sw-wallet-card" style={walletCardStyle}>
                                         <div className="sw-wallet-header">
                                             <div className="sw-wallet-logo">
                                                 {formData.logo_url ? <img src={formData.logo_url} alt="" /> : formData.nombre.charAt(0)}

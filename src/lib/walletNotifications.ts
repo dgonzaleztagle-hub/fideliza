@@ -4,6 +4,20 @@ const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID || ''
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL || ''
 const PRIVATE_KEY = (process.env.GOOGLE_WALLET_PRIVATE_KEY || '').replace(/\\n/g, '\n')
 
+type WalletNotificationResult = {
+    objectId: string
+    success: boolean
+    error?: string
+}
+
+function getApiErrorMessage(payload: unknown, fallback: string): string {
+    if (typeof payload === 'object' && payload !== null) {
+        const error = (payload as { error?: { message?: string } }).error
+        if (error?.message) return error.message
+    }
+    return fallback
+}
+
 /**
  * Obtiene un access token de Google para la API de Wallet
  */
@@ -80,9 +94,10 @@ export async function sendWalletNotification(
         }
 
         return { success: true }
-    } catch (error: any) {
-        console.error('Error enviando notificación Wallet:', error)
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Error enviando notificación Wallet'
+        console.error('Error enviando notificación Wallet:', message)
+        return { success: false, error: message }
     }
 }
 
@@ -97,8 +112,8 @@ export async function sendBulkWalletNotifications(
     objectIds: string[],
     titulo: string,
     mensaje: string
-): Promise<{ enviadas: number; errores: number; detalles: any[] }> {
-    const resultados: any[] = []
+): Promise<{ enviadas: number; errores: number; detalles: WalletNotificationResult[] }> {
+    const resultados: WalletNotificationResult[] = []
     let enviadas = 0
     let errores = 0
 
@@ -147,7 +162,7 @@ export async function updateLoyaltyClass(
     try {
         const accessToken = await getAccessToken()
 
-        const patchBody: any = {}
+        const patchBody: Record<string, unknown> = {}
 
         if (updates.programName) {
             patchBody.programName = updates.programName
@@ -186,12 +201,13 @@ export async function updateLoyaltyClass(
 
         if (!response.ok) {
             const errorData = await response.json()
-            return { success: false, error: errorData.error?.message || 'Error actualizando clase' }
+            return { success: false, error: getApiErrorMessage(errorData, 'Error actualizando clase') }
         }
 
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Error actualizando clase'
+        return { success: false, error: message }
     }
 }
 

@@ -2,9 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 import './registro.css'
 
 type OnboardingStep = 'negocio' | 'tipo' | 'programa' | 'branding' | 'ubicacion' | 'listo'
+type RegistroApiResult = {
+    message?: string
+    tenant?: { slug?: string; nombre?: string; qr_code?: string }
+    qr_url?: string
+    trial_hasta?: string
+}
 
 const TIPOS_PROGRAMA = [
     {
@@ -69,7 +76,7 @@ export default function RegistroForm() {
     const [step, setStep] = useState<OnboardingStep>('negocio')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
-    const [result, setResult] = useState<any>(null)
+    const [result, setResult] = useState<RegistroApiResult | null>(null)
     const [hasSession, setHasSession] = useState(false)
     const supabase = createClient()
 
@@ -94,7 +101,7 @@ export default function RegistroForm() {
                     redirectTo: `${window.location.origin}/registro`
                 }
             })
-        } catch (err: any) {
+        } catch {
             setError('Error conectando con Google')
             setLoading(false)
         }
@@ -257,13 +264,13 @@ export default function RegistroForm() {
 
             setResult(data)
             setStep('listo')
-        } catch (err: any) {
-            if (err?.name === 'AbortError') {
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name === 'AbortError') {
                 setError('La creación está tardando demasiado. Reintenta en unos segundos.')
-            } else if (err?.message?.includes('JSON')) {
+            } else if (err instanceof Error && err.message.includes('JSON')) {
                 setError('El servidor respondió con un formato inválido. Reintenta.')
             } else {
-                setError(err.message || 'Error inesperado')
+                setError(err instanceof Error ? err.message : 'Error inesperado')
             }
         } finally {
             clearTimeout(timeoutId)
@@ -287,9 +294,9 @@ export default function RegistroForm() {
         <div className="registro-page">
             {/* Header */}
             <header className="registro-header">
-                <a href="/" className="registro-logo">
+                <Link href="/" className="registro-logo">
                     <span>💎</span> Vuelve+
-                </a>
+                </Link>
             </header>
 
             {step !== 'listo' && (
@@ -942,11 +949,13 @@ export default function RegistroForm() {
                             <div className="registro-success-item">
                                 <span className="registro-success-label">Trial gratis hasta:</span>
                                 <span className="registro-success-value">
-                                    {new Date(result.trial_hasta).toLocaleDateString('es-CL', {
-                                        day: 'numeric',
-                                        month: 'long',
-                                        year: 'numeric'
-                                    })}
+                                    {result.trial_hasta
+                                        ? new Date(result.trial_hasta).toLocaleDateString('es-CL', {
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric'
+                                        })
+                                        : 'No disponible'}
                                 </span>
                             </div>
 

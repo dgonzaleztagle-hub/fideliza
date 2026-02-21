@@ -53,8 +53,9 @@ export async function POST(req: Request) {
 
         // Flow espera un OK para dejar de reintentar el webhook
         return new Response('OK', { status: 200 });
-    } catch (error: any) {
-        console.error('Webhook Error:', error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Error interno'
+        console.error('Webhook Error:', message);
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

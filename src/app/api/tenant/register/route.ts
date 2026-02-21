@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { isProgramType } from '@/lib/programTypes'
 
 // POST /api/tenant/register
 // Registrar un nuevo negocio
@@ -28,6 +29,17 @@ export async function POST(req: NextRequest) {
             tipo_programa,
             config
         } = body
+
+        const normalizedProgramType = typeof tipo_programa === 'string'
+            ? tipo_programa.trim().toLowerCase()
+            : 'sellos'
+
+        if (!isProgramType(normalizedProgramType)) {
+            return NextResponse.json(
+                { error: `Tipo de programa inválido: ${tipo_programa}` },
+                { status: 400 }
+            )
+        }
 
         const supabaseServer = await createClient()
         const { data: { user: currentUser } } = await supabaseServer.auth.getUser()
@@ -77,7 +89,8 @@ export async function POST(req: NextRequest) {
         const trialHasta = new Date()
         trialHasta.setDate(trialHasta.getDate() + 14)
 
-        let authUserId = null
+        let authUserId: string | null = null
+        let authUserCreatedByThisRequest = false
 
         if (currentUser) {
             // Ya viene logueado por Google u OAuth
@@ -100,6 +113,7 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: msg }, { status: 400 })
             }
             authUserId = authData.user.id
+            authUserCreatedByThisRequest = true
         }
 
         // 2. Crear el tenant
@@ -128,6 +142,9 @@ export async function POST(req: NextRequest) {
 
         if (tenantError) {
             console.error('Error creando tenant:', tenantError)
+            if (authUserCreatedByThisRequest && authUserId) {
+                await supabase.auth.admin.deleteUser(authUserId)
+            }
             if (tenantError.code === '23505') {
                 return NextResponse.json({ error: 'Ya existe un negocio con ese email' }, { status: 409 })
             }
@@ -144,7 +161,7 @@ export async function POST(req: NextRequest) {
                 descripcion_premio: descripcion_premio || 'Premio por tu lealtad',
                 tipo_premio: tipo_premio || 'descuento',
                 valor_premio: valor_premio || null,
-                tipo_programa: tipo_programa || 'sellos',
+                tipo_programa: normalizedProgramType,
                 config: config || {},
                 activo: true
             })
@@ -153,6 +170,18 @@ export async function POST(req: NextRequest) {
 
         if (programError) {
             console.error('Error creando programa:', programError)
+            await supabase.from('tenants').delete().eq('id', tenant.id)
+            if (authUserCreatedByThisRequest && authUserId) {
+                await supabase.auth.admin.deleteUser(authUserId)
+            }
+
+            if (programError.code === '23514') {
+                return NextResponse.json({
+                    error: 'La base de datos no acepta este tipo de programa todavía. Aplica la migración de tipos y reintenta.'
+                }, { status: 500 })
+            }
+
+            return NextResponse.json({ error: 'Error al crear programa de lealtad' }, { status: 500 })
         }
 
         // Generar URL del QR (apunta a la página de escaneo)

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { generateSaveLink, createLoyaltyClass } from '@/lib/googleWallet'
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
+
+function normalizeWhatsapp(value: string): string {
+    return value.replace(/[^\d+]/g, '')
+}
 
 // POST /api/wallet/save-link
 // Genera el link para "Agregar a Google Wallet" de un cliente
@@ -8,11 +13,24 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     try {
         const { tenant_id, whatsapp } = await req.json()
+        const ip = getClientIp(req.headers)
 
         if (!tenant_id || !whatsapp) {
             return NextResponse.json(
                 { error: 'Faltan campos: tenant_id, whatsapp' },
                 { status: 400 }
+            )
+        }
+
+        const normalizedWhatsapp = normalizeWhatsapp(String(whatsapp))
+        if (!normalizedWhatsapp) {
+            return NextResponse.json({ error: 'WhatsApp inválido' }, { status: 400 })
+        }
+        const rate = checkRateLimit(`wallet-save-link:${ip}:${tenant_id}`, 40, 10 * 60 * 1000)
+        if (!rate.allowed) {
+            return NextResponse.json(
+                { error: 'Demasiadas solicitudes. Intenta nuevamente en unos minutos.' },
+                { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
             )
         }
 
@@ -40,7 +58,7 @@ export async function POST(req: NextRequest) {
             .from('customers')
             .select('id, nombre, whatsapp, puntos_actuales')
             .eq('tenant_id', tenant_id)
-            .eq('whatsapp', whatsapp)
+            .eq('whatsapp', normalizedWhatsapp)
             .single()
 
         if (customerError || !customer) {
@@ -97,10 +115,11 @@ export async function POST(req: NextRequest) {
             message: '✅ Link de Google Wallet generado'
         })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error generando save link:', error)
+        const message = error instanceof Error ? error.message : 'Error generando link de Google Wallet'
         return NextResponse.json(
-            { error: error.message || 'Error generando link de Google Wallet' },
+            { error: message },
             { status: 500 }
         )
     }

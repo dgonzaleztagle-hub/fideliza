@@ -1,14 +1,18 @@
 import crypto from 'crypto';
 
-const API_KEY = process.env.FLOW_API_KEY!;
-const SECRET_KEY = process.env.FLOW_SECRET_KEY!;
-const BASE_URL = process.env.FLOW_URL!;
+const API_KEY = process.env.FLOW_API_KEY || '';
+const SECRET_KEY = process.env.FLOW_SECRET_KEY || '';
+const BASE_URL = process.env.FLOW_URL || '';
 
 interface FlowParams {
     [key: string]: string | number | boolean;
 }
 
 export async function flowRequest(endpoint: string, params: FlowParams, method: 'GET' | 'POST' = 'POST') {
+    if (!API_KEY || !SECRET_KEY || !BASE_URL) {
+        throw new Error('Flow no está configurado correctamente (FLOW_API_KEY / FLOW_SECRET_KEY / FLOW_URL)')
+    }
+
     // 1. Añadir apiKey a los parámetros
     const allParams: FlowParams = {
         ...params,
@@ -30,15 +34,19 @@ export async function flowRequest(endpoint: string, params: FlowParams, method: 
         .digest('hex');
 
     // 5. Añadir la firma a los parámetros finales
-    const finalParams = {
+    const finalParamsRaw: FlowParams = {
         ...allParams,
         s: signature
-    };
+    }
+    const finalParams: Record<string, string> = {}
+    for (const [key, value] of Object.entries(finalParamsRaw)) {
+        finalParams[key] = String(value)
+    }
 
     const url = `${BASE_URL}/${endpoint}`;
 
     if (method === 'GET') {
-        const queryString = new URLSearchParams(finalParams as any).toString();
+        const queryString = new URLSearchParams(finalParams).toString();
         const response = await fetch(`${url}?${queryString}`);
         return await response.json();
     } else {
@@ -47,7 +55,7 @@ export async function flowRequest(endpoint: string, params: FlowParams, method: 
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: new URLSearchParams(finalParams as any).toString()
+            body: new URLSearchParams(finalParams).toString()
         });
         return await response.json();
     }

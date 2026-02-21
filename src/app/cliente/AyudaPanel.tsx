@@ -470,6 +470,7 @@ Después de que un cliente suma un punto, aparece un botón <strong>"Agregar a G
 
 • <strong>Sellos:</strong> Solo 1 sello por día (para evitar abusos)
 • <strong>Cashback:</strong> Puede registrar múltiples compras al día
+• <strong>Multipase y Gift Card:</strong> Puede registrar múltiples consumos al día
 • <strong>Otros tipos:</strong> Generalmente 1 registro por día
 
 <em>Esto está diseñado para proteger tu programa de usos indebidos.</em>`

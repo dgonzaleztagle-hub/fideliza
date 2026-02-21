@@ -15,15 +15,16 @@ export async function GET() {
         // 2. Buscar todos los tenants asociados a su ID
         const { data: tenants, error: dbError } = await supabase
             .from('tenants')
-            .select('*')
+            .select('id, nombre, slug, color_primario, estado, plan, trial_hasta, logo_url')
             .eq('auth_user_id', user.id)
             .order('nombre', { ascending: true });
 
         if (dbError) throw dbError;
 
         return NextResponse.json({ tenants });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error fetching my-tenants:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Error interno'
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

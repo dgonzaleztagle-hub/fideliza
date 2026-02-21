@@ -4,6 +4,63 @@ import { v4 as uuidv4 } from 'uuid'
 import { calculateTier, processStreak } from '@/lib/gamification'
 import { triggerWalletPush } from '@/lib/wallet/push'
 
+type SupabaseAdminClient = ReturnType<typeof getSupabase>
+
+type TenantInfo = {
+    slug: string
+    nombre: string
+    color_primario?: string | null
+    lat?: number | null
+    lng?: number | null
+    mensaje_geofencing?: string | null
+}
+
+type CustomerRow = {
+    id: string
+    nombre: string
+    whatsapp: string
+    puntos_actuales: number
+    total_puntos_historicos: number
+    total_premios_canjeados: number
+    tier: string | null
+    current_streak: number | null
+    last_visit_at: string | null
+    tenants: TenantInfo | TenantInfo[] | null
+}
+
+type NivelConfig = {
+    visitas: number
+    descuento: number
+}
+
+type ProgramConfig = {
+    porcentaje?: number
+    tope_mensual?: number
+    niveles?: NivelConfig[]
+    beneficios?: string[]
+    descuento_porcentaje?: number
+    valido_hasta?: string | null
+}
+
+type ProgramRow = {
+    id: string
+    puntos_meta: number
+    descripcion_premio: string
+    tipo_premio: string | null
+    valor_premio: string | null
+    tipo_programa: string
+    config: ProgramConfig | null
+}
+
+function getTenantInfo(tenant: CustomerRow['tenants']): TenantInfo | null {
+    if (!tenant) return null
+    return Array.isArray(tenant) ? (tenant[0] || null) : tenant
+}
+
+function normalizeWhatsapp(value: string): string {
+    return value.replace(/[^\d+]/g, '')
+}
+
 // POST /api/stamp
 // Motor universal: suma punto, registra cashback, consume multipase, calcula descuento, etc.
 // El comportamiento depende de program.tipo_programa
@@ -12,8 +69,9 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json()
         const { tenant_id, whatsapp, monto_compra, lat, lng } = body
+        const normalizedWhatsapp = typeof whatsapp === 'string' ? normalizeWhatsapp(whatsapp) : ''
 
-        if (!tenant_id || !whatsapp) {
+        if (!tenant_id || !normalizedWhatsapp) {
             return NextResponse.json(
                 { error: 'Faltan campos: tenant_id, whatsapp' },
                 { status: 400 }
@@ -43,17 +101,18 @@ export async function POST(req: NextRequest) {
                 )
             `)
             .eq('tenant_id', tenant_id)
-            .eq('whatsapp', whatsapp)
+            .eq('whatsapp', normalizedWhatsapp)
             .single()
 
         if (customerError || !customer) {
             return NextResponse.json({ error: 'Cliente no encontrado. ¿Ya te registraste?' }, { status: 404 })
         }
+        const typedCustomer = customer as CustomerRow
 
         // ═══════════════════════════════════════════════════
         // VALIDACIÓN DE UBICACIÓN (GPS ANTI-FRAUDE)
         // ═══════════════════════════════════════════════════
-        const tenantData: any = Array.isArray(customer.tenants) ? customer.tenants[0] : customer.tenants
+        const tenantData = getTenantInfo(typedCustomer.tenants)
 
         if (tenantData?.lat && tenantData?.lng) {
             // Si el negocio tiene ubicación configurada, exigimos validación
@@ -89,15 +148,16 @@ export async function POST(req: NextRequest) {
         if (programError || !program) {
             return NextResponse.json({ error: 'No hay programa de lealtad activo' }, { status: 404 })
         }
+        const typedProgram = program as ProgramRow
 
-        const tipoPrograma = program.tipo_programa || 'sellos'
-        const config = program.config || {}
+        const tipoPrograma = typedProgram.tipo_programa || 'sellos'
+        const config = typedProgram.config || {}
 
         // ═══════════════════════════════════════════════════
         // TIPO: SELLOS (comportamiento original)
         // ═══════════════════════════════════════════════════
         if (tipoPrograma === 'sellos') {
-            return await handleSellos(supabase, customer, program, tenant_id)
+            return await handleSellos(supabase, typedCustomer, typedProgram, tenant_id)
         }
 
         // ═══════════════════════════════════════════════════
@@ -110,49 +170,49 @@ export async function POST(req: NextRequest) {
                     { status: 400 }
                 )
             }
-            return await handleCashback(supabase, customer, program, tenant_id, monto_compra, config)
+            return await handleCashback(supabase, typedCustomer, typedProgram, tenant_id, monto_compra, config)
         }
 
         // ═══════════════════════════════════════════════════
         // TIPO: MULTIPASE
         // ═══════════════════════════════════════════════════
         if (tipoPrograma === 'multipase') {
-            return await handleMultipase(supabase, customer, program, tenant_id)
+            return await handleMultipase(supabase, typedCustomer, typedProgram, tenant_id)
         }
 
         // ═══════════════════════════════════════════════════
         // TIPO: DESCUENTO POR NIVELES
         // ═══════════════════════════════════════════════════
         if (tipoPrograma === 'descuento') {
-            return await handleDescuentoNiveles(supabase, customer, program, tenant_id, config)
+            return await handleDescuentoNiveles(supabase, typedCustomer, typedProgram, tenant_id, config)
         }
 
         // ═══════════════════════════════════════════════════
         // TIPO: MEMBRESÍA / VIP (solo registra visita)
         // ═══════════════════════════════════════════════════
         if (tipoPrograma === 'membresia') {
-            return await handleMembresia(supabase, customer, program, tenant_id)
+            return await handleMembresia(supabase, typedCustomer, typedProgram, tenant_id)
         }
 
         // ═══════════════════════════════════════════════════
         // TIPO: AFILIACIÓN (solo notificaciones, registra visita)
         // ═══════════════════════════════════════════════════
         if (tipoPrograma === 'afiliacion') {
-            return await handleAfiliacion(supabase, customer, tenant_id)
+            return await handleAfiliacion(supabase, typedCustomer, tenant_id)
         }
 
         // ═══════════════════════════════════════════════════
         // TIPO: CUPÓN (descuento un solo uso)
         // ═══════════════════════════════════════════════════
         if (tipoPrograma === 'cupon') {
-            return await handleCupon(supabase, customer, program, tenant_id, config)
+            return await handleCupon(supabase, typedCustomer, typedProgram, tenant_id, config)
         }
 
         // ═══════════════════════════════════════════════════
         // TIPO: REGALO / GIFT CARD
         // ═══════════════════════════════════════════════════
         if (tipoPrograma === 'regalo') {
-            return await handleRegalo(supabase, customer, program, tenant_id, config, monto_compra)
+            return await handleRegalo(supabase, typedCustomer, typedProgram, tenant_id, config, monto_compra)
         }
 
         return NextResponse.json({ error: `Tipo de programa "${tipoPrograma}" no soportado` }, { status: 400 })
@@ -197,7 +257,7 @@ function alreadyStampedTodayResponse(tipo: string) {
     }, { status: 409 })
 }
 
-async function safeInsertStamp(supabase: any, customer_id: string, tenant_id: string) {
+async function safeInsertStamp(supabase: SupabaseAdminClient, customer_id: string, tenant_id: string) {
     const { error } = await supabase.from('stamps').insert({
         customer_id,
         tenant_id,
@@ -222,7 +282,7 @@ async function safeInsertStamp(supabase: any, customer_id: string, tenant_id: st
 /**
  * Programa una solicitud de reseña automática
  */
-async function scheduleReview(supabase: any, customer_id: string, tenant_id: string) {
+async function scheduleReview(supabase: SupabaseAdminClient, customer_id: string, tenant_id: string) {
     const scheduledFor = new Date()
     scheduledFor.setHours(scheduledFor.getHours() + 2)
 
@@ -234,11 +294,26 @@ async function scheduleReview(supabase: any, customer_id: string, tenant_id: str
     })
 }
 
+async function notifyWallet(params: {
+    customer_id: string
+    tenant_slug: string | null | undefined
+    titulo: string
+    mensaje: string
+}) {
+    if (!params.tenant_slug) return
+    await triggerWalletPush({
+        customer_id: params.customer_id,
+        tenant_slug: params.tenant_slug,
+        titulo: params.titulo,
+        mensaje: params.mensaje
+    })
+}
+
 // ═══════════════════════════════════════════════════
 // HANDLERS POR TIPO
 // ═══════════════════════════════════════════════════
 
-async function handleSellos(supabase: any, customer: any, program: any, tenant_id: string) {
+async function handleSellos(supabase: SupabaseAdminClient, customer: CustomerRow, program: ProgramRow, tenant_id: string) {
     // Llamar a la RPC atómica para procesar el stamp y el premio en una sola transacción
     const { data, error: rpcError } = await supabase.rpc('process_stamp_and_reward', {
         p_tenant_id: tenant_id,
@@ -250,12 +325,15 @@ async function handleSellos(supabase: any, customer: any, program: any, tenant_i
         return NextResponse.json({ error: 'Error procesando punto de forma atómica' }, { status: 500 })
     }
 
-    if (data.points_added > 0) {
+    const rpcData = (data || {}) as { points_added?: number; points_actual?: number } & Record<string, unknown>
+    const pointsAdded = rpcData.points_added || 0
+
+    if (pointsAdded > 0) {
         await scheduleReview(supabase, customer.id, tenant_id)
 
         // Gamificación para Sellos
         const { newStreak } = processStreak(customer.last_visit_at, customer.current_streak || 0)
-        const nuevasVisitasHistoricas = (customer.total_puntos_historicos || 0) + data.points_added
+        const nuevasVisitasHistoricas = (customer.total_puntos_historicos || 0) + pointsAdded
         const nuevoTier = calculateTier(nuevasVisitasHistoricas)
 
         await supabase.from('customers').update({
@@ -266,22 +344,23 @@ async function handleSellos(supabase: any, customer: any, program: any, tenant_i
         }).eq('id', customer.id)
 
         // Wallet Push
-        await triggerWalletPush({
+        const tenantData = getTenantInfo(customer.tenants)
+        await notifyWallet({
             customer_id: customer.id,
-            tenant_slug: customer.tenants?.slug,
-            titulo: `¡Sello sumado en ${customer.tenants?.nombre}!`,
-            mensaje: `Llevas ${data.points_actual} / ${program.puntos_meta} sellos. ¡Falta poco!`
+            tenant_slug: tenantData?.slug,
+            titulo: `¡Sello sumado en ${tenantData?.nombre || 'tu negocio'}!`,
+            mensaje: `Llevas ${rpcData.points_actual || 0} / ${program.puntos_meta} sellos. ¡Falta poco!`
         })
     }
 
     // Adaptar respuesta de RPC a lo que el frontend espera
     return NextResponse.json({
-        ...data,
+        ...rpcData,
         puntos_meta: program.puntos_meta // Asegurar que viaja el meta para la UI
     })
 }
 
-async function handleCashback(supabase: any, customer: any, program: any, tenant_id: string, monto_compra: number, config: any) {
+async function handleCashback(supabase: SupabaseAdminClient, customer: CustomerRow, program: ProgramRow, tenant_id: string, monto_compra: number, config: ProgramConfig) {
     const porcentaje = config.porcentaje || 5
     const topeMensual = config.tope_mensual || 999999
     let cashbackGanado = Math.round(monto_compra * (porcentaje / 100))
@@ -303,8 +382,12 @@ async function handleCashback(supabase: any, customer: any, program: any, tenant
 
     const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
     if (!stamp.inserted) {
-        if (stamp.duplicate) return alreadyStampedTodayResponse('cashback')
-        return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+        // Cashback permite múltiples compras al día: si ya existe stamp hoy, continuamos.
+        if (stamp.duplicate) {
+            console.info('Cashback con stamp duplicado en el día; se procesa igual el abono.')
+        } else {
+            return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+        }
     }
 
     // Actualizar o crear membership
@@ -341,10 +424,11 @@ async function handleCashback(supabase: any, customer: any, program: any, tenant
         .eq('id', customer.id)
 
     // Wallet Push
-    await triggerWalletPush({
+    const tenantData = getTenantInfo(customer.tenants)
+    await notifyWallet({
         customer_id: customer.id,
-        tenant_slug: customer.tenants?.slug,
-        titulo: `💰 ¡Cashback en ${customer.tenants?.nombre}!`,
+        tenant_slug: tenantData?.slug,
+        titulo: `💰 ¡Cashback en ${tenantData?.nombre || 'tu negocio'}!`,
         mensaje: `Ganaste $${cashbackGanado}. Nuevo saldo: $${saldoActual + cashbackGanado}`
     })
 
@@ -358,7 +442,7 @@ async function handleCashback(supabase: any, customer: any, program: any, tenant
     })
 }
 
-async function handleMultipase(supabase: any, customer: any, program: any, tenant_id: string) {
+async function handleMultipase(supabase: SupabaseAdminClient, customer: CustomerRow, program: ProgramRow, tenant_id: string) {
     // Buscar multipase activo
     const { data: membership, error } = await supabase
         .from('memberships')
@@ -380,8 +464,12 @@ async function handleMultipase(supabase: any, customer: any, program: any, tenan
 
     const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
     if (!stamp.inserted) {
-        if (stamp.duplicate) return alreadyStampedTodayResponse('multipase')
-        return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+        // Multipase puede consumir más de un uso por día.
+        if (stamp.duplicate) {
+            console.info('Multipase con stamp duplicado en el día; se procesa igual el consumo.')
+        } else {
+            return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+        }
     }
 
     const nuevosUsos = membership.usos_restantes - 1
@@ -403,10 +491,11 @@ async function handleMultipase(supabase: any, customer: any, program: any, tenan
         .eq('id', customer.id)
 
     // Wallet Push
-    await triggerWalletPush({
+    const tenantData = getTenantInfo(customer.tenants)
+    await notifyWallet({
         customer_id: customer.id,
-        tenant_slug: customer.tenants?.slug,
-        titulo: `🎟️ Pase usado en ${customer.tenants?.nombre}`,
+        tenant_slug: tenantData?.slug,
+        titulo: `🎟️ Pase usado en ${tenantData?.nombre || 'tu negocio'}`,
         mensaje: nuevosUsos > 0
             ? `Te quedan ${nuevosUsos} usos en tu multipase.`
             : `¡Pack completado! ¡Gracias por tu visita!`
@@ -422,7 +511,7 @@ async function handleMultipase(supabase: any, customer: any, program: any, tenan
     })
 }
 
-async function handleDescuentoNiveles(supabase: any, customer: any, program: any, tenant_id: string, config: any) {
+async function handleDescuentoNiveles(supabase: SupabaseAdminClient, customer: CustomerRow, program: ProgramRow, tenant_id: string, config: ProgramConfig) {
     const niveles = config.niveles || [
         { visitas: 5, descuento: 5 },
         { visitas: 15, descuento: 10 },
@@ -457,7 +546,7 @@ async function handleDescuentoNiveles(supabase: any, customer: any, program: any
     let nivelActual = { visitas: 0, descuento: 0 }
     let nivelSiguiente: { visitas: number; descuento: number } | null = null
 
-    const nivelesOrdenados = niveles.sort((a: any, b: any) => a.visitas - b.visitas)
+    const nivelesOrdenados = niveles.sort((a: NivelConfig, b: NivelConfig) => a.visitas - b.visitas)
     for (let i = 0; i < nivelesOrdenados.length; i++) {
         if (nuevoTotal >= nivelesOrdenados[i].visitas) {
             nivelActual = nivelesOrdenados[i]
@@ -471,10 +560,11 @@ async function handleDescuentoNiveles(supabase: any, customer: any, program: any
     const subioDeNivel = nuevoTotal === nivelActual.visitas && nivelActual.descuento > 0
 
     // Wallet Push
-    await triggerWalletPush({
+    const tenantData = getTenantInfo(customer.tenants)
+    await notifyWallet({
         customer_id: customer.id,
-        tenant_slug: customer.tenants?.slug,
-        titulo: subioDeNivel ? `🎉 ¡Subiste de nivel en ${customer.tenants?.nombre}!` : `✅ Visita registrada`,
+        tenant_slug: tenantData?.slug,
+        titulo: subioDeNivel ? `🎉 ¡Subiste de nivel en ${tenantData?.nombre || 'tu negocio'}!` : `✅ Visita registrada`,
         mensaje: subioDeNivel
             ? `Ahora tienes ${nivelActual.descuento}% de descuento permanente.`
             : `Llevas ${nuevoTotal} visitas. ¡Faltan ${nivelSiguiente?.visitas ? nivelSiguiente.visitas - nuevoTotal : '?'} para el próximo nivel!`
@@ -495,7 +585,7 @@ async function handleDescuentoNiveles(supabase: any, customer: any, program: any
     })
 }
 
-async function handleMembresia(supabase: any, customer: any, program: any, tenant_id: string) {
+async function handleMembresia(supabase: SupabaseAdminClient, customer: CustomerRow, program: ProgramRow, tenant_id: string) {
     // Verificar que tiene membresía activa
     const { data: membership } = await supabase
         .from('memberships')
@@ -552,10 +642,11 @@ async function handleMembresia(supabase: any, customer: any, program: any, tenan
         .eq('id', customer.id)
 
     // Wallet Push
-    await triggerWalletPush({
+    const tenantData = getTenantInfo(customer.tenants)
+    await notifyWallet({
         customer_id: customer.id,
-        tenant_slug: customer.tenants?.slug,
-        titulo: `👑 ¡Bienvenido VIP a ${customer.tenants?.nombre}!`,
+        tenant_slug: tenantData?.slug,
+        titulo: `👑 ¡Bienvenido VIP a ${tenantData?.nombre || 'tu negocio'}!`,
         mensaje: `Tu visita ha sido registrada. ¡Disfruta tus beneficios!`
     })
 
@@ -570,7 +661,7 @@ async function handleMembresia(supabase: any, customer: any, program: any, tenan
     })
 }
 
-async function handleAfiliacion(supabase: any, customer: any, tenant_id: string) {
+async function handleAfiliacion(supabase: SupabaseAdminClient, customer: CustomerRow, tenant_id: string) {
     // Solo registrar la visita — afiliación es para recibir notificaciones
     const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
     if (!stamp.inserted) {
@@ -595,10 +686,11 @@ async function handleAfiliacion(supabase: any, customer: any, tenant_id: string)
         .eq('id', customer.id)
 
     // Wallet Push
-    await triggerWalletPush({
+    const tenantData = getTenantInfo(customer.tenants)
+    await notifyWallet({
         customer_id: customer.id,
-        tenant_slug: customer.tenants?.slug,
-        titulo: `✅ Visita registrada en ${customer.tenants?.nombre}`,
+        tenant_slug: tenantData?.slug,
+        titulo: `✅ Visita registrada en ${tenantData?.nombre || 'tu negocio'}`,
         mensaje: `¡Gracias por visitarnos! Recibirás promos exclusivas por aquí.`
     })
 
@@ -609,7 +701,7 @@ async function handleAfiliacion(supabase: any, customer: any, tenant_id: string)
     })
 }
 
-async function handleCupon(supabase: any, customer: any, program: any, tenant_id: string, config: any) {
+async function handleCupon(supabase: SupabaseAdminClient, customer: CustomerRow, program: ProgramRow, tenant_id: string, config: ProgramConfig) {
     const descuentoPorcentaje = config.descuento_porcentaje || 15
     const validoHasta = config.valido_hasta || null
 
@@ -661,10 +753,11 @@ async function handleCupon(supabase: any, customer: any, program: any, tenant_id
         .single()
 
     // Wallet Push
-    await triggerWalletPush({
+    const tenantData = getTenantInfo(customer.tenants)
+    await notifyWallet({
         customer_id: customer.id,
-        tenant_slug: customer.tenants?.slug,
-        titulo: `🎫 ¡Cupón generado en ${customer.tenants?.nombre}!`,
+        tenant_slug: tenantData?.slug,
+        titulo: `🎫 ¡Cupón generado en ${tenantData?.nombre || 'tu negocio'}!`,
         mensaje: `Tienes un ${descuentoPorcentaje}% de descuento listo para usar.`
     })
 
@@ -688,7 +781,7 @@ async function handleCupon(supabase: any, customer: any, program: any, tenant_id
     })
 }
 
-async function handleRegalo(supabase: any, customer: any, program: any, tenant_id: string, config: any, monto_compra?: number) {
+async function handleRegalo(supabase: SupabaseAdminClient, customer: CustomerRow, program: ProgramRow, tenant_id: string, _config: ProgramConfig, monto_compra?: number) {
     if (!monto_compra || monto_compra <= 0) {
         return NextResponse.json(
             { error: 'Para descontar de la Gift Card necesitas ingresar el monto en el cajero' },
@@ -724,8 +817,12 @@ async function handleRegalo(supabase: any, customer: any, program: any, tenant_i
 
     const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
     if (!stamp.inserted) {
-        if (stamp.duplicate) return alreadyStampedTodayResponse('regalo')
-        return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+        // Gift Card puede tener múltiples consumos por día.
+        if (stamp.duplicate) {
+            console.info('Gift Card con stamp duplicado en el día; se procesa igual el consumo.')
+        } else {
+            return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+        }
     }
 
     const nuevoSaldo = membership.saldo_cashback - monto_compra
@@ -737,10 +834,11 @@ async function handleRegalo(supabase: any, customer: any, program: any, tenant_i
     }).eq('id', membership.id)
 
     // Wallet Push
-    await triggerWalletPush({
+    const tenantData = getTenantInfo(customer.tenants)
+    await notifyWallet({
         customer_id: customer.id,
-        tenant_slug: customer.tenants?.slug,
-        titulo: `🎁 Consumo de Gift Card en ${customer.tenants?.nombre}`,
+        tenant_slug: tenantData?.slug,
+        titulo: `🎁 Consumo de Gift Card en ${tenantData?.nombre || 'tu negocio'}`,
         mensaje: `Descuento: -$${monto_compra}. Tu nuevo saldo es: $${nuevoSaldo}.`
     })
 
@@ -752,3 +850,4 @@ async function handleRegalo(supabase: any, customer: any, program: any, tenant_i
         consumido: monto_compra
     })
 }
+

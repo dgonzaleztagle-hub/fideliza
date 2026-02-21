@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import HeroLogin from './components/HeroLogin'
 import { Store, LayoutDashboard, Wallet, Mail, Instagram, Youtube, Linkedin, Facebook, Twitter } from 'lucide-react'
 
@@ -27,17 +28,17 @@ export default function Home() {
       {/* NAV */}
       <nav className="nav">
         <div className="nav-inner">
-          <a href="/" className="nav-brand">
+          <Link href="/" className="nav-brand">
             <span className="nav-brand-text">Vuelve</span>
             <span className="nav-brand-plus">+</span>
-          </a>
+          </Link>
           <div className="nav-links">
             <a href="#como-funciona">Cómo funciona</a>
             <a href="#beneficios">Beneficios</a>
             <a href="#precio">Precio</a>
-            <a href="/cliente" className="nav-link-panel">Mi Panel</a>
+            <Link href="/cliente" className="nav-link-panel">Mi Panel</Link>
           </div>
-          <a href="/registro" className="nav-cta">Empezar gratis</a>
+          <Link href="/registro" className="nav-cta">Empezar gratis</Link>
         </div>
       </nav>
 
@@ -79,10 +80,10 @@ export default function Home() {
             </p>
 
             <div className="hero-actions">
-              <a href="/registro" className="btn btn-primary btn-lg">
+              <Link href="/registro" className="btn btn-primary btn-lg">
                 Crear mi programa gratis
                 <span className="btn-arrow">→</span>
-              </a>
+              </Link>
               <a href="#como-funciona" className="btn btn-ghost">
                 Ver cómo funciona
               </a>
@@ -298,9 +299,9 @@ export default function Home() {
               <li><span className="check">✓</span> Notificaciones automáticas</li>
               <li><span className="check">✓</span> Soporte por WhatsApp</li>
             </ul>
-            <a href="/registro" className="btn btn-primary btn-lg btn-full">
+            <Link href="/registro" className="btn btn-primary btn-lg btn-full">
               Empezar 14 días gratis
-            </a>
+            </Link>
             <p className="price-note">Sin tarjeta de crédito · Cancela cuando quieras</p>
 
             <div className="payment-methods">
@@ -327,10 +328,10 @@ export default function Home() {
             Crea tu programa de lealtad en 2 minutos.<br />
             14 días gratis, sin compromiso.
           </p>
-          <a href="/registro" className="btn btn-white btn-lg">
+          <Link href="/registro" className="btn btn-white btn-lg">
             Crear mi programa ahora
             <span className="btn-arrow">→</span>
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -354,9 +355,9 @@ export default function Home() {
             {/* Columna 2: Plataforma (Centro) */}
             <div className="footer-nav">
               <h4>Plataforma</h4>
-              <a href="/registro"><Store size={18} /> Registrar mi negocio</a>
-              <a href="/cliente"><LayoutDashboard size={18} /> Mi Panel</a>
-              <a href="/mi-tarjeta"><Wallet size={18} /> Mi Tarjeta</a>
+              <Link href="/registro"><Store size={18} /> Registrar mi negocio</Link>
+              <Link href="/cliente"><LayoutDashboard size={18} /> Mi Panel</Link>
+              <Link href="/mi-tarjeta"><Wallet size={18} /> Mi Tarjeta</Link>
               <a href="mailto:contacto@vuelve.vip"><Mail size={18} /> contacto@vuelve.vip</a>
             </div>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import './mi-tarjeta.css'
 
 interface TarjetaData {
@@ -13,7 +14,7 @@ interface TarjetaData {
         miembro_desde: string
         tier?: 'bronce' | 'plata' | 'oro'
         current_streak?: number
-        preferences?: Record<string, any>
+        preferences?: Record<string, string>
     }
     negocio: {
         nombre: string
@@ -26,7 +27,7 @@ interface TarjetaData {
         puntos_meta: number
         descripcion_premio: string
         tipo_programa: string
-        config: Record<string, any>
+        config: Record<string, unknown>
     } | null
     premios_pendientes: Array<{
         qr_code: string
@@ -49,7 +50,7 @@ export default function MiTarjetaClient() {
     const [tarjetas, setTarjetas] = useState<TarjetaData[]>([])
     const [searched, setSearched] = useState(false)
     const [editingPrefs, setEditingPrefs] = useState<string | null>(null) // ID del customer
-    const [prefForm, setPrefForm] = useState<Record<string, any>>({})
+    const [prefForm, setPrefForm] = useState<Record<string, string>>({})
     const [savingPrefs, setSavingPrefs] = useState(false)
 
     async function searchCards(whatsappInput: string, tenantSlugInput: string) {
@@ -73,8 +74,8 @@ export default function MiTarjetaClient() {
             if (!res.ok) throw new Error(data.error || 'Error al consultar')
 
             setTarjetas(data.tarjetas || [])
-        } catch (err: any) {
-            setError(err.message || 'Error inesperado')
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Error inesperado')
             setTarjetas([])
         } finally {
             setLoading(false)
@@ -132,8 +133,8 @@ export default function MiTarjetaClient() {
 
             setEditingPrefs(null)
             alert('✅ Preferencias guardadas')
-        } catch (err: any) {
-            alert('❌ ' + err.message)
+        } catch (err: unknown) {
+            alert('❌ ' + (err instanceof Error ? err.message : 'Error al guardar'))
         } finally {
             setSavingPrefs(false)
         }
@@ -156,6 +157,8 @@ export default function MiTarjetaClient() {
     function renderCardContent(tarjeta: TarjetaData) {
         const tipo = tarjeta.programa?.tipo_programa || 'sellos'
         const config = tarjeta.programa?.config || {}
+        const cashbackPorcentaje = typeof config.porcentaje === 'number' ? config.porcentaje : 5
+        const cantidadUsos = typeof config.cantidad_usos === 'number' ? config.cantidad_usos : '?'
 
         // SELLOS
         if (tipo === 'sellos') {
@@ -192,7 +195,7 @@ export default function MiTarjetaClient() {
                         <span className="mt-stat-label">Saldo cashback</span>
                     </div>
                     <div className="mt-stat">
-                        <span className="mt-stat-value">{config.porcentaje || 5}%</span>
+                        <span className="mt-stat-value">{cashbackPorcentaje}%</span>
                         <span className="mt-stat-label">Por compra</span>
                     </div>
                 </div>
@@ -208,7 +211,7 @@ export default function MiTarjetaClient() {
                         <span className="mt-stat-label">Usos restantes</span>
                     </div>
                     <div className="mt-stat">
-                        <span className="mt-stat-value">{config.cantidad_usos || '?'}</span>
+                        <span className="mt-stat-value">{cantidadUsos}</span>
                         <span className="mt-stat-label">Pack total</span>
                     </div>
                 </div>
@@ -217,9 +220,11 @@ export default function MiTarjetaClient() {
 
         // DESCUENTO POR NIVELES
         if (tipo === 'descuento') {
-            const niveles = config.niveles || []
+            const niveles = Array.isArray(config.niveles)
+                ? (config.niveles as Array<{ visitas: number; descuento: number }>)
+                : []
             let nivelActual = { descuento: 0 }
-            for (const n of niveles.sort((a: any, b: any) => a.visitas - b.visitas)) {
+            for (const n of niveles.sort((a, b) => a.visitas - b.visitas)) {
                 if (tarjeta.customer.total_puntos_historicos >= n.visitas) {
                     nivelActual = n
                 }
@@ -281,7 +286,7 @@ export default function MiTarjetaClient() {
     return (
         <div className="mt-page">
             <header className="mt-header">
-                <a href="/" className="mt-logo">💎 Vuelve+</a>
+                <Link href="/" className="mt-logo">💎 Vuelve+</Link>
                 <h1>Mi Tarjeta</h1>
                 <p>Consulta tu progreso en tus programas de lealtad</p>
             </header>

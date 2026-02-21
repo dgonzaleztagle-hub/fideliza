@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireSuperAdmin } from '@/lib/authz'
 
+type TenantAdminAction = 'activate' | 'pause' | 'convert_pro'
+
 // POST /api/admin/tenant/[id]/status
 // Actualizar plan/estado del tenant (Activación manual)
 export async function POST(
@@ -16,9 +18,13 @@ export async function POST(
 
     try {
         const body = await req.json()
-        const { action } = body // 'activate', 'pause', 'convert_pro'
+        const action = body?.action as TenantAdminAction | undefined
 
-        let updateData: any = {}
+        if (!action || !['activate', 'pause', 'convert_pro'].includes(action)) {
+            return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
+        }
+
+        let updateData: Record<string, string> = {}
 
         if (action === 'activate') {
             // Dar 30 días adicionales
@@ -49,8 +55,9 @@ export async function POST(
             tenant: data
         })
 
-    } catch (error) {
-        console.error('Error updating tenant status:', error)
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Error al actualizar tenant'
+        console.error('Error updating tenant status:', message)
         return NextResponse.json({ error: 'Error al actualizar tenant' }, { status: 500 })
     }
 }

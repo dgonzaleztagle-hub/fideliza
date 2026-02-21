@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireTenantOwnerBySlug } from '@/lib/authz'
 
+type StampAnalyticsRow = {
+    fecha: string
+    created_at: string | null
+}
+
 // GET /api/analytics/[slug]
 // Analytics avanzados del negocio
 export async function GET(
@@ -151,7 +156,7 @@ export async function GET(
                     // Keys: "day-hour" donde day es 0-6 (Dom-Sab) y hour es 0-23
                     const map: Record<string, number> = {}
 
-                    stampsData?.forEach((s: any) => {
+                    ;(stampsData as StampAnalyticsRow[] | null)?.forEach((s) => {
                         if (!s.created_at) return
                         const d = new Date(s.created_at)
                         // Ajustar a hora local Chile (UTC-4/-3) si es necesario, 
@@ -180,8 +185,9 @@ export async function GET(
             }
         })
 
-    } catch (error) {
-        console.error('Error en analytics:', error)
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Error interno'
+        console.error('Error en analytics:', message)
         return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }
 }

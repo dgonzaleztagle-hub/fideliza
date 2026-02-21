@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 
+function normalizeWhatsapp(value: string): string {
+    return value.replace(/[^\d+]/g, '')
+}
+
 // POST /api/customer/register
 // Registra un nuevo cliente para un tenant
 export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     try {
         const { tenant_id, nombre, whatsapp, email, referido_por, fecha_nacimiento } = await req.json()
+        const normalizedWhatsapp = typeof whatsapp === 'string' ? normalizeWhatsapp(whatsapp) : ''
 
-        if (!tenant_id || !nombre || !whatsapp) {
+        if (!tenant_id || !nombre || !normalizedWhatsapp) {
             return NextResponse.json(
                 { error: 'Faltan campos requeridos: tenant_id, nombre, whatsapp' },
                 { status: 400 }
@@ -35,7 +40,7 @@ export async function POST(req: NextRequest) {
             .from('customers')
             .select('id, nombre, puntos_actuales')
             .eq('tenant_id', tenant_id)
-            .eq('whatsapp', whatsapp)
+            .eq('whatsapp', normalizedWhatsapp)
             .single()
 
         if (existing) {
@@ -52,7 +57,7 @@ export async function POST(req: NextRequest) {
             .insert({
                 tenant_id,
                 nombre,
-                whatsapp,
+                whatsapp: normalizedWhatsapp,
                 email: email || null,
                 fecha_nacimiento: fecha_nacimiento || null,
                 puntos_actuales: 0,

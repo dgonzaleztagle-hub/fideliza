@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
+
+function normalizeWhatsapp(value: string): string {
+    return value.replace(/[^\d+]/g, '')
+}
 
 // GET /api/customer/status?whatsapp=+569...&tenant_slug=mi-cafe
 // Consulta el estado de un cliente en un negocio
@@ -9,6 +14,7 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url)
         const whatsapp = searchParams.get('whatsapp')
         const tenantSlug = searchParams.get('tenant_slug')
+        const ip = getClientIp(req.headers)
 
         if (!whatsapp) {
             return NextResponse.json({ error: 'Falta el parámetro whatsapp' }, { status: 400 })
@@ -17,10 +23,24 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Falta el parámetro tenant_slug' }, { status: 400 })
         }
 
+        const normalizedWhatsapp = normalizeWhatsapp(whatsapp)
+        const normalizedTenantSlug = tenantSlug.trim().toLowerCase()
+        if (!normalizedTenantSlug) {
+            return NextResponse.json({ error: 'tenant_slug inválido' }, { status: 400 })
+        }
+
+        const rate = checkRateLimit(`customer-status:${ip}:${normalizedTenantSlug}`, 30, 10 * 60 * 1000)
+        if (!rate.allowed) {
+            return NextResponse.json(
+                { error: 'Demasiadas consultas. Intenta nuevamente en unos minutos.' },
+                { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
+            )
+        }
+
         const { data: tenant } = await supabase
             .from('tenants')
             .select('id, nombre, slug, logo_url, color_primario, rubro')
-            .eq('slug', tenantSlug)
+            .eq('slug', normalizedTenantSlug)
             .single()
 
         if (!tenant) {
@@ -31,11 +51,11 @@ export async function GET(req: NextRequest) {
         const { data: customers, error: customerError } = await supabase
             .from('customers')
             .select('id, nombre, whatsapp, puntos_actuales, total_puntos_historicos, total_premios_canjeados, tenant_id, created_at')
-            .eq('whatsapp', whatsapp)
+            .eq('whatsapp', normalizedWhatsapp)
             .eq('tenant_id', tenant.id)
 
         if (customerError || !customers || customers.length === 0) {
-            return NextResponse.json({ error: 'No encontramos un registro con ese WhatsApp' }, { status: 404 })
+            return NextResponse.json({ tarjetas: [], total: 0 }, { status: 200 })
         }
 
         // Para cada customer, obtener info del tenant y programa

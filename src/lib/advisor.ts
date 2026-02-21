@@ -5,7 +5,19 @@ export interface Insight {
     action?: string;
 }
 
-export function generateAdvisorInsights(stats: any, topClientes: any[]): Insight[] {
+interface AdvisorStats {
+    tasaRetencion: number
+    totalReferidos: number
+    totalClientes: number
+    totalPremiosCanjeados: number
+}
+
+interface TopCliente {
+    nombre: string
+    total_puntos_historicos: number
+}
+
+export function generateAdvisorInsights(stats: AdvisorStats, topClientes: TopCliente[]): Insight[] {
     const insights: Insight[] = [];
 
     // 1. Heurística de Retención

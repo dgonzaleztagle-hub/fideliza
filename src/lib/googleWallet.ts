@@ -70,7 +70,7 @@ export async function generateSaveLink(options: {
     const pointsLabel = options.programLabel || getLabelForType(options.tipoPrograma || 'sellos')
 
     // Construir locations para geofencing
-    const locations: any[] = []
+    const locations: Array<{ latitude: number; longitude: number }> = []
     if (options.lat && options.lng) {
         locations.push({
             latitude: options.lat,
@@ -88,7 +88,7 @@ export async function generateSaveLink(options: {
     }
     const miTarjetaUrl = `${appUrl}/mi-tarjeta${miTarjetaParams.toString() ? `?${miTarjetaParams.toString()}` : ''}`
 
-    const loyaltyObject: any = {
+    const loyaltyObject: Record<string, unknown> = {
         id: fullObjectId,
         classId: fullClassId,
         state: 'ACTIVE',
@@ -177,7 +177,7 @@ export async function createLoyaltyClass(options: {
     const accessToken = await getAccessToken();
     const fullClassId = `${ISSUER_ID}.${options.classId}`;
 
-    const loyaltyClass: any = {
+    const loyaltyClass: Record<string, unknown> = {
         id: fullClassId,
         programName: options.programName,
         issuerName: 'Vuelve+',

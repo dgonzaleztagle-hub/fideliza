@@ -38,7 +38,7 @@ interface ProgramData {
     tipo_premio: string
     valor_premio: string | null
     tipo_programa: string
-    config: Record<string, any>
+    config: Record<string, unknown>
 }
 
 interface CustomerData {
@@ -52,7 +52,7 @@ interface CustomerData {
     total_premios_canjeados: number
     tier?: string
     current_streak?: number
-    preferences?: Record<string, any>
+    preferences?: Record<string, unknown>
     last_visit_at?: string
     created_at: string
 }
@@ -84,6 +84,41 @@ interface AnalyticsData {
         heatmap: Record<string, number>
     }
     topClientes: CustomerData[]
+}
+
+interface RedemptionResult {
+    valid: boolean
+    message: string
+    cliente?: { nombre: string }
+}
+
+interface NotificationResult {
+    message: string
+    enviadas: number
+}
+
+interface NotificationHistoryItem {
+    id: string
+    titulo: string
+    mensaje: string
+    total_destinatarios: number
+    segmento: string
+    created_at: string
+}
+
+interface ScheduledCampaign {
+    id: string
+    nombre: string
+    fecha_envio: string
+    mensaje_notif: string
+    estado: string
+}
+
+interface StaffMember {
+    id: string
+    nombre: string
+    rol: string
+    activo: boolean
 }
 
 type Tab = 'dashboard' | 'clientes' | 'configuracion' | 'qr' | 'analytics' | 'notificaciones' | 'ayuda' | 'personal'
@@ -130,7 +165,7 @@ export default function ClientePanel() {
 
     // Canje de premio
     const [redemptionCode, setRedemptionCode] = useState('')
-    const [redemptionResult, setRedemptionResult] = useState<any>(null)
+    const [redemptionResult, setRedemptionResult] = useState<RedemptionResult | null>(null)
     const [redeeming, setRedeeming] = useState(false)
 
     // Config editable
@@ -179,11 +214,11 @@ export default function ClientePanel() {
     const [notifSegmento, setNotifSegmento] = useState('todos')
     const [insights, setInsights] = useState<Insight[]>([])
     const [sendingNotif, setSendingNotif] = useState(false)
-    const [notifResult, setNotifResult] = useState<any>(null)
-    const [notifHistorial, setNotifHistorial] = useState<any[]>([])
+    const [notifResult, setNotifResult] = useState<NotificationResult | null>(null)
+    const [notifHistorial, setNotifHistorial] = useState<NotificationHistoryItem[]>([])
 
     // Campañas Programadas
-    const [campanasProgramadas, setCampanasProgramadas] = useState<any[]>([])
+    const [campanasProgramadas, setCampanasProgramadas] = useState<ScheduledCampaign[]>([])
     const [nuevaCampana, setNuevaCampana] = useState({
         nombre: '',
         fecha_envio: '',
@@ -203,7 +238,7 @@ export default function ClientePanel() {
     const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(null)
     const [pinInput, setPinInput] = useState('')
     const [subscribing, setSubscribing] = useState(false)
-    const [staffList, setStaffList] = useState<any[]>([])
+    const [staffList, setStaffList] = useState<StaffMember[]>([])
     const [loadingStaff, setLoadingStaff] = useState(false)
     const [newStaffName, setNewStaffName] = useState('')
     const [newStaffPin, setNewStaffPin] = useState('')
@@ -293,9 +328,9 @@ export default function ClientePanel() {
                 totalPuntosDados: data.customers?.reduce((sum: number, c: CustomerData) => sum + c.total_puntos_historicos, 0) || 0,
                 totalPremiosCanjeados: data.customers?.reduce((sum: number, c: CustomerData) => sum + c.total_premios_canjeados, 0) || 0,
                 clientesHoy: 0,
-                tasaRetencion: data.customers?.length ? Math.round((data.customers.filter((c: any) => c.total_puntos_historicos > 1).length / data.customers.length) * 100) : 0,
+                tasaRetencion: data.customers?.length ? Math.round((data.customers.filter((c: CustomerData) => c.total_puntos_historicos > 1).length / data.customers.length) * 100) : 0,
                 ticketPromedio: 0,
-                totalReferidos: data.customers?.filter((c: any) => c.referido_por).length || 0
+                totalReferidos: data.customers?.filter((c: CustomerData) => c.referido_por).length || 0
             }
             setStats(newStats)
             setInsights(generateAdvisorInsights(newStats, data.customers || []))
@@ -765,7 +800,7 @@ export default function ClientePanel() {
                                 key={t.id}
                                 className="tenant-select-card"
                                 onClick={() => loadTenantData(t.slug)}
-                                style={{ '--brand-color': t.color_primario } as any}
+                                style={{ '--brand-color': t.color_primario } as React.CSSProperties & Record<'--brand-color', string>}
                             >
                                 <div className="tenant-logo-mini" style={{ background: t.color_primario }}>
                                     {t.nombre.charAt(0).toUpperCase()}
@@ -1691,7 +1726,7 @@ export default function ClientePanel() {
                                     <div className="cliente-section-card" style={{ marginTop: '1.5rem' }}>
                                         <h3>📋 Historial de notificaciones</h3>
                                         <div className="cliente-notif-history">
-                                            {notifHistorial.map((n: any) => (
+                                            {notifHistorial.map((n) => (
                                                 <div key={n.id} className="cliente-notif-item">
                                                     <div className="cliente-notif-item-header">
                                                         <strong>{n.titulo}</strong>
@@ -1775,7 +1810,7 @@ export default function ClientePanel() {
                                         <div className="cliente-section-card" style={{ marginTop: '1.5rem' }}>
                                             <h3>📋 Próximas Campañas</h3>
                                             <div className="cliente-notif-history">
-                                                {campanasProgramadas.map((c: any) => (
+                                                {campanasProgramadas.map((c) => (
                                                     <div key={c.id} className="cliente-notif-item">
                                                         <div className="cliente-notif-item-header">
                                                             <strong>{c.nombre}</strong>
@@ -2042,7 +2077,7 @@ export default function ClientePanel() {
                                                 />
                                             </label>
                                             <p className="cliente-config-hint">
-                                                💡 Tip: Usa el link directo "Recibir más reseñas" de Google para que el cliente caiga directo en las 5 estrellas.
+                                                💡 Tip: Usa el link directo &quot;Recibir más reseñas&quot; de Google para que el cliente caiga directo en las 5 estrellas.
                                             </p>
                                         </div>
                                     ) : (
@@ -2233,7 +2268,7 @@ export default function ClientePanel() {
                                                 <div key={s.id} className="staff-item">
                                                     <div className="staff-info">
                                                         <strong>{s.nombre}</strong>
-                                                        <span>PIN: {s.pin} • {s.rol.toUpperCase()}</span>
+                                                        <span>{s.rol.toUpperCase()}</span>
                                                     </div>
                                                     <div className={`staff-status ${s.activo ? 'status-active' : 'status-inactive'}`}>
                                                         {s.activo ? '● Activo' : '○ Inactivo'}
