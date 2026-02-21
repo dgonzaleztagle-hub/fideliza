@@ -1,21 +1,15 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
     LayoutDashboard,
-    Users,
     Store,
-    CreditCard,
     ShieldCheck,
     History,
-    Settings,
     LogOut,
-    PlusCircle,
     CheckCircle,
     XCircle,
     RefreshCw,
-    TrendingUp,
-    Gift,
     Calendar
 } from 'lucide-react'
 import './admin.css'
@@ -56,7 +50,7 @@ export default function AdminPanel() {
     const [loading, setLoading] = useState(true)
     const [updating, setUpdating] = useState<string | null>(null)
 
-    async function loadStats() {
+    const loadStats = useCallback(async () => {
         try {
             const res = await fetch('/api/admin/stats')
             const data = await res.json()
@@ -64,9 +58,9 @@ export default function AdminPanel() {
         } catch (err) {
             console.error('Error loading admin stats:', err)
         }
-    }
+    }, [])
 
-    async function loadTenants() {
+    const loadTenants = useCallback(async () => {
         try {
             const res = await fetch('/api/admin/tenants')
             const data = await res.json()
@@ -74,17 +68,17 @@ export default function AdminPanel() {
         } catch (err) {
             console.error('Error loading admin tenants:', err)
         }
-    }
+    }, [])
 
-    async function loadAll() {
+    const loadAll = useCallback(async () => {
         setLoading(true)
         await Promise.all([loadStats(), loadTenants()])
         setLoading(false)
-    }
+    }, [loadStats, loadTenants])
 
     useEffect(() => {
-        loadAll()
-    }, [])
+        void loadAll()
+    }, [loadAll])
 
     const handleAction = async (tenantId: string, action: string) => {
         setUpdating(tenantId)

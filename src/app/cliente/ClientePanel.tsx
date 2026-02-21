@@ -432,7 +432,7 @@ export default function ClientePanel() {
                 const data = await res.json()
                 alert(`❌ Error: ${data.error}`)
             }
-        } catch (err) {
+        } catch {
             alert('❌ Error de conexión al guardar campaña')
         } finally {
             setGuardandoCampana(false)
@@ -446,7 +446,7 @@ export default function ClientePanel() {
             if (res.ok) {
                 loadCampanasProgramadas()
             }
-        } catch (err) {
+        } catch {
             alert('❌ Error al eliminar')
         }
     }
@@ -682,6 +682,8 @@ export default function ClientePanel() {
     }, [])
 
     // Load analytics when tab changes
+    // Dependencias acotadas intencionalmente para evitar bucles de recarga del panel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (tab === 'analytics' && tenant && !analytics) {
             loadAnalytics()
@@ -1346,6 +1348,7 @@ export default function ClientePanel() {
                                     <h3>📱 Tu QR para el local</h3>
                                     <p>Imprime este QR y pégalo en tu mostrador</p>
                                     <div className="cliente-qr-visual">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                             src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/qr/${tenant.slug}`)}&bgcolor=0a0a0f&color=ffffff&format=png`}
                                             alt="QR de tu negocio"

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { Camera, Search, User, CheckCircle, XCircle, LogOut } from 'lucide-react'
+import { Camera, Search, CheckCircle, XCircle, LogOut } from 'lucide-react'
 import './cajero.css'
 
 interface StaffSession {
@@ -30,8 +30,6 @@ export default function CajeroPage() {
     // App State
     const [activeMode, setActiveMode] = useState<'scan' | 'search'>('scan')
     const [searchQuery, setSearchQuery] = useState('')
-    const [foundCustomers, setFoundCustomers] = useState<unknown[]>([])
-    const [searching, setSearching] = useState(false)
 
     // Transaction State
     const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
