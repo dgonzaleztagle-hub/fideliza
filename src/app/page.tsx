@@ -322,14 +322,9 @@ export default function Home() {
       {/* FOOTER */}
       <footer className="footer">
         <div className="footer-inner">
-          <div className="footer-brand">
-            <span className="nav-brand-text">Vuelve</span>
-            <span className="nav-brand-plus">+</span>
-          </div>
-          <p className="footer-text">Tarjetas de lealtad digitales para negocios que quieren crecer.</p>
-
           <div className="footer-grid">
-            <div className="footer-nav">
+            {/* Columna 1: Plataforma */}
+            <div className="footer-nav align-left">
               <h4>Plataforma</h4>
               <a href="/registro">Registrar mi negocio</a>
               <a href="/cliente">Mi Panel</a>
@@ -337,7 +332,17 @@ export default function Home() {
               <a href="mailto:contacto@vuelve.vip">contacto@vuelve.vip</a>
             </div>
 
-            <div className="footer-socials">
+            {/* Columna 2: Centro (Logo y Copy) */}
+            <div className="footer-center">
+              <div className="footer-brand">
+                <span className="nav-brand-text">Vuelve</span>
+                <span className="nav-brand-plus">+</span>
+              </div>
+              <p className="footer-text">Tarjetas de lealtad digitales para negocios que quieren crecer.</p>
+            </div>
+
+            {/* Columna 3: Redes Sociales */}
+            <div className="footer-socials align-right">
               <h4>Síguenos</h4>
               <div className="socials-list">
                 <a href="https://www.instagram.com/vuelve.vip/" target="_blank" rel="noopener noreferrer">Instagram</a>
