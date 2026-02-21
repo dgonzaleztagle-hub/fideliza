@@ -112,6 +112,14 @@ export async function PUT(
             return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
         }
 
+        // VALIDACIÓN DE DATOS (Prevención Error 500)
+        if (!body.nombre) {
+            return NextResponse.json({ error: 'El nombre del negocio es obligatorio' }, { status: 400 })
+        }
+        if (!body.program || !body.program.descripcion_premio) {
+            return NextResponse.json({ error: 'La descripción del premio es obligatoria' }, { status: 400 })
+        }
+
         // VALIDACIÓN DE SEGURIDAD
         const supabaseServer = await createClient()
         const { data: { user } } = await supabaseServer.auth.getUser()

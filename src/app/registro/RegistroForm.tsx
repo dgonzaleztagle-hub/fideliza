@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import './registro.css'
 
 type OnboardingStep = 'negocio' | 'tipo' | 'programa' | 'branding' | 'ubicacion' | 'listo'
@@ -69,11 +70,41 @@ export default function RegistroForm() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [result, setResult] = useState<any>(null)
+    const [hasSession, setHasSession] = useState(false)
+    const supabase = createClient()
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session && session.user) {
+                setHasSession(true)
+                if (session.user.email) {
+                    setEmail(session.user.email)
+                }
+            }
+        })
+    }, [])
+
+    const handleGoogleRegister = async () => {
+        setLoading(true)
+        setError('')
+        try {
+            await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}/registro`
+                }
+            })
+        } catch (err: any) {
+            setError('Error conectando con Google')
+            setLoading(false)
+        }
+    }
 
     // Datos del negocio
     const [nombre, setNombre] = useState('')
     const [rubro, setRubro] = useState('')
     const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
     const [telefono, setTelefono] = useState('')
     const [direccion, setDireccion] = useState('')
 
@@ -198,6 +229,7 @@ export default function RegistroForm() {
                     nombre,
                     rubro,
                     email,
+                    password,
                     telefono,
                     direccion,
                     puntos_meta: tipoPrograma === 'sellos' ? puntosMeta : 999,
@@ -284,6 +316,37 @@ export default function RegistroForm() {
                         <h2>Cuéntanos de tu negocio</h2>
                         <p>La info básica para crear tu cuenta</p>
 
+                        {!hasSession && (
+                            <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+                                <button
+                                    type="button"
+                                    onClick={handleGoogleRegister}
+                                    disabled={loading}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                                        background: 'white', color: '#333', border: '1px solid #e2e8f0', padding: '0.85rem', width: '100%',
+                                        borderRadius: '12px', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
+                                        boxShadow: '0 2px 5px rgba(0,0,0,0.05)', transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                                        <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
+                                            <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z" />
+                                            <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z" />
+                                            <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z" />
+                                            <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z" />
+                                        </g>
+                                    </svg>
+                                    Registrarse súper rápido con Google
+                                </button>
+                                <div style={{ display: 'flex', alignItems: 'center', opacity: 0.5, fontSize: '0.8rem', margin: '1.5rem 0 0.5rem 0' }}>
+                                    <div style={{ flex: 1, height: '1px', background: '#94a3b8' }} />
+                                    <span style={{ padding: '0 10px' }}>O ingresa tus datos manuales</span>
+                                    <div style={{ flex: 1, height: '1px', background: '#94a3b8' }} />
+                                </div>
+                            </div>
+                        )}
+
                         <div className="registro-field">
                             <label>Nombre del negocio *</label>
                             <input
@@ -320,8 +383,23 @@ export default function RegistroForm() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="tu@email.com"
+                                disabled={hasSession}
+                                style={hasSession ? { opacity: 0.7, background: '#f8fafc' } : {}}
                             />
                         </div>
+
+                        {!hasSession && (
+                            <div className="registro-field">
+                                <label>Contraseña de acceso *</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Mínimo 6 caracteres"
+                                />
+                                <p className="registro-field-hint">Con esta clave entrarás a tu panel de Vuelve+</p>
+                            </div>
+                        )}
 
                         <div className="registro-field">
                             <label>WhatsApp</label>
@@ -346,8 +424,12 @@ export default function RegistroForm() {
                         <button
                             className="registro-btn-next"
                             onClick={() => {
-                                if (!nombre || !email) {
-                                    setError('Nombre y email son obligatorios')
+                                if (!nombre || !email || (!hasSession && !password)) {
+                                    setError('Faltan campos obligatorios')
+                                    return
+                                }
+                                if (!hasSession && password.length < 6) {
+                                    setError('La contraseña debe tener al menos 6 caracteres')
                                     return
                                 }
                                 setError('')

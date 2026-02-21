@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
         // TIPO: REGALO / GIFT CARD
         // ═══════════════════════════════════════════════════
         if (tipoPrograma === 'regalo') {
-            return await handleRegalo(supabase, customer, program, tenant_id, config)
+            return await handleRegalo(supabase, customer, program, tenant_id, config, monto_compra)
         }
 
         return NextResponse.json({ error: `Tipo de programa "${tipoPrograma}" no soportado` }, { status: 400 })
@@ -662,8 +662,13 @@ async function handleCupon(supabase: any, customer: any, program: any, tenant_id
     })
 }
 
-async function handleRegalo(supabase: any, customer: any, program: any, tenant_id: string, config: any) {
-    const valorMaximo = config.valor_maximo || 25000
+async function handleRegalo(supabase: any, customer: any, program: any, tenant_id: string, config: any, monto_compra?: number) {
+    if (!monto_compra || monto_compra <= 0) {
+        return NextResponse.json(
+            { error: 'Para descontar de la Gift Card necesitas ingresar el monto en el cajero' },
+            { status: 400 }
+        )
+    }
 
     // Verificar si ya tiene gift card activa
     const { data: membership } = await supabase
@@ -684,22 +689,37 @@ async function handleRegalo(supabase: any, customer: any, program: any, tenant_i
         }, { status: 400 })
     }
 
-    // Registrar uso
+    if (monto_compra > membership.saldo_cashback) {
+        return NextResponse.json({
+            error: `❌ Saldo insuficiente en la Gift Card. Saldo actual: $${membership.saldo_cashback}`,
+            tipo_programa: 'regalo'
+        }, { status: 400 })
+    }
+
+    const nuevoSaldo = membership.saldo_cashback - monto_compra
+
+    // APLICAR DEDUCCIÓN EN BASE DE DATOS
+    await supabase.from('memberships').update({
+        saldo_cashback: nuevoSaldo,
+        estado: nuevoSaldo <= 0 ? 'usado' : 'activo'
+    }).eq('id', membership.id)
+
+    // Registrar uso en métricas
     await safeInsertStamp(supabase, customer.id, tenant_id)
 
     // Wallet Push
     await triggerWalletPush({
         customer_id: customer.id,
         tenant_slug: customer.tenants?.slug,
-        titulo: `🎁 Saldo Gift Card en ${customer.tenants?.nombre}`,
-        mensaje: `Tu saldo actual es de $${membership.saldo_cashback}.`
+        titulo: `🎁 Consumo de Gift Card en ${customer.tenants?.nombre}`,
+        mensaje: `Descuento: -$${monto_compra}. Tu nuevo saldo es: $${nuevoSaldo}.`
     })
 
     return NextResponse.json({
-        message: `🎁 Tu Gift Card tiene $${membership.saldo_cashback} disponibles. Muestra este código en caja`,
+        message: `🎁 ¡$${monto_compra} descontados con éxito! Nuevo saldo: $${nuevoSaldo}`,
         tipo_programa: 'regalo',
         tiene_giftcard: true,
-        saldo: membership.saldo_cashback,
-        valor_maximo: valorMaximo
+        saldo: nuevoSaldo,
+        consumido: monto_compra
     })
 }

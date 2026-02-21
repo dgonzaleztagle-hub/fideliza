@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
 // POST /api/tenant/register
 // Registrar un nuevo negocio
@@ -12,6 +13,7 @@ export async function POST(req: NextRequest) {
             rubro,
             direccion,
             email,
+            password,
             telefono,
             lat,
             lng,
@@ -27,11 +29,23 @@ export async function POST(req: NextRequest) {
             config
         } = body
 
-        if (!nombre || !email) {
-            return NextResponse.json(
-                { error: 'Faltan campos requeridos: nombre, email' },
-                { status: 400 }
-            )
+        const supabaseServer = await createClient()
+        const { data: { user: currentUser } } = await supabaseServer.auth.getUser()
+
+        if (!currentUser) {
+            if (!nombre || !email || !password) {
+                return NextResponse.json(
+                    { error: 'Faltan campos requeridos: nombre, email, password' },
+                    { status: 400 }
+                )
+            }
+        } else {
+            if (!nombre || !email) {
+                return NextResponse.json(
+                    { error: 'Faltan campos requeridos: nombre, email' },
+                    { status: 400 }
+                )
+            }
         }
 
         // Generar slug único
@@ -59,10 +73,37 @@ export async function POST(req: NextRequest) {
         const trialHasta = new Date()
         trialHasta.setDate(trialHasta.getDate() + 14)
 
-        // Crear el tenant
+        let authUserId = null
+
+        if (currentUser) {
+            // Ya viene logueado por Google u OAuth
+            authUserId = currentUser.id
+        } else {
+            // 1. Crear el usuario en Supabase Auth manualmente
+            const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+                email,
+                password,
+                email_confirm: true, // Para asegurar que no queden varados
+                user_metadata: {
+                    nombre_negocio: nombre
+                }
+            })
+
+            if (authError) {
+                console.error('Error creando usuario Auth:', authError)
+                let msg = 'Error al crear la cuenta'
+                if (authError.message.includes('already registered')) msg = 'El email ya está registrado. Intenta iniciar sesión.'
+                return NextResponse.json({ error: msg }, { status: 400 })
+            }
+            authUserId = authData.user.id
+        }
+
+        // 2. Crear el tenant
+
         const { data: tenant, error: tenantError } = await supabase
             .from('tenants')
             .insert({
+                auth_user_id: authUserId,
                 nombre,
                 rubro: rubro || null,
                 direccion: direccion || null,

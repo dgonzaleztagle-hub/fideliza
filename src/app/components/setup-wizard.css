@@ -131,9 +131,13 @@ h2 {
 
 .sw-lead {
     font-size: 1.1rem;
-    color: #64748b;
+    color: #475569 !important;
     line-height: 1.6;
     margin-bottom: 40px;
+}
+
+.sw-view>p {
+    color: #475569 !important;
 }
 
 .sw-intro-grid {
@@ -310,7 +314,7 @@ h2 {
 
 .sw-strategy-text p {
     font-size: 0.9rem;
-    color: #64748b;
+    color: #475569 !important;
 }
 
 .sw-check {
@@ -465,8 +469,19 @@ h2 {
 .sw-summary-item {
     display: flex;
     justify-content: space-between;
-    padding: 8px 0;
+    padding: 12px 0;
     border-bottom: 1px solid #e2e8f0;
+    color: #1e293b !important;
+}
+
+.sw-summary-item span {
+    color: #64748b !important;
+    font-weight: 500;
+}
+
+.sw-summary-item strong {
+    color: #0f172a !important;
+    font-weight: 700;
 }
 
 .sw-summary-item:last-child {

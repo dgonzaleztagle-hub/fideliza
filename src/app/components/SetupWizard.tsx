@@ -55,6 +55,21 @@ export default function SetupWizard({ tenant, program, onComplete }: SetupWizard
     const currentStepIndex = STEPS.findIndex(s => s.id === step)
 
     const handleNext = () => {
+        if (step === 'identity' && !formData.nombre.trim()) {
+            alert('Por favor, ingresa el nombre de tu negocio antes de continuar.')
+            return
+        }
+        if (step === 'reward') {
+            if (!formData.descripcionPremio.trim()) {
+                alert('Por favor, describe qué recompensa le darás a tus clientes.')
+                return
+            }
+            if (!formData.puntosMeta || formData.puntosMeta < 1) {
+                alert('La meta de puntos debe ser al menos 1.')
+                return
+            }
+        }
+
         const nextStep = STEPS[currentStepIndex + 1]?.id
         if (nextStep) setStep(nextStep)
     }
@@ -65,13 +80,25 @@ export default function SetupWizard({ tenant, program, onComplete }: SetupWizard
     }
 
     const finalizeOnboarding = async () => {
+        // Validación frontend agresiva
+        if (!formData.nombre.trim()) {
+            alert("Por favor, ingresa el nombre de tu negocio en el paso 'Identidad'.");
+            return;
+        }
+        if (!formData.descripcionPremio.trim()) {
+            alert("Por favor, ingresa una descripción para tu premio.");
+            return;
+        }
+
         setLoading(true)
         try {
             const res = await fetch(`/api/tenant/${tenant.slug}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ...formData,
+                    nombre: formData.nombre,
+                    color_primario: formData.color,
+                    logo_url: formData.logo_url,
                     program: {
                         tipo_programa: formData.tipoPrograma,
                         puntos_meta: formData.puntosMeta,
@@ -81,13 +108,16 @@ export default function SetupWizard({ tenant, program, onComplete }: SetupWizard
                 })
             })
 
+            const data = await res.json()
+
             if (res.ok) {
                 onComplete()
             } else {
-                alert('Hubo un error al guardar tu configuración.')
+                alert(`Error al activar: ${data.error || 'Hubo un problema de conexión.'}`)
             }
         } catch (error) {
             console.error('Error finalizing onboarding:', error)
+            alert('Error de conexión con el servidor. Por favor, reintenta.');
         } finally {
             setLoading(false)
         }
