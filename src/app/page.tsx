@@ -1,5 +1,20 @@
 import type { Metadata } from 'next'
 import HeroLogin from './components/HeroLogin'
+import { Store, LayoutDashboard, Wallet, Mail, Instagram, Youtube, Linkedin, Facebook, Twitter } from 'lucide-react'
+
+const TikTokIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+  </svg>
+);
+
+const PinterestIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 22v-9" />
+    <path d="M12 13a3 3 0 0 1 3-3c2 0 3 1.5 3 3.5 0 2.5-1.5 4.5-3.5 4.5-1.5 0-2.5-1-2.5-2.5" />
+  </svg>
+);
 
 export const metadata: Metadata = {
   title: 'Vuelve+ — Tus clientes siempre vuelven',
@@ -323,35 +338,39 @@ export default function Home() {
       <footer className="footer">
         <div className="footer-inner">
           <div className="footer-grid">
-            {/* Columna 1: Plataforma */}
-            <div className="footer-nav align-left">
-              <h4>Plataforma</h4>
-              <a href="/registro">Registrar mi negocio</a>
-              <a href="/cliente">Mi Panel</a>
-              <a href="/mi-tarjeta">Mi Tarjeta</a>
-              <a href="mailto:contacto@vuelve.vip">contacto@vuelve.vip</a>
-            </div>
-
-            {/* Columna 2: Centro (Logo y Copy) */}
-            <div className="footer-center">
+            {/* Columna 1: Brand & Info (Izquierda) */}
+            <div className="footer-brand-col">
               <div className="footer-brand">
                 <span className="nav-brand-text">Vuelve</span>
                 <span className="nav-brand-plus">+</span>
               </div>
-              <p className="footer-text">Tarjetas de lealtad digitales para negocios que quieren crecer.</p>
+              <p className="footer-text">
+                Tarjetas de lealtad digitales en Google Wallet.<br />
+                Tu negocio fideliza clientes sin apps, sin cartón,<br />
+                sin complicaciones.
+              </p>
             </div>
 
-            {/* Columna 3: Redes Sociales */}
-            <div className="footer-socials align-right">
+            {/* Columna 2: Plataforma (Centro) */}
+            <div className="footer-nav">
+              <h4>Plataforma</h4>
+              <a href="/registro"><Store size={18} /> Registrar mi negocio</a>
+              <a href="/cliente"><LayoutDashboard size={18} /> Mi Panel</a>
+              <a href="/mi-tarjeta"><Wallet size={18} /> Mi Tarjeta</a>
+              <a href="mailto:contacto@vuelve.vip"><Mail size={18} /> contacto@vuelve.vip</a>
+            </div>
+
+            {/* Columna 3: Redes Sociales (Derecha) */}
+            <div className="footer-socials">
               <h4>Síguenos</h4>
               <div className="socials-list">
-                <a href="https://www.instagram.com/vuelve.vip/" target="_blank" rel="noopener noreferrer">Instagram</a>
-                <a href="http://www.tiktok.com/@vuelve.vip" target="_blank" rel="noopener noreferrer">TikTok</a>
-                <a href="https://www.youtube.com/@Vuelvevip" target="_blank" rel="noopener noreferrer">YouTube</a>
-                <a href="https://www.linkedin.com/company/vuelve" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-                <a href="https://web.facebook.com/vuelve.vip" target="_blank" rel="noopener noreferrer">Facebook</a>
-                <a href="https://x.com/vuelvevip" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
-                <a href="https://cl.pinterest.com/vuelvevip2026/" target="_blank" rel="noopener noreferrer">Pinterest</a>
+                <a href="https://www.instagram.com/vuelve.vip/" target="_blank" rel="noopener noreferrer"><Instagram size={18} /> Instagram</a>
+                <a href="http://www.tiktok.com/@vuelve.vip" target="_blank" rel="noopener noreferrer"><TikTokIcon size={18} /> TikTok</a>
+                <a href="https://www.youtube.com/@Vuelvevip" target="_blank" rel="noopener noreferrer"><Youtube size={18} /> YouTube</a>
+                <a href="https://www.linkedin.com/company/vuelve" target="_blank" rel="noopener noreferrer"><Linkedin size={18} /> LinkedIn</a>
+                <a href="https://web.facebook.com/vuelve.vip" target="_blank" rel="noopener noreferrer"><Facebook size={18} /> Facebook</a>
+                <a href="https://x.com/vuelvevip" target="_blank" rel="noopener noreferrer"><Twitter size={18} /> X (Twitter)</a>
+                <a href="https://cl.pinterest.com/vuelvevip2026/" target="_blank" rel="noopener noreferrer"><PinterestIcon size={18} /> Pinterest</a>
               </div>
             </div>
           </div>
