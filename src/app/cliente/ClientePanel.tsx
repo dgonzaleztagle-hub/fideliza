@@ -88,6 +88,22 @@ interface AnalyticsData {
 
 type Tab = 'dashboard' | 'clientes' | 'configuracion' | 'qr' | 'analytics' | 'notificaciones' | 'ayuda' | 'personal'
 
+const PROGRAM_TYPE_LABELS: Record<string, string> = {
+    sellos: '⭐ Tarjeta de Sellos',
+    cashback: '💰 Cashback',
+    multipase: '🎟️ Multipase',
+    membresia: '👑 Membresía VIP',
+    descuento: '📊 Descuento por Niveles',
+    cupon: '🎫 Cupón',
+    regalo: '🎁 Gift Card',
+    afiliacion: '📱 Afiliación'
+}
+
+function formatProgramTypeLabel(tipo?: string | null) {
+    if (!tipo) return 'No definido'
+    return PROGRAM_TYPE_LABELS[tipo] || tipo
+}
+
 export default function ClientePanel() {
     const [tab, setTab] = useState<Tab>('dashboard')
     const [loading, setLoading] = useState(false)
@@ -263,6 +279,12 @@ export default function ClientePanel() {
             const res = await fetch(`/api/tenant/${slug}`)
             if (!res.ok) throw new Error('No encontrado')
             const data = await res.json()
+            if (!data.is_owner) {
+                alert('Debes iniciar sesión con la cuenta dueña para administrar este negocio.')
+                setNeedsSlug(true)
+                setLoading(false)
+                return
+            }
             setTenant(data.tenant)
             setProgram(data.program)
             setCustomers(data.customers || [])
@@ -1107,9 +1129,7 @@ export default function ClientePanel() {
                                             <span>🎯 {program.puntos_meta} puntos = {program.descripcion_premio}</span>
                                             {program.tipo_programa && program.tipo_programa !== 'sellos' && (
                                                 <span className="cliente-program-type-badge">
-                                                    {program.tipo_programa === 'cashback' && '💰 Cashback'}
-                                                    {program.tipo_programa === 'membresia' && '👑 Membresía VIP'}
-                                                    {program.tipo_programa === 'multipase' && '🎟️ Multipase'}
+                                                    {formatProgramTypeLabel(program.tipo_programa)}
                                                 </span>
                                             )}
                                         </div>
@@ -1949,7 +1969,7 @@ export default function ClientePanel() {
                                                 </div>
                                                 {program.tipo_programa && (
                                                     <div className="cliente-config-item">
-                                                        <span>Tipo de programa:</span> <strong>{program.tipo_programa}</strong>
+                                                        <span>Tipo de programa:</span> <strong>{formatProgramTypeLabel(program.tipo_programa)}</strong>
                                                     </div>
                                                 )}
                                                 <div className="cliente-config-item">

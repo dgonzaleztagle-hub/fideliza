@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { requireTenantOwnerById } from '@/lib/authz'
 
 // POST /api/cashback
 // Registra una compra y calcula el cashback
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             )
         }
+
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
 
         // Buscar cliente
         const { data: customer, error: customerError } = await supabase
@@ -127,6 +131,9 @@ export async function GET(req: NextRequest) {
         if (!tenant_id || !whatsapp) {
             return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
         }
+
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
 
         const { data: customer } = await supabase
             .from('customers')

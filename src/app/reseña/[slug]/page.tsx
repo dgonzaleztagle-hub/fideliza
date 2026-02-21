@@ -50,9 +50,29 @@ export default function ReviewPage() {
     }
 
     const handleSubmitFeedback = async () => {
-        // Aquí se enviaría el feedback al dueño (ej: vía tabla feedback o mail)
-        console.log('Feedback privado:', { rating, comment })
-        setStatus('thanks')
+        if (!comment.trim()) {
+            return
+        }
+        try {
+            const res = await fetch('/api/review/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    slug,
+                    rating,
+                    comment: comment.trim()
+                })
+            })
+
+            if (!res.ok) {
+                const data = await res.json()
+                alert(data.error || 'No pudimos guardar tu comentario')
+                return
+            }
+            setStatus('thanks')
+        } catch {
+            alert('Error de conexión al enviar comentario')
+        }
     }
 
     if (loading) return <div className="review-loading">Cargando...</div>

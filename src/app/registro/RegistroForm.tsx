@@ -220,11 +220,14 @@ export default function RegistroForm() {
     async function handleSubmit() {
         setLoading(true)
         setError('')
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 35000)
 
         try {
             const res = await fetch('/api/tenant/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: controller.signal,
                 body: JSON.stringify({
                     nombre,
                     rubro,
@@ -245,7 +248,8 @@ export default function RegistroForm() {
                 }),
             })
 
-            const data = await res.json()
+            const raw = await res.text()
+            const data = raw ? JSON.parse(raw) : {}
 
             if (!res.ok) {
                 throw new Error(data.error || 'Error al registrar')
@@ -254,8 +258,15 @@ export default function RegistroForm() {
             setResult(data)
             setStep('listo')
         } catch (err: any) {
-            setError(err.message || 'Error inesperado')
+            if (err?.name === 'AbortError') {
+                setError('La creación está tardando demasiado. Reintenta en unos segundos.')
+            } else if (err?.message?.includes('JSON')) {
+                setError('El servidor respondió con un formato inválido. Reintenta.')
+            } else {
+                setError(err.message || 'Error inesperado')
+            }
         } finally {
+            clearTimeout(timeoutId)
             setLoading(false)
         }
     }

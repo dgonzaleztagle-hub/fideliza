@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { v4 as uuidv4 } from 'uuid'
 import { calculateTier, processStreak } from '@/lib/gamification'
-import { sendWalletNotification } from '@/lib/walletNotifications'
 import { triggerWalletPush } from '@/lib/wallet/push'
 
 // POST /api/stamp
@@ -70,8 +69,6 @@ export async function POST(req: NextRequest) {
                 Number(tenantData.lat),
                 Number(tenantData.lng)
             )
-
-            console.log(`[GPS CHECK] User: ${lat},${lng} | Shop: ${tenantData.lat},${tenantData.lng} | Dist: ${distanciaMetros}m`)
 
             // Umbral de 200 metros (ajustable)
             if (distanciaMetros > 200) {
@@ -192,19 +189,33 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
  * Inserta un stamp de forma segura. Si ya existe uno hoy (constraint UNIQUE),
  * lo ignora silenciosamente para tipos que no necesitan control de duplicados.
  */
+function alreadyStampedTodayResponse(tipo: string) {
+    return NextResponse.json({
+        message: 'Ya registraste una visita hoy. Vuelve mañana para sumar nuevamente.',
+        tipo_programa: tipo,
+        already_stamped_today: true
+    }, { status: 409 })
+}
+
 async function safeInsertStamp(supabase: any, customer_id: string, tenant_id: string) {
     const { error } = await supabase.from('stamps').insert({
         customer_id,
         tenant_id,
         fecha: new Date().toISOString().split('T')[0]
     })
-    // Ignorar duplicado (23505 = unique_violation)
-    if (error && error.code !== '23505') {
-        console.error('Error insertando stamp:', error)
-    } else {
-        // Si el stamp fue exitoso, programar solicitud de reseña para 2 horas más tarde
-        await scheduleReview(supabase, customer_id, tenant_id)
+
+    if (error?.code === '23505') {
+        return { inserted: false, duplicate: true }
     }
+
+    if (error) {
+        console.error('Error insertando stamp:', error)
+        return { inserted: false, duplicate: false }
+    }
+
+    // Si el stamp fue exitoso, programar solicitud de reseña para 2 horas más tarde
+    await scheduleReview(supabase, customer_id, tenant_id)
+    return { inserted: true, duplicate: false }
 }
 
 
@@ -290,8 +301,11 @@ async function handleCashback(supabase: any, customer: any, program: any, tenant
         cashbackGanado = Math.max(0, topeMensual - saldoActual)
     }
 
-    // Registrar stamp (cashback permite múltiples por día, no usamos safeInsert)
-    await safeInsertStamp(supabase, customer.id, tenant_id)
+    const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
+    if (!stamp.inserted) {
+        if (stamp.duplicate) return alreadyStampedTodayResponse('cashback')
+        return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+    }
 
     // Actualizar o crear membership
     if (membership) {
@@ -310,7 +324,7 @@ async function handleCashback(supabase: any, customer: any, program: any, tenant
     }
 
     // Gamificación
-    const { newStreak, streakUpdated } = processStreak(customer.last_visit_at, customer.current_streak || 0)
+    const { newStreak } = processStreak(customer.last_visit_at, customer.current_streak || 0)
     const nuevasVisitasHistoricas = (customer.total_puntos_historicos || 0) + 1
     const nuevoTier = calculateTier(nuevasVisitasHistoricas)
 
@@ -364,6 +378,12 @@ async function handleMultipase(supabase: any, customer: any, program: any, tenan
         }, { status: 400 })
     }
 
+    const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
+    if (!stamp.inserted) {
+        if (stamp.duplicate) return alreadyStampedTodayResponse('multipase')
+        return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+    }
+
     const nuevosUsos = membership.usos_restantes - 1
 
     await supabase
@@ -373,9 +393,6 @@ async function handleMultipase(supabase: any, customer: any, program: any, tenan
             estado: nuevosUsos <= 0 ? 'expirado' : 'activo'
         })
         .eq('id', membership.id)
-
-    // Registrar stamp
-    await safeInsertStamp(supabase, customer.id, tenant_id)
 
     await supabase
         .from('customers')
@@ -412,17 +429,16 @@ async function handleDescuentoNiveles(supabase: any, customer: any, program: any
         { visitas: 30, descuento: 15 }
     ]
 
-    // Registrar stamp
-    await supabase.from('stamps').insert({
-        customer_id: customer.id,
-        tenant_id,
-        fecha: new Date().toISOString().split('T')[0]
-    })
+    const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
+    if (!stamp.inserted) {
+        if (stamp.duplicate) return alreadyStampedTodayResponse('descuento')
+        return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+    }
 
     const nuevoTotal = (customer.total_puntos_historicos || 0) + 1
 
     // Gamificación
-    const { newStreak, streakUpdated } = processStreak(customer.last_visit_at, customer.current_streak || 0)
+    const { newStreak } = processStreak(customer.last_visit_at, customer.current_streak || 0)
     const nuevasVisitasHistoricas = nuevoTotal
     const nuevoTier = calculateTier(nuevasVisitasHistoricas)
 
@@ -513,8 +529,11 @@ async function handleMembresia(supabase: any, customer: any, program: any, tenan
         }, { status: 400 })
     }
 
-    // Registrar visita
-    await safeInsertStamp(supabase, customer.id, tenant_id)
+    const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
+    if (!stamp.inserted) {
+        if (stamp.duplicate) return alreadyStampedTodayResponse('membresia')
+        return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+    }
 
     // Gamificación
     const { newStreak } = processStreak(customer.last_visit_at, customer.current_streak || 0)
@@ -553,7 +572,11 @@ async function handleMembresia(supabase: any, customer: any, program: any, tenan
 
 async function handleAfiliacion(supabase: any, customer: any, tenant_id: string) {
     // Solo registrar la visita — afiliación es para recibir notificaciones
-    await safeInsertStamp(supabase, customer.id, tenant_id)
+    const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
+    if (!stamp.inserted) {
+        if (stamp.duplicate) return alreadyStampedTodayResponse('afiliacion')
+        return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+    }
 
     // Gamificación
     const { newStreak } = processStreak(customer.last_visit_at, customer.current_streak || 0)
@@ -616,6 +639,12 @@ async function handleCupon(supabase: any, customer: any, program: any, tenant_id
         })
     }
 
+    const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
+    if (!stamp.inserted) {
+        if (stamp.duplicate) return alreadyStampedTodayResponse('cupon')
+        return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+    }
+
     // Generar QR de cupón único
     const cuponQR = `CUPON-${uuidv4().slice(0, 8).toUpperCase()}`
 
@@ -650,9 +679,6 @@ async function handleCupon(supabase: any, customer: any, program: any, tenant_id
             estado: 'usado'
         })
     }
-
-    // Registrar stamp
-    await safeInsertStamp(supabase, customer.id, tenant_id)
 
     return NextResponse.json({
         message: `🎫 ¡Cupón de ${descuentoPorcentaje}% generado! Muestra el QR en caja`,
@@ -696,6 +722,12 @@ async function handleRegalo(supabase: any, customer: any, program: any, tenant_i
         }, { status: 400 })
     }
 
+    const stamp = await safeInsertStamp(supabase, customer.id, tenant_id)
+    if (!stamp.inserted) {
+        if (stamp.duplicate) return alreadyStampedTodayResponse('regalo')
+        return NextResponse.json({ error: 'No se pudo registrar la visita' }, { status: 500 })
+    }
+
     const nuevoSaldo = membership.saldo_cashback - monto_compra
 
     // APLICAR DEDUCCIÓN EN BASE DE DATOS
@@ -703,9 +735,6 @@ async function handleRegalo(supabase: any, customer: any, program: any, tenant_i
         saldo_cashback: nuevoSaldo,
         estado: nuevoSaldo <= 0 ? 'usado' : 'activo'
     }).eq('id', membership.id)
-
-    // Registrar uso en métricas
-    await safeInsertStamp(supabase, customer.id, tenant_id)
 
     // Wallet Push
     await triggerWalletPush({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { requireTenantOwnerById } from '@/lib/authz'
 
 export async function GET(req: NextRequest) {
     const supabase = getSupabase()
@@ -10,6 +11,9 @@ export async function GET(req: NextRequest) {
         if (!tenant_id) {
             return NextResponse.json({ error: 'Falta tenant_id' }, { status: 400 })
         }
+
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
 
         // Obtener clientes
         const { data: customers, error } = await supabase

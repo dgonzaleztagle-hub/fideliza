@@ -5,8 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 // POST /api/tenant/register
 // Registrar un nuevo negocio
 export async function POST(req: NextRequest) {
-    const supabase = getSupabase()
     try {
+        const supabase = getSupabase()
         const body = await req.json()
         const {
             nombre,
@@ -53,20 +53,24 @@ export async function POST(req: NextRequest) {
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-|-$/g, '')
+            || `negocio-${Date.now()}`
 
         // Verificar que el slug no exista
         let slug = baseSlug
         let attempt = 0
-        while (true) {
+        while (attempt < 50) {
             const { data: existing } = await supabase
                 .from('tenants')
                 .select('id')
                 .eq('slug', slug)
-                .single()
+                .maybeSingle()
 
             if (!existing) break
             attempt++
             slug = `${baseSlug}-${attempt}`
+        }
+        if (attempt >= 50) {
+            return NextResponse.json({ error: 'No se pudo generar un slug único para tu negocio' }, { status: 500 })
         }
 
         // Calcular fecha de trial (14 días)
@@ -107,7 +111,7 @@ export async function POST(req: NextRequest) {
                 nombre,
                 rubro: rubro || null,
                 direccion: direccion || null,
-                email,
+                email: currentUser?.email || email,
                 telefono: telefono || null,
                 lat: lat || null,
                 lng: lng || null,

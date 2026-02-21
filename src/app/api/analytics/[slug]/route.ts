@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { requireTenantOwnerBySlug } from '@/lib/authz'
 
 // GET /api/analytics/[slug]
 // Analytics avanzados del negocio
@@ -10,6 +11,8 @@ export async function GET(
     const supabase = getSupabase()
     try {
         const { slug } = await params
+        const owner = await requireTenantOwnerBySlug(slug)
+        if (!owner.ok) return owner.response
 
         // Buscar tenant
         const { data: tenant, error: tenantError } = await supabase

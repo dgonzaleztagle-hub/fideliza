@@ -1,11 +1,20 @@
 import { NextResponse } from 'next/server';
 import { createSubscription } from '@/lib/flow';
-import { createClient } from '@/lib/supabase/server';
+import { getSupabase } from '@/lib/supabase/admin';
+import { requireTenantOwnerById } from '@/lib/authz';
 
 export async function POST(req: Request) {
     try {
         const { tenant_id } = await req.json();
-        const supabase = await createClient();
+
+        if (!tenant_id) {
+            return NextResponse.json({ error: 'Falta tenant_id' }, { status: 400 });
+        }
+
+        const owner = await requireTenantOwnerById(tenant_id);
+        if (!owner.ok) return owner.response;
+
+        const supabase = getSupabase();
 
         // 1. Obtener datos del tenant
         const { data: tenant, error: tError } = await supabase
@@ -21,7 +30,10 @@ export async function POST(req: Request) {
         // 2. Crear suscripción en Flow (Plan Pro Mensual)
         const planId = 'vuelve_pro_mensual';
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
-        const urlCallback = `${appUrl}/api/payments/webhook`;
+        const webhookSecret = process.env.FLOW_WEBHOOK_SECRET;
+        const urlCallback = webhookSecret
+            ? `${appUrl}/api/payments/webhook?secret=${encodeURIComponent(webhookSecret)}`
+            : `${appUrl}/api/payments/webhook`;
 
         const flowResult = await createSubscription(tenant.email, planId, urlCallback);
 

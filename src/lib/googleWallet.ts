@@ -54,6 +54,8 @@ export async function generateSaveLink(options: {
     geoMessage?: string
     tipoPrograma?: string
     programLabel?: string
+    customerWhatsapp?: string
+    tenantSlug?: string
 }) {
     if (!PRIVATE_KEY || !ISSUER_ID || !SERVICE_ACCOUNT_EMAIL) {
         throw new Error('Faltan credenciales de Google Wallet en .env.local');
@@ -77,6 +79,15 @@ export async function generateSaveLink(options: {
     }
 
     // Construir el objeto de lealtad
+    const miTarjetaParams = new URLSearchParams()
+    if (options.customerWhatsapp) {
+        miTarjetaParams.set('whatsapp', options.customerWhatsapp)
+    }
+    if (options.tenantSlug) {
+        miTarjetaParams.set('tenant_slug', options.tenantSlug)
+    }
+    const miTarjetaUrl = `${appUrl}/mi-tarjeta${miTarjetaParams.toString() ? `?${miTarjetaParams.toString()}` : ''}`
+
     const loyaltyObject: any = {
         id: fullObjectId,
         classId: fullClassId,
@@ -96,7 +107,7 @@ export async function generateSaveLink(options: {
         linksModuleData: {
             uris: [
                 {
-                    uri: `${appUrl}/mi-tarjeta?whatsapp=${options.objectId.split('-').pop()}`,
+                    uri: miTarjetaUrl,
                     description: '💎 Ver mis beneficios y medallas',
                     id: 'pwa-link'
                 }

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { requireSuperAdmin } from '@/lib/authz'
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
+    const admin = await requireSuperAdmin()
+    if (!admin.ok) return admin.response
+
     const supabase = getSupabase()
 
     try {

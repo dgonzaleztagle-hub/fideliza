@@ -6,6 +6,16 @@ import { triggerWalletPush } from '@/lib/wallet/push'
 // Este endpoint debe ser llamado por un Cron Job cada mañana (ej: 9:00 AM)
 
 export async function GET(req: NextRequest) {
+    const cronSecret = process.env.AUTOMATION_CRON_SECRET
+    const providedSecret = req.headers.get('x-cron-secret') || new URL(req.url).searchParams.get('secret')
+
+    if (!cronSecret) {
+        return NextResponse.json({ error: 'AUTOMATION_CRON_SECRET no configurado' }, { status: 503 })
+    }
+    if (providedSecret !== cronSecret) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
     const supabase = getSupabase()
     const results = {
         birthdays: 0,
@@ -22,7 +32,7 @@ export async function GET(req: NextRequest) {
         const { data: birthdayCustomers, error: bdayError } = await supabase
             .from('customers')
             .select(`
-                id, nombre, whatsapp, tenant_id,
+                id, nombre, whatsapp, fecha_nacimiento, tenant_id,
                 tenants:tenant_id (
                     slug, nombre, 
                     programs:programs (
@@ -37,6 +47,7 @@ export async function GET(req: NextRequest) {
         if (birthdayCustomers) {
             // Filtrado manual por mes y día (Postgres no tiene una forma súper sencilla de ignorar el año sin funciones personalizadas)
             const todayBdays = birthdayCustomers.filter((c: any) => {
+                if (!c.fecha_nacimiento) return false
                 const bdate = c.fecha_nacimiento.split('-')
                 return bdate[1] === month && bdate[2] === day
             })

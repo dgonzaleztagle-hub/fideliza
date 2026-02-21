@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { requireTenantOwnerById } from '@/lib/authz'
 
 // POST /api/notifications/send
 // Envía notificación manual a clientes vía Google Wallet
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             )
         }
+
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
 
         // Buscar tenant
         const { data: tenant, error: tenantError } = await supabase
@@ -101,9 +105,9 @@ export async function POST(req: NextRequest) {
         // Intentar enviar via Google Wallet (degradación elegante si falla)
         let walletResult: { enviadas: number; errores: number } = { enviadas: 0, errores: 0 }
         try {
-            // Los objectIds de Google Wallet se construyen con el patrón ISSUER_ID.CUSTOMER_ID
+            // El objectId real es: ISSUER_ID.vuelve-SLUG-CUSTOMER_ID
             const { sendBulkWalletNotifications, ISSUER_ID } = await import('@/lib/walletNotifications')
-            const objectIds = customers.map(c => `${ISSUER_ID}.${c.id}`)
+            const objectIds = customers.map(c => `${ISSUER_ID}.vuelve-${tenant.slug}-${c.id}`)
             walletResult = await sendBulkWalletNotifications(objectIds, titulo, mensaje)
         } catch (walletError) {
             console.warn('Google Wallet push no disponible, notificación registrada:', walletError)
@@ -139,6 +143,9 @@ export async function GET(req: NextRequest) {
         if (!tenant_id) {
             return NextResponse.json({ error: 'Falta tenant_id' }, { status: 400 })
         }
+
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
 
         const { data: notifications } = await supabase
             .from('notifications')

@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { requireTenantOwnerById } from '@/lib/authz'
+
+async function insertDailyStampSafe(supabase: ReturnType<typeof getSupabase>, customerId: string, tenantId: string) {
+    const { error } = await supabase
+        .from('stamps')
+        .insert({
+            customer_id: customerId,
+            tenant_id: tenantId,
+            fecha: new Date().toISOString().split('T')[0]
+        })
+
+    if (error && error.code !== '23505') {
+        throw error
+    }
+}
 
 // POST /api/membership
 // Crear membresía o multipase para un cliente
@@ -15,7 +30,9 @@ export async function POST(req: NextRequest) {
             )
         }
 
-        // Buscar cliente
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
+
         const { data: customer, error: customerError } = await supabase
             .from('customers')
             .select('id, nombre')
@@ -27,7 +44,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
         }
 
-        // Buscar programa
         const programQuery = supabase
             .from('programs')
             .select('id, tipo_programa, config, nombre, descripcion_premio')
@@ -48,7 +64,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Este programa no es de tipo membresía o multipase' }, { status: 400 })
         }
 
-        // Verificar si ya tiene membresía activa para este programa
         const { data: existingMembership } = await supabase
             .from('memberships')
             .select('id, estado')
@@ -66,7 +81,6 @@ export async function POST(req: NextRequest) {
 
         const config = program.config || {}
 
-        // Calcular datos según tipo
         let usos_restantes = null
         let fecha_fin = null
 
@@ -75,14 +89,12 @@ export async function POST(req: NextRequest) {
         }
 
         if (program.tipo_programa === 'membresia') {
-            // Membresía mensual por defecto
             const duracionDias = config.duracion_dias || 30
             const fin = new Date()
             fin.setDate(fin.getDate() + duracionDias)
             fecha_fin = fin.toISOString()
         }
 
-        // Crear membresía
         const { data: membership, error: membershipError } = await supabase
             .from('memberships')
             .insert({
@@ -104,14 +116,13 @@ export async function POST(req: NextRequest) {
         const tipoLabel = program.tipo_programa === 'multipase' ? 'Multipase' : 'Membresía VIP'
 
         return NextResponse.json({
-            message: `✅ ${tipoLabel} activada para ${customer.nombre}`,
+            message: `${tipoLabel} activada para ${customer.nombre}`,
             membership,
             tipo: program.tipo_programa,
             beneficios: config.beneficios || [],
             usos_restantes,
             fecha_fin
         }, { status: 201 })
-
     } catch (error) {
         console.error('Error en membresía:', error)
         return NextResponse.json({ error: 'Error interno' }, { status: 500 })
@@ -119,7 +130,6 @@ export async function POST(req: NextRequest) {
 }
 
 // GET /api/membership?tenant_id=...&whatsapp=...
-// Consultar membresía activa del cliente
 export async function GET(req: NextRequest) {
     const supabase = getSupabase()
     try {
@@ -130,6 +140,9 @@ export async function GET(req: NextRequest) {
         if (!tenant_id || !whatsapp) {
             return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
         }
+
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
 
         const { data: customer } = await supabase
             .from('customers')
@@ -153,7 +166,6 @@ export async function GET(req: NextRequest) {
             memberships: memberships || [],
             total: memberships?.length || 0
         })
-
     } catch (error) {
         console.error('Error consultando membresía:', error)
         return NextResponse.json({ error: 'Error interno' }, { status: 500 })
@@ -170,6 +182,9 @@ export async function PUT(req: NextRequest) {
         if (!membership_id || !tenant_id) {
             return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })
         }
+
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
 
         const { data: membership, error } = await supabase
             .from('memberships')
@@ -188,14 +203,13 @@ export async function PUT(req: NextRequest) {
 
         if (membership.usos_restantes !== null) {
             if (membership.usos_restantes <= 0) {
-                // Expirar membresía
                 await supabase
                     .from('memberships')
                     .update({ estado: 'expirado', updated_at: new Date().toISOString() })
                     .eq('id', membership_id)
 
                 return NextResponse.json({
-                    message: '❌ Se agotaron los usos del multipase',
+                    message: 'Se agotaron los usos del multipase',
                     usos_restantes: 0,
                     expirado: true
                 })
@@ -212,26 +226,18 @@ export async function PUT(req: NextRequest) {
                 })
                 .eq('id', membership_id)
 
-            // Registrar stamp
-            await supabase
-                .from('stamps')
-                .insert({
-                    customer_id: membership.customer_id,
-                    tenant_id,
-                    fecha: new Date().toISOString().split('T')[0]
-                })
+            await insertDailyStampSafe(supabase, membership.customer_id, tenant_id)
 
             return NextResponse.json({
                 message: nuevosUsos > 0
-                    ? `✅ Uso registrado. Quedan ${nuevosUsos} usos`
-                    : '🎉 ¡Último uso! El multipase ha sido completado',
+                    ? `Uso registrado. Quedan ${nuevosUsos} usos`
+                    : 'Último uso completado',
                 usos_restantes: nuevosUsos,
                 expirado: nuevosUsos === 0
             })
         }
 
         return NextResponse.json({ message: 'Membresía actualizada' })
-
     } catch (error) {
         console.error('Error actualizando membresía:', error)
         return NextResponse.json({ error: 'Error interno' }, { status: 500 })
@@ -239,7 +245,6 @@ export async function PUT(req: NextRequest) {
 }
 
 // DELETE /api/membership
-// Desactivar membresía de un cliente
 export async function DELETE(req: NextRequest) {
     const supabase = getSupabase()
     try {
@@ -249,7 +254,9 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })
         }
 
-        // Buscar cliente
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
+
         const { data: customer } = await supabase
             .from('customers')
             .select('id, nombre')
@@ -261,7 +268,6 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
         }
 
-        // Buscar membresía activa
         const { data: membership } = await supabase
             .from('memberships')
             .select('id')
@@ -274,7 +280,6 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: 'No tiene membresía activa' }, { status: 404 })
         }
 
-        // Desactivar
         const { error } = await supabase
             .from('memberships')
             .update({ estado: 'cancelado', updated_at: new Date().toISOString() })
@@ -285,9 +290,8 @@ export async function DELETE(req: NextRequest) {
         }
 
         return NextResponse.json({
-            message: `❌ Membresía desactivada para ${customer.nombre}`
+            message: `Membresía desactivada para ${customer.nombre}`
         })
-
     } catch (error) {
         console.error('Error desactivando membresía:', error)
         return NextResponse.json({ error: 'Error interno' }, { status: 500 })

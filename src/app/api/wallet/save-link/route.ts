@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
         // Buscar cliente
         const { data: customer, error: customerError } = await supabase
             .from('customers')
-            .select('id, nombre, puntos_actuales')
+            .select('id, nombre, whatsapp, puntos_actuales')
             .eq('tenant_id', tenant_id)
             .eq('whatsapp', whatsapp)
             .single()
@@ -87,7 +87,9 @@ export async function POST(req: NextRequest) {
             lat: tenant.lat || undefined,
             lng: tenant.lng || undefined,
             geoMessage: tenant.mensaje_geofencing || undefined,
-            tipoPrograma: program?.tipo_programa || 'sellos'
+            tipoPrograma: program?.tipo_programa || 'sellos',
+            customerWhatsapp: customer.whatsapp,
+            tenantSlug: tenant.slug
         })
 
         return NextResponse.json({

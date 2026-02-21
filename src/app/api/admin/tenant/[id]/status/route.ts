@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { requireSuperAdmin } from '@/lib/authz'
 
 // POST /api/admin/tenant/[id]/status
 // Actualizar plan/estado del tenant (Activación manual)
@@ -7,6 +8,9 @@ export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const admin = await requireSuperAdmin()
+    if (!admin.ok) return admin.response
+
     const supabase = getSupabase()
     const { id } = await params
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { requireTenantOwnerById } from '@/lib/authz'
 
 // GET /api/notifications/scheduled?tenant_id=...
 // POST /api/notifications/scheduled
@@ -13,6 +14,9 @@ export async function GET(req: NextRequest) {
     if (!tenant_id) {
         return NextResponse.json({ error: 'Falta tenant_id' }, { status: 400 })
     }
+
+    const owner = await requireTenantOwnerById(tenant_id)
+    if (!owner.ok) return owner.response
 
     const { data: campaigns, error } = await supabase
         .from('scheduled_campaigns')
@@ -37,6 +41,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })
         }
 
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
+
         const { data: campaign, error } = await supabase
             .from('scheduled_campaigns')
             .insert({
@@ -57,7 +64,7 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json({ campaign }, { status: 201 })
-    } catch (err) {
+    } catch {
         return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }
 }
@@ -70,6 +77,22 @@ export async function DELETE(req: NextRequest) {
     if (!id) {
         return NextResponse.json({ error: 'Falta id' }, { status: 400 })
     }
+
+    const { data: campaign, error: campaignError } = await supabase
+        .from('scheduled_campaigns')
+        .select('id, tenant_id')
+        .eq('id', id)
+        .maybeSingle()
+
+    if (campaignError) {
+        return NextResponse.json({ error: campaignError.message }, { status: 500 })
+    }
+    if (!campaign) {
+        return NextResponse.json({ error: 'Campaña no encontrada' }, { status: 404 })
+    }
+
+    const owner = await requireTenantOwnerById(campaign.tenant_id)
+    if (!owner.ok) return owner.response
 
     const { error } = await supabase
         .from('scheduled_campaigns')

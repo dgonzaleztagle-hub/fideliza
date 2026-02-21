@@ -9,8 +9,6 @@ import {
     Smartphone,
     CheckCircle2,
     ArrowRight,
-    ArrowLeft,
-    Upload,
     Check
 } from 'lucide-react'
 import './setup-wizard.css'
@@ -35,7 +33,12 @@ const STEPS: { id: WizardStep; label: string; icon: any }[] = [
 const STRATEGIES = [
     { id: 'sellos', name: 'Tarjeta de Sellos', desc: 'Clásico y efectivo. Por cada visita, un sello.', icon: '⭐' },
     { id: 'cashback', name: 'Cashback', desc: 'Devuelve un % de la compra para uso futuro.', icon: '💰' },
-    { id: 'multipase', name: 'Multipase', desc: 'Packs de servicios prepagados.', icon: '🎟️' }
+    { id: 'multipase', name: 'Multipase', desc: 'Packs de servicios prepagados.', icon: '🎟️' },
+    { id: 'membresia', name: 'Membresía VIP', desc: 'Membresía mensual con beneficios exclusivos.', icon: '👑' },
+    { id: 'descuento', name: 'Descuento por Niveles', desc: 'Mientras más visitas, mayor descuento.', icon: '📊' },
+    { id: 'cupon', name: 'Cupón de Descuento', desc: 'Cupón de un solo uso para promociones.', icon: '🎫' },
+    { id: 'regalo', name: 'Gift Card', desc: 'Saldo precargado para regalar y consumir.', icon: '🎁' },
+    { id: 'afiliacion', name: 'Afiliación', desc: 'Registro y notificaciones sin puntos.', icon: '📱' }
 ]
 
 export default function SetupWizard({ tenant, program, onComplete }: SetupWizardProps) {

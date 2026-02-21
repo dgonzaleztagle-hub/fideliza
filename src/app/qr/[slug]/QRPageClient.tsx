@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './qr-page.css'
 
 interface Tenant {
@@ -94,13 +94,12 @@ export default function QRPageClient({ tenant, program }: Props) {
     const tipoPrograma = program?.tipo_programa || 'sellos'
 
     // Capturar referrer de la URL
-    useState(() => {
-        if (typeof window !== 'undefined') {
-            const params = new URLSearchParams(window.location.search)
-            const ref = params.get('ref')
-            if (ref) setReferrerId(ref)
-        }
-    })
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        const params = new URLSearchParams(window.location.search)
+        const ref = params.get('ref')
+        if (ref) setReferrerId(ref)
+    }, [])
 
     // Helper: texto según tipo
     function getProgramBadge(): string {
@@ -134,28 +133,27 @@ export default function QRPageClient({ tenant, program }: Props) {
     const [socialLoading, setSocialLoading] = useState(false)
 
     // Detectar si venimos de un login social exitoso
-    useState(() => {
+    useEffect(() => {
         const checkUser = async () => {
             const { createClient } = await import('@/lib/supabase/client')
             const supabase = createClient()
             const { data: { user } } = await supabase.auth.getUser()
 
-            if (user) {
-                // Pre-completar con datos de Google/Apple
-                if (user.user_metadata?.full_name && !nombre) {
-                    setNombre(user.user_metadata.full_name)
-                }
-                if (user.email && !email) {
-                    setEmail(user.email)
-                }
-                // Si ya tenemos los datos básicos mínimos, podemos sugerir el paso de registro
-                if (step === 'welcome' || step === 'register') {
-                    setStep('register')
-                }
+            if (!user) return
+
+            // Pre-completar con datos de Google/Apple
+            if (user.user_metadata?.full_name) {
+                setNombre(prev => prev || user.user_metadata.full_name)
             }
+            if (user.email) {
+                setEmail(prev => prev || user.email || '')
+            }
+
+            // Si ya tenemos los datos básicos mínimos, sugerimos paso de registro
+            setStep(prev => (prev === 'welcome' || prev === 'register') ? 'register' : prev)
         }
         checkUser()
-    })
+    }, [])
 
     async function handleSocialLogin(provider: 'google' | 'apple') {
         const { createClient } = await import('@/lib/supabase/client')
@@ -299,7 +297,15 @@ export default function QRPageClient({ tenant, program }: Props) {
             })
 
             const data = await res.json()
-            if (!res.ok) throw new Error(data.error || data.message || 'Error al procesar')
+            if (!res.ok) {
+                if (res.status === 409 && data.already_stamped_today) {
+                    setResult(data)
+                    setStep('result')
+                    fetchWalletLink(wsp)
+                    return
+                }
+                throw new Error(data.error || data.message || 'Error al procesar')
+            }
 
             setResult(data)
             setStep('result')

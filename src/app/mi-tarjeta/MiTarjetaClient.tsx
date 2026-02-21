@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './mi-tarjeta.css'
 
 interface TarjetaData {
@@ -43,6 +43,7 @@ interface TarjetaData {
 
 export default function MiTarjetaClient() {
     const [whatsapp, setWhatsapp] = useState('')
+    const [tenantSlug, setTenantSlug] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [tarjetas, setTarjetas] = useState<TarjetaData[]>([])
@@ -51,14 +52,22 @@ export default function MiTarjetaClient() {
     const [prefForm, setPrefForm] = useState<Record<string, any>>({})
     const [savingPrefs, setSavingPrefs] = useState(false)
 
-    async function handleSearch(e: React.FormEvent) {
-        e.preventDefault()
+    async function searchCards(whatsappInput: string, tenantSlugInput: string) {
+        const normalizedWhatsapp = whatsappInput.trim()
+        const normalizedSlug = tenantSlugInput.trim()
+
         setLoading(true)
         setError('')
         setSearched(true)
 
         try {
-            const res = await fetch(`/api/customer/status?whatsapp=${encodeURIComponent(whatsapp)}`)
+            if (!normalizedSlug) {
+                throw new Error('Debes ingresar el nombre de acceso del negocio (slug).')
+            }
+
+            const res = await fetch(
+                `/api/customer/status?whatsapp=${encodeURIComponent(normalizedWhatsapp)}&tenant_slug=${encodeURIComponent(normalizedSlug)}`
+            )
             const data = await res.json()
 
             if (!res.ok) throw new Error(data.error || 'Error al consultar')
@@ -72,8 +81,34 @@ export default function MiTarjetaClient() {
         }
     }
 
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        const params = new URLSearchParams(window.location.search)
+        const qWhatsapp = params.get('whatsapp') || ''
+        const qTenantSlug = params.get('tenant_slug') || ''
+
+        if (!qWhatsapp && !qTenantSlug) return
+
+        if (qWhatsapp) setWhatsapp(qWhatsapp)
+        if (qTenantSlug) setTenantSlug(qTenantSlug)
+
+        if (qWhatsapp && qTenantSlug) {
+            searchCards(qWhatsapp, qTenantSlug)
+        }
+    }, [])
+
+    async function handleSearch(e: React.FormEvent) {
+        e.preventDefault()
+        await searchCards(whatsapp, tenantSlug)
+    }
+
     async function savePreferences() {
         if (!editingPrefs) return
+        const currentCard = tarjetas.find(t => t.customer.id === editingPrefs)
+        if (!currentCard?.negocio?.slug || !whatsapp) {
+            alert('No pudimos validar tu tarjeta. Intenta buscar de nuevo.')
+            return
+        }
         setSavingPrefs(true)
         try {
             const res = await fetch('/api/customer/preferences', {
@@ -81,7 +116,9 @@ export default function MiTarjetaClient() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     customer_id: editingPrefs,
-                    preferences: prefForm
+                    preferences: prefForm,
+                    whatsapp,
+                    tenant_slug: currentCard.negocio.slug
                 })
             })
             if (!res.ok) throw new Error('Error al guardar')
@@ -251,6 +288,15 @@ export default function MiTarjetaClient() {
 
             <main className="mt-main">
                 <form onSubmit={handleSearch} className="mt-search">
+                    <div className="mt-search-field" style={{ marginBottom: '0.75rem' }}>
+                        <input
+                            type="text"
+                            value={tenantSlug}
+                            onChange={(e) => setTenantSlug(e.target.value)}
+                            placeholder="Slug del negocio (ej: mi-cafe-centro)"
+                            required
+                        />
+                    </div>
                     <div className="mt-search-field">
                         <input
                             type="tel"

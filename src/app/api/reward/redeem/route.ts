@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { requireTenantOwnerById } from '@/lib/authz'
 
 // POST /api/reward/redeem
 // Canjea un premio (el dueño del local escanea el QR del cliente)
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             )
         }
+
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
 
         // Llamar a la RPC atómica para el canje
         const { data, error: rpcError } = await supabase.rpc('redeem_reward_atomic', {

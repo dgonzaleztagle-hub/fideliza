@@ -5,11 +5,14 @@ import { getSupabase } from '@/lib/supabase/admin'
 // Endpoint CRON — expira premios no canjeados después de X días
 // Protegido con CRON_SECRET (configurar en Vercel)
 export async function GET(req: NextRequest) {
-    // Verificar autorización del cron
-    const authHeader = req.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
+    const authHeader = req.headers.get('authorization')
+    const querySecret = new URL(req.url).searchParams.get('secret')
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret) {
+        return NextResponse.json({ error: 'CRON_SECRET no configurado' }, { status: 503 })
+    }
+    if (authHeader !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
         return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
