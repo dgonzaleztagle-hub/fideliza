@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { isProgramType } from '@/lib/programTypes'
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
 
 // POST /api/tenant/register
 // Registrar un nuevo negocio
 export async function POST(req: NextRequest) {
     try {
+        const ip = getClientIp(req.headers)
+        const ipRate = checkRateLimit(`tenant_register:ip:${ip}`, 8, 60 * 60 * 1000)
+        if (!ipRate.allowed) {
+            return NextResponse.json(
+                { error: 'Demasiados intentos de registro. Intenta más tarde.' },
+                { status: 429, headers: { 'Retry-After': String(ipRate.retryAfterSec) } }
+            )
+        }
+
         const supabase = getSupabase()
         const body = await req.json()
         const {
@@ -44,15 +54,47 @@ export async function POST(req: NextRequest) {
         const supabaseServer = await createClient()
         const { data: { user: currentUser } } = await supabaseServer.auth.getUser()
 
+        const normalizedName = typeof nombre === 'string' ? nombre.trim() : ''
+        const normalizedEmail = String(currentUser?.email || email || '').trim().toLowerCase()
+        const passwordValue = typeof password === 'string' ? password : ''
+
+        if (!normalizedName) {
+            return NextResponse.json(
+                { error: 'El nombre del negocio es obligatorio' },
+                { status: 400 }
+            )
+        }
+
+        if (normalizedName.length < 3) {
+            return NextResponse.json(
+                { error: 'El nombre del negocio debe tener al menos 3 caracteres' },
+                { status: 400 }
+            )
+        }
+
+        const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+        if (!isValidEmail) {
+            return NextResponse.json(
+                { error: 'Debes ingresar un email válido' },
+                { status: 400 }
+            )
+        }
+
         if (!currentUser) {
-            if (!nombre || !email || !password) {
+            if (!normalizedName || !normalizedEmail || !passwordValue) {
                 return NextResponse.json(
                     { error: 'Faltan campos requeridos: nombre, email, password' },
                     { status: 400 }
                 )
             }
+            if (passwordValue.length < 8) {
+                return NextResponse.json(
+                    { error: 'La contraseña debe tener al menos 8 caracteres' },
+                    { status: 400 }
+                )
+            }
         } else {
-            if (!nombre || !email) {
+            if (!normalizedName || !normalizedEmail) {
                 return NextResponse.json(
                     { error: 'Faltan campos requeridos: nombre, email' },
                     { status: 400 }
@@ -60,8 +102,16 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        const emailRate = checkRateLimit(`tenant_register:email:${normalizedEmail}`, 3, 60 * 60 * 1000)
+        if (!emailRate.allowed) {
+            return NextResponse.json(
+                { error: 'Demasiados intentos para este correo. Intenta más tarde.' },
+                { status: 429, headers: { 'Retry-After': String(emailRate.retryAfterSec) } }
+            )
+        }
+
         // Generar slug único
-        const baseSlug = nombre
+        const baseSlug = normalizedName
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-|-$/g, '')
@@ -98,11 +148,11 @@ export async function POST(req: NextRequest) {
         } else {
             // 1. Crear el usuario en Supabase Auth manualmente
             const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-                email,
-                password,
+                email: normalizedEmail,
+                password: passwordValue,
                 email_confirm: true, // Para asegurar que no queden varados
                 user_metadata: {
-                    nombre_negocio: nombre
+                    nombre_negocio: normalizedName
                 }
             })
 
@@ -122,10 +172,10 @@ export async function POST(req: NextRequest) {
             .from('tenants')
             .insert({
                 auth_user_id: authUserId,
-                nombre,
+                nombre: normalizedName,
                 rubro: rubro || null,
                 direccion: direccion || null,
-                email: currentUser?.email || email,
+                email: normalizedEmail,
                 telefono: telefono || null,
                 lat: lat || null,
                 lng: lng || null,
@@ -156,7 +206,7 @@ export async function POST(req: NextRequest) {
             .from('programs')
             .insert({
                 tenant_id: tenant.id,
-                nombre: `Programa de ${nombre}`,
+                nombre: `Programa de ${normalizedName}`,
                 puntos_meta: puntos_meta || 10,
                 descripcion_premio: descripcion_premio || 'Premio por tu lealtad',
                 tipo_premio: tipo_premio || 'descuento',

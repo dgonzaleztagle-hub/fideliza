@@ -262,6 +262,16 @@ export default function RegistroForm() {
                 throw new Error(data.error || 'Error al registrar')
             }
 
+            if (!hasSession && email && password) {
+                const { error: loginError } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                })
+                if (!loginError) {
+                    setHasSession(true)
+                }
+            }
+
             setResult(data)
             setStep('listo')
         } catch (err: unknown) {
@@ -413,7 +423,7 @@ export default function RegistroForm() {
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="Mínimo 6 caracteres"
+                                    placeholder="Mínimo 8 caracteres"
                                 />
                                 <p className="registro-field-hint">Con esta clave entrarás a tu panel de Vuelve+</p>
                             </div>
@@ -446,8 +456,8 @@ export default function RegistroForm() {
                                     setError('Faltan campos obligatorios')
                                     return
                                 }
-                                if (!hasSession && password.length < 6) {
-                                    setError('La contraseña debe tener al menos 6 caracteres')
+                                if (!hasSession && password.length < 8) {
+                                    setError('La contraseña debe tener al menos 8 caracteres')
                                     return
                                 }
                                 setError('')

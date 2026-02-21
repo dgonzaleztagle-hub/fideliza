@@ -5,7 +5,10 @@ export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
     // El 'next' nos dirá a qué página volver (probablemente /qr/[slug])
-    const next = searchParams.get('next') ?? '/'
+    const requestedNext = searchParams.get('next') ?? '/'
+    const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//')
+        ? requestedNext
+        : '/'
 
     if (code) {
         const supabase = await createClient()
