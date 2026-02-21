@@ -31,6 +31,10 @@ export async function POST(req: Request) {
         const planId = 'vuelve_pro_mensual';
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
         const webhookSecret = process.env.FLOW_WEBHOOK_SECRET;
+        const isProduction = process.env.NODE_ENV === 'production';
+        if (!webhookSecret && isProduction) {
+            return NextResponse.json({ error: 'FLOW_WEBHOOK_SECRET no configurado' }, { status: 503 });
+        }
         const urlCallback = webhookSecret
             ? `${appUrl}/api/payments/webhook?secret=${encodeURIComponent(webhookSecret)}`
             : `${appUrl}/api/payments/webhook`;

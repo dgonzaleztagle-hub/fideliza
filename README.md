@@ -1,34 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fidelizacion (Vuelve+)
 
-## Getting Started
+Plataforma SaaS multi-tenant de fidelizacion para comercios fisicos, con soporte de wallet digital, programas de lealtad y automatizaciones.
 
-First, run the development server:
+## Requisitos
+
+- Node.js 20+
+- npm 10+
+- Proyecto Supabase configurado
+
+## Variables de entorno
+
+1. Copiar `.env.example` a `.env.local`.
+2. Completar todas las claves.
+3. En produccion, configurar las mismas variables en Vercel.
+
+Nota importante:
+- `FLOW_WEBHOOK_SECRET` es obligatorio en produccion para pagos.
+- `AUTOMATION_CRON_SECRET` y `CRON_SECRET` son obligatorios para jobs automatizados.
+
+## Desarrollo local
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Validaciones tecnicas
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run lint
+npm run build
+npm audit --omit=dev
+```
 
-## Learn More
+## Checklist de salida a produccion
 
-To learn more about Next.js, take a look at the following resources:
+1. Base de datos:
+   - Ejecutar migraciones en orden (`migrations/001` a `migrations/005`).
+   - Verificar que el schema en produccion quedo actualizado.
+2. Variables:
+   - Cargar todas las variables de `.env.example` en Vercel.
+   - Confirmar claves reales de Supabase, Flow y Google Wallet.
+3. Seguridad:
+   - Confirmar `FLOW_WEBHOOK_SECRET`, `AUTOMATION_CRON_SECRET` y `CRON_SECRET`.
+   - Confirmar `SUPER_ADMIN_EMAILS`.
+4. Smoke test funcional:
+   - Registro de negocio.
+   - Creacion de cliente.
+   - Marcado de visita/beneficio.
+   - Canje de premio.
+   - Flujo de cobro y webhook de suscripcion.
+5. Operacion:
+   - Programar llamados a `/api/automation/daily` y `/api/reward/expire` con sus secretos.
+   - Validar logs de errores en Vercel despues del primer ciclo.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts disponibles
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev`: servidor local.
+- `npm run lint`: validaciones de codigo.
+- `npm run build`: compilacion de produccion.
+- `npm run start`: levantar build compilado.

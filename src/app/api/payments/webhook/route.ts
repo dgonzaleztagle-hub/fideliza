@@ -5,6 +5,10 @@ import { getSupabase } from '@/lib/supabase/admin';
 export async function POST(req: Request) {
     try {
         const configuredSecret = process.env.FLOW_WEBHOOK_SECRET
+        const isProduction = process.env.NODE_ENV === 'production'
+        if (!configuredSecret && isProduction) {
+            return NextResponse.json({ error: 'FLOW_WEBHOOK_SECRET no configurado' }, { status: 503 })
+        }
         if (configuredSecret) {
             const incomingSecret = new URL(req.url).searchParams.get('secret')
             if (incomingSecret !== configuredSecret) {
