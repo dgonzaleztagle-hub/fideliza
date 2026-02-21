@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
 
 function normalizeWhatsapp(value: string): string {
     return value.replace(/[^\d+]/g, '')
@@ -12,11 +13,29 @@ export async function POST(req: NextRequest) {
     try {
         const { tenant_id, nombre, whatsapp, email, referido_por, fecha_nacimiento } = await req.json()
         const normalizedWhatsapp = typeof whatsapp === 'string' ? normalizeWhatsapp(whatsapp) : ''
+        const ip = getClientIp(req.headers)
 
         if (!tenant_id || !nombre || !normalizedWhatsapp) {
             return NextResponse.json(
                 { error: 'Faltan campos requeridos: tenant_id, nombre, whatsapp' },
                 { status: 400 }
+            )
+        }
+        if (normalizedWhatsapp.length < 8) {
+            return NextResponse.json({ error: 'WhatsApp inválido' }, { status: 400 })
+        }
+        if (typeof nombre !== 'string' || nombre.trim().length < 2 || nombre.trim().length > 120) {
+            return NextResponse.json({ error: 'Nombre inválido' }, { status: 400 })
+        }
+        if (email && (typeof email !== 'string' || !email.includes('@'))) {
+            return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
+        }
+
+        const rate = checkRateLimit(`customer-register:${ip}:${tenant_id}`, 25, 10 * 60 * 1000)
+        if (!rate.allowed) {
+            return NextResponse.json(
+                { error: 'Demasiados intentos de registro. Intenta nuevamente en unos minutos.' },
+                { status: 429, headers: { 'Retry-After': String(rate.retryAfterSec) } }
             )
         }
 
@@ -49,6 +68,19 @@ export async function POST(req: NextRequest) {
                 customer: existing,
                 isNew: false
             })
+        }
+
+        if (referido_por) {
+            const { data: referrer } = await supabase
+                .from('customers')
+                .select('id')
+                .eq('id', referido_por)
+                .eq('tenant_id', tenant_id)
+                .maybeSingle()
+
+            if (!referrer) {
+                return NextResponse.json({ error: 'Código de referido inválido' }, { status: 400 })
+            }
         }
 
         // Crear nuevo cliente

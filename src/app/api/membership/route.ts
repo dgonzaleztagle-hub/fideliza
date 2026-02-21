@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireTenantOwnerById } from '@/lib/authz'
 
+function normalizeWhatsapp(value: string): string {
+    return value.replace(/[^\d+]/g, '')
+}
+
 async function insertDailyStampSafe(supabase: ReturnType<typeof getSupabase>, customerId: string, tenantId: string) {
     const { error } = await supabase
         .from('stamps')
@@ -22,8 +26,9 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     try {
         const { tenant_id, whatsapp, program_id } = await req.json()
+        const normalizedWhatsapp = typeof whatsapp === 'string' ? normalizeWhatsapp(whatsapp) : ''
 
-        if (!tenant_id || !whatsapp) {
+        if (!tenant_id || !normalizedWhatsapp) {
             return NextResponse.json(
                 { error: 'Faltan campos: tenant_id, whatsapp' },
                 { status: 400 }
@@ -37,7 +42,7 @@ export async function POST(req: NextRequest) {
             .from('customers')
             .select('id, nombre')
             .eq('tenant_id', tenant_id)
-            .eq('whatsapp', whatsapp)
+            .eq('whatsapp', normalizedWhatsapp)
             .single()
 
         if (customerError || !customer) {
@@ -136,8 +141,9 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url)
         const tenant_id = searchParams.get('tenant_id')
         const whatsapp = searchParams.get('whatsapp')
+        const normalizedWhatsapp = whatsapp ? normalizeWhatsapp(whatsapp) : ''
 
-        if (!tenant_id || !whatsapp) {
+        if (!tenant_id || !normalizedWhatsapp) {
             return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
         }
 
@@ -148,7 +154,7 @@ export async function GET(req: NextRequest) {
             .from('customers')
             .select('id')
             .eq('tenant_id', tenant_id)
-            .eq('whatsapp', whatsapp)
+            .eq('whatsapp', normalizedWhatsapp)
             .single()
 
         if (!customer) {
@@ -249,8 +255,9 @@ export async function DELETE(req: NextRequest) {
     const supabase = getSupabase()
     try {
         const { tenant_id, whatsapp } = await req.json()
+        const normalizedWhatsapp = typeof whatsapp === 'string' ? normalizeWhatsapp(whatsapp) : ''
 
-        if (!tenant_id || !whatsapp) {
+        if (!tenant_id || !normalizedWhatsapp) {
             return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })
         }
 
@@ -261,7 +268,7 @@ export async function DELETE(req: NextRequest) {
             .from('customers')
             .select('id, nombre')
             .eq('tenant_id', tenant_id)
-            .eq('whatsapp', whatsapp)
+            .eq('whatsapp', normalizedWhatsapp)
             .single()
 
         if (!customer) {

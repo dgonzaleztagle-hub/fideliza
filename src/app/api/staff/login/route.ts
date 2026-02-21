@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { hashPin, isValidPin, verifyPin } from '@/lib/security/pin'
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
 
 type AttemptState = {
     fails: number
@@ -16,11 +17,26 @@ const MAX_FAILS = 5
 export async function POST(req: Request) {
     try {
         const { slug, pin } = await req.json()
-        const ip = (req.headers.get('x-forwarded-for') || 'unknown').split(',')[0].trim()
+        const ip = getClientIp(req.headers)
         const slugValue = typeof slug === 'string' ? slug.trim() : ''
         const pinValue = typeof pin === 'string' ? pin.trim() : ''
         const key = `${slugValue}:${ip}`
         const now = Date.now()
+
+        const ipRate = checkRateLimit(`staff-login-ip:${ip}`, 80, 10 * 60 * 1000)
+        if (!ipRate.allowed) {
+            return NextResponse.json(
+                { error: 'Demasiadas solicitudes. Intenta nuevamente en unos minutos.' },
+                { status: 429, headers: { 'Retry-After': String(ipRate.retryAfterSec) } }
+            )
+        }
+        const slugRate = checkRateLimit(`staff-login:${ip}:${slugValue}`, 20, 10 * 60 * 1000)
+        if (!slugRate.allowed) {
+            return NextResponse.json(
+                { error: 'Demasiados intentos. Intenta nuevamente en unos minutos.' },
+                { status: 429, headers: { 'Retry-After': String(slugRate.retryAfterSec) } }
+            )
+        }
 
         const state = attempts.get(key)
         if (state && state.blockedUntil > now) {

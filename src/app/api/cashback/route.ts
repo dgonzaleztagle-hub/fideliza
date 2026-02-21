@@ -2,18 +2,41 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireTenantOwnerById } from '@/lib/authz'
 
+function normalizeWhatsapp(value: string): string {
+    return value.replace(/[^\d+]/g, '')
+}
+
+async function insertDailyStampSafe(supabase: ReturnType<typeof getSupabase>, customerId: string, tenantId: string) {
+    const { error } = await supabase
+        .from('stamps')
+        .insert({
+            customer_id: customerId,
+            tenant_id: tenantId,
+            fecha: new Date().toISOString().split('T')[0]
+        })
+
+    if (error && error.code !== '23505') {
+        throw error
+    }
+}
+
 // POST /api/cashback
 // Registra una compra y calcula el cashback
 export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     try {
         const { tenant_id, whatsapp, monto_compra } = await req.json()
+        const normalizedWhatsapp = typeof whatsapp === 'string' ? normalizeWhatsapp(whatsapp) : ''
+        const purchaseAmount = Number(monto_compra)
 
-        if (!tenant_id || !whatsapp || !monto_compra) {
+        if (!tenant_id || !normalizedWhatsapp || !monto_compra) {
             return NextResponse.json(
                 { error: 'Faltan campos: tenant_id, whatsapp, monto_compra' },
                 { status: 400 }
             )
+        }
+        if (!Number.isFinite(purchaseAmount) || purchaseAmount <= 0) {
+            return NextResponse.json({ error: 'monto_compra inválido' }, { status: 400 })
         }
 
         const owner = await requireTenantOwnerById(tenant_id)
@@ -24,7 +47,7 @@ export async function POST(req: NextRequest) {
             .from('customers')
             .select('id, nombre, puntos_actuales')
             .eq('tenant_id', tenant_id)
-            .eq('whatsapp', whatsapp)
+            .eq('whatsapp', normalizedWhatsapp)
             .single()
 
         if (customerError || !customer) {
@@ -48,7 +71,7 @@ export async function POST(req: NextRequest) {
         const topeMensual = config.tope_mensual || null
 
         // Calcular cashback
-        const cashbackGanado = Math.round((monto_compra * porcentaje) / 100)
+        const cashbackGanado = Math.round((purchaseAmount * porcentaje) / 100)
 
         // Buscar o crear membresía de cashback
         let { data: membership } = await supabase
@@ -97,20 +120,14 @@ export async function POST(req: NextRequest) {
         }
 
         // Registrar stamp también
-        await supabase
-            .from('stamps')
-            .insert({
-                customer_id: customer.id,
-                tenant_id,
-                fecha: new Date().toISOString().split('T')[0]
-            })
+        await insertDailyStampSafe(supabase, customer.id, tenant_id)
 
         return NextResponse.json({
             message: `💰 ¡Ganaste $${cashbackGanado} de cashback!`,
             cashback_ganado: cashbackGanado,
             saldo_total: membership?.saldo_cashback || cashbackGanado,
             porcentaje,
-            monto_compra
+            monto_compra: purchaseAmount
         })
 
     } catch (error) {
@@ -127,8 +144,9 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url)
         const tenant_id = searchParams.get('tenant_id')
         const whatsapp = searchParams.get('whatsapp')
+        const normalizedWhatsapp = whatsapp ? normalizeWhatsapp(whatsapp) : ''
 
-        if (!tenant_id || !whatsapp) {
+        if (!tenant_id || !normalizedWhatsapp) {
             return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
         }
 
@@ -139,7 +157,7 @@ export async function GET(req: NextRequest) {
             .from('customers')
             .select('id')
             .eq('tenant_id', tenant_id)
-            .eq('whatsapp', whatsapp)
+            .eq('whatsapp', normalizedWhatsapp)
             .single()
 
         if (!customer) {

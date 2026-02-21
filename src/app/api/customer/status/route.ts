@@ -25,6 +25,9 @@ export async function GET(req: NextRequest) {
 
         const normalizedWhatsapp = normalizeWhatsapp(whatsapp)
         const normalizedTenantSlug = tenantSlug.trim().toLowerCase()
+        if (normalizedWhatsapp.length < 8) {
+            return NextResponse.json({ error: 'whatsapp inválido' }, { status: 400 })
+        }
         if (!normalizedTenantSlug) {
             return NextResponse.json({ error: 'tenant_slug inválido' }, { status: 400 })
         }
