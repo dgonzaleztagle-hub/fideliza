@@ -133,44 +133,6 @@ export default function QRPageClient({ tenant, program }: Props) {
         return tipoPrograma === 'cashback'
     }
 
-    const [socialLoading, setSocialLoading] = useState(false)
-
-    // Detectar si venimos de un login social exitoso
-    useEffect(() => {
-        const checkUser = async () => {
-            const { createClient } = await import('@/lib/supabase/client')
-            const supabase = createClient()
-            const { data: { user } } = await supabase.auth.getUser()
-
-            if (!user) return
-
-            // Pre-completar con datos de Google/Apple
-            if (user.user_metadata?.full_name) {
-                setNombre(prev => prev || user.user_metadata.full_name)
-            }
-            if (user.email) {
-                setEmail(prev => prev || user.email || '')
-            }
-
-            // Si ya tenemos los datos básicos mínimos, sugerimos paso de registro
-            setStep(prev => (prev === 'welcome' || prev === 'register') ? 'register' : prev)
-        }
-        checkUser()
-    }, [])
-
-    async function handleSocialLogin(provider: 'google' | 'apple') {
-        const { createClient } = await import('@/lib/supabase/client')
-        const supabase = createClient()
-        setSocialLoading(true)
-
-        await supabase.auth.signInWithOAuth({
-            provider,
-            options: {
-                redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`
-            }
-        })
-    }
-
     async function handleRegister(e: React.FormEvent) {
         e.preventDefault()
         setLoading(true)
@@ -192,9 +154,6 @@ export default function QRPageClient({ tenant, program }: Props) {
 
             const regData = await regRes.json()
             if (!regRes.ok) throw new Error(regData.error || 'Error al registrar')
-
-            // Si el registro fue exitoso mediante social login, podríamos querer limpiar la sesión de auth
-            // Pero por ahora la mantendremos para evitar fricción si recarga.
 
             await handleStamp(whatsapp)
         } catch (err: unknown) {
@@ -231,7 +190,7 @@ export default function QRPageClient({ tenant, program }: Props) {
 
     // Geolocation
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
-    const [locationError, setLocationError] = useState('')
+    const [, setLocationError] = useState('')
 
     async function getLocation(): Promise<{ lat: number; lng: number } | null> {
         return new Promise((resolve, reject) => {
@@ -656,34 +615,6 @@ export default function QRPageClient({ tenant, program }: Props) {
                     <div className="qr-form-container">
                         <form onSubmit={handleRegister} className="qr-form">
                             <h2>Registro rápido ✨</h2>
-
-                            {/* Social Signup Options */}
-                            <div className="qr-social-signup">
-                                <p className="qr-social-hint">Pre-completa tus datos:</p>
-                                <div className="qr-social-buttons">
-                                    <button
-                                        type="button"
-                                        className="btn-social google"
-                                        onClick={() => handleSocialLogin('google')}
-                                        disabled={socialLoading}
-                                    >
-                                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" />
-                                        Google
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn-social apple"
-                                        onClick={() => handleSocialLogin('apple')}
-                                        disabled={socialLoading}
-                                    >
-                                        <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="" />
-                                        Apple
-                                    </button>
-                                </div>
-                                <div className="qr-social-divider">
-                                    <span>o usa tus datos manuales</span>
-                                </div>
-                            </div>
 
                             <div className="qr-field">
                                 <label htmlFor="nombre">Tu nombre</label>
