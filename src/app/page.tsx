@@ -327,13 +327,30 @@ export default function Home() {
             <span className="nav-brand-plus">+</span>
           </div>
           <p className="footer-text">Tarjetas de lealtad digitales para negocios que quieren crecer.</p>
-          <div className="footer-links">
-            <a href="/registro">Registrar mi negocio</a>
-            <a href="/cliente">Mi Panel</a>
-            <a href="/mi-tarjeta">Mi Tarjeta</a>
-            <a href="https://web.facebook.com/vuelve.vip" target="_blank" rel="noopener noreferrer">Facebook</a>
-            <a href="mailto:contacto@vuelve.vip">contacto@vuelve.vip</a>
+
+          <div className="footer-grid">
+            <div className="footer-nav">
+              <h4>Plataforma</h4>
+              <a href="/registro">Registrar mi negocio</a>
+              <a href="/cliente">Mi Panel</a>
+              <a href="/mi-tarjeta">Mi Tarjeta</a>
+              <a href="mailto:contacto@vuelve.vip">contacto@vuelve.vip</a>
+            </div>
+
+            <div className="footer-socials">
+              <h4>Síguenos</h4>
+              <div className="socials-list">
+                <a href="https://www.instagram.com/vuelve.vip/" target="_blank" rel="noopener noreferrer">Instagram</a>
+                <a href="http://www.tiktok.com/@vuelve.vip" target="_blank" rel="noopener noreferrer">TikTok</a>
+                <a href="https://www.youtube.com/@Vuelvevip" target="_blank" rel="noopener noreferrer">YouTube</a>
+                <a href="https://www.linkedin.com/company/vuelve" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                <a href="https://web.facebook.com/vuelve.vip" target="_blank" rel="noopener noreferrer">Facebook</a>
+                <a href="https://x.com/vuelvevip" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
+                <a href="https://cl.pinterest.com/vuelvevip2026/" target="_blank" rel="noopener noreferrer">Pinterest</a>
+              </div>
+            </div>
           </div>
+
           <div className="footer-bottom">
             <p>© 2025 Vuelve+ · Un producto de HojaCero</p>
           </div>
