@@ -75,6 +75,8 @@ export async function GET(
                     validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
                 `)
                 .ilike('nombre', slug.trim())
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .maybeSingle()
             tenant = (byName as TenantRow | null) || null
         }

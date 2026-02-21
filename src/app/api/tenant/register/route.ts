@@ -5,6 +5,13 @@ import { isProgramType } from '@/lib/programTypes'
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
 import { normalizeBrandColor } from '@/lib/brandColor'
 
+function toOptionalNumber(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') return null
+    if (typeof value === 'string' && value.trim() === '') return null
+    const n = typeof value === 'number' ? value : Number(value)
+    return Number.isFinite(n) ? n : null
+}
+
 // POST /api/tenant/register
 // Registrar un nuevo negocio
 export async function POST(req: NextRequest) {
@@ -58,6 +65,14 @@ export async function POST(req: NextRequest) {
         const normalizedName = typeof nombre === 'string' ? nombre.trim() : ''
         const normalizedEmail = String(currentUser?.email || email || '').trim().toLowerCase()
         const passwordValue = typeof password === 'string' ? password : ''
+        const normalizedPhone = typeof telefono === 'string' ? telefono.trim() : ''
+        const normalizedAddress = typeof direccion === 'string' ? direccion.trim() : ''
+        const normalizedGeoMessage = typeof mensaje_geofencing === 'string'
+            ? mensaje_geofencing.trim()
+            : ''
+        const normalizedLogoUrl = typeof logo_url === 'string' ? logo_url.trim() : ''
+        const parsedLat = toOptionalNumber(lat)
+        const parsedLng = toOptionalNumber(lng)
 
         if (!normalizedName) {
             return NextResponse.json(
@@ -79,6 +94,137 @@ export async function POST(req: NextRequest) {
                 { error: 'Debes ingresar un email válido' },
                 { status: 400 }
             )
+        }
+        if (normalizedName.length > 120) {
+            return NextResponse.json(
+                { error: 'El nombre del negocio no puede exceder 120 caracteres' },
+                { status: 400 }
+            )
+        }
+        if (normalizedPhone.length > 30) {
+            return NextResponse.json(
+                { error: 'El teléfono no puede exceder 30 caracteres' },
+                { status: 400 }
+            )
+        }
+        if (normalizedGeoMessage.length > 180) {
+            return NextResponse.json(
+                { error: 'El mensaje de geofencing no puede exceder 180 caracteres' },
+                { status: 400 }
+            )
+        }
+        if ((parsedLat === null) !== (parsedLng === null)) {
+            return NextResponse.json(
+                { error: 'Debes enviar latitud y longitud juntas, o ninguna.' },
+                { status: 400 }
+            )
+        }
+        if (parsedLat !== null && (parsedLat < -90 || parsedLat > 90)) {
+            return NextResponse.json(
+                { error: 'La latitud es inválida' },
+                { status: 400 }
+            )
+        }
+        if (parsedLng !== null && (parsedLng < -180 || parsedLng > 180)) {
+            return NextResponse.json(
+                { error: 'La longitud es inválida' },
+                { status: 400 }
+            )
+        }
+        if (normalizedLogoUrl) {
+            try {
+                new URL(normalizedLogoUrl)
+            } catch {
+                return NextResponse.json(
+                    { error: 'El logo_url no es una URL válida' },
+                    { status: 400 }
+                )
+            }
+        }
+
+        const rawConfig = (config && typeof config === 'object' && !Array.isArray(config))
+            ? (config as Record<string, unknown>)
+            : {}
+        const normalizedConfig: Record<string, unknown> = { ...rawConfig }
+        const rawPuntosMeta = toOptionalNumber(puntos_meta)
+        const normalizedPuntosMeta = Number.isInteger(rawPuntosMeta) && rawPuntosMeta !== null && rawPuntosMeta > 0
+            ? rawPuntosMeta
+            : 10
+
+        if (normalizedProgramType === 'cashback') {
+            const porcentaje = toOptionalNumber(rawConfig.porcentaje)
+            const topeMensual = toOptionalNumber(rawConfig.tope_mensual)
+            if (porcentaje !== null && (porcentaje <= 0 || porcentaje > 100)) {
+                return NextResponse.json({ error: 'El porcentaje de cashback debe estar entre 1 y 100' }, { status: 400 })
+            }
+            if (topeMensual !== null && topeMensual < 0) {
+                return NextResponse.json({ error: 'El tope mensual no puede ser negativo' }, { status: 400 })
+            }
+            if (porcentaje !== null) normalizedConfig.porcentaje = porcentaje
+            if (topeMensual !== null) normalizedConfig.tope_mensual = topeMensual
+        }
+
+        if (normalizedProgramType === 'multipase') {
+            const cantidadUsos = toOptionalNumber(rawConfig.cantidad_usos)
+            const precioPack = toOptionalNumber(rawConfig.precio_pack)
+            if (cantidadUsos !== null && (!Number.isInteger(cantidadUsos) || cantidadUsos <= 0)) {
+                return NextResponse.json({ error: 'La cantidad de usos debe ser un entero mayor a 0' }, { status: 400 })
+            }
+            if (precioPack !== null && precioPack < 0) {
+                return NextResponse.json({ error: 'El precio del pack no puede ser negativo' }, { status: 400 })
+            }
+            if (cantidadUsos !== null) normalizedConfig.cantidad_usos = cantidadUsos
+            if (precioPack !== null) normalizedConfig.precio_pack = precioPack
+        }
+
+        if (normalizedProgramType === 'membresia') {
+            const precioMensual = toOptionalNumber(rawConfig.precio_mensual)
+            if (precioMensual !== null && precioMensual < 0) {
+                return NextResponse.json({ error: 'El precio mensual no puede ser negativo' }, { status: 400 })
+            }
+            if (precioMensual !== null) normalizedConfig.precio_mensual = precioMensual
+        }
+
+        if (normalizedProgramType === 'descuento') {
+            const niveles = rawConfig.niveles
+            if (niveles !== undefined) {
+                if (!Array.isArray(niveles)) {
+                    return NextResponse.json({ error: 'Los niveles deben ser una lista válida' }, { status: 400 })
+                }
+                const isValidNivel = niveles.every((nivel) => {
+                    if (!nivel || typeof nivel !== 'object') return false
+                    const visitas = toOptionalNumber((nivel as Record<string, unknown>).visitas)
+                    const descuento = toOptionalNumber((nivel as Record<string, unknown>).descuento)
+                    return visitas !== null
+                        && descuento !== null
+                        && Number.isInteger(visitas)
+                        && visitas > 0
+                        && descuento >= 0
+                        && descuento <= 100
+                })
+                if (!isValidNivel) {
+                    return NextResponse.json(
+                        { error: 'Cada nivel debe incluir visitas (entero > 0) y descuento (0-100)' },
+                        { status: 400 }
+                    )
+                }
+            }
+        }
+
+        if (normalizedProgramType === 'cupon') {
+            const descuentoPorcentaje = toOptionalNumber(rawConfig.descuento_porcentaje)
+            if (descuentoPorcentaje !== null && (descuentoPorcentaje <= 0 || descuentoPorcentaje > 100)) {
+                return NextResponse.json({ error: 'El cupón debe tener descuento entre 1 y 100' }, { status: 400 })
+            }
+            if (descuentoPorcentaje !== null) normalizedConfig.descuento_porcentaje = descuentoPorcentaje
+        }
+
+        if (normalizedProgramType === 'regalo') {
+            const valorMaximo = toOptionalNumber(rawConfig.valor_maximo)
+            if (valorMaximo !== null && valorMaximo < 0) {
+                return NextResponse.json({ error: 'El valor de la gift card no puede ser negativo' }, { status: 400 })
+            }
+            if (valorMaximo !== null) normalizedConfig.valor_maximo = valorMaximo
         }
 
         if (!currentUser) {
@@ -144,7 +290,7 @@ export async function POST(req: NextRequest) {
         let authUserCreatedByThisRequest = false
 
         if (currentUser) {
-            // Ya viene logueado por Google u OAuth
+            // Ya viene con sesión autenticada
             authUserId = currentUser.id
         } else {
             // 1. Crear el usuario en Supabase Auth manualmente
@@ -175,14 +321,14 @@ export async function POST(req: NextRequest) {
                 auth_user_id: authUserId,
                 nombre: normalizedName,
                 rubro: rubro || null,
-                direccion: direccion || null,
+                direccion: normalizedAddress || null,
                 email: normalizedEmail,
-                telefono: telefono || null,
-                lat: lat || null,
-                lng: lng || null,
-                logo_url: logo_url || null,
+                telefono: normalizedPhone || null,
+                lat: parsedLat ?? null,
+                lng: parsedLng ?? null,
+                logo_url: normalizedLogoUrl || null,
                 color_primario: normalizeBrandColor(color_primario),
-                mensaje_geofencing: mensaje_geofencing || '¡Estás cerca! Pasa a sumar puntos 🎉',
+                mensaje_geofencing: normalizedGeoMessage || '¡Estás cerca! Pasa a sumar puntos 🎉',
                 slug,
                 plan: 'trial',
                 trial_hasta: trialHasta.toISOString(),
@@ -208,12 +354,12 @@ export async function POST(req: NextRequest) {
             .insert({
                 tenant_id: tenant.id,
                 nombre: `Programa de ${normalizedName}`,
-                puntos_meta: puntos_meta || 10,
+                puntos_meta: normalizedPuntosMeta,
                 descripcion_premio: descripcion_premio || 'Premio por tu lealtad',
                 tipo_premio: tipo_premio || 'descuento',
                 valor_premio: valor_premio || null,
                 tipo_programa: normalizedProgramType,
-                config: config || {},
+                config: normalizedConfig,
                 activo: true
             })
             .select()

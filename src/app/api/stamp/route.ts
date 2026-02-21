@@ -114,17 +114,25 @@ export async function POST(req: NextRequest) {
         // ═══════════════════════════════════════════════════
         const tenantData = getTenantInfo(typedCustomer.tenants)
 
-        if (tenantData?.lat && tenantData?.lng) {
+        if (tenantData?.lat !== null && tenantData?.lat !== undefined && tenantData?.lng !== null && tenantData?.lng !== undefined) {
             // Si el negocio tiene ubicación configurada, exigimos validación
-            if (!lat || !lng) {
+            if (lat === null || lat === undefined || lng === null || lng === undefined) {
                 return NextResponse.json({
                     error: '📍 Ubicación requerida. Por seguridad, debes permitir el acceso a tu ubicación para sumar puntos.'
                 }, { status: 400 })
             }
 
+            const clientLat = Number(lat)
+            const clientLng = Number(lng)
+            if (!Number.isFinite(clientLat) || !Number.isFinite(clientLng)) {
+                return NextResponse.json({
+                    error: '📍 Coordenadas inválidas. Activa tu ubicación y vuelve a intentar.'
+                }, { status: 400 })
+            }
+
             const distanciaMetros = calculateDistance(
-                Number(lat),
-                Number(lng),
+                clientLat,
+                clientLng,
                 Number(tenantData.lat),
                 Number(tenantData.lng)
             )

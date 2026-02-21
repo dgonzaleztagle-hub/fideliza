@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { AlertCircle, CreditCard, MessageCircle, Clock } from 'lucide-react'
+import { AlertCircle, MessageCircle, Clock } from 'lucide-react'
 
 interface StatusAlertProps {
     tenant: {

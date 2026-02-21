@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, type CSSProperties } from 'react'
+import React, { useState, useEffect, useCallback, type CSSProperties } from 'react'
 import { Star, MessageSquare, Send, CheckCircle } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import './review.css'
@@ -22,11 +22,7 @@ export default function ReviewPage() {
     const [tenant, setTenant] = useState<ReviewTenant | null>(null)
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        fetchTenant()
-    }, [slug])
-
-    const fetchTenant = async () => {
+    const fetchTenant = useCallback(async () => {
         try {
             const res = await fetch(`/api/tenant/${slug}`)
             if (res.ok) {
@@ -38,7 +34,11 @@ export default function ReviewPage() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [slug])
+
+    useEffect(() => {
+        fetchTenant()
+    }, [fetchTenant])
 
     const handleRating = (value: number) => {
         setRating(value)

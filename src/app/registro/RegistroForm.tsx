@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import './registro.css'
@@ -78,7 +78,7 @@ export default function RegistroForm() {
     const [error, setError] = useState('')
     const [result, setResult] = useState<RegistroApiResult | null>(null)
     const [hasSession, setHasSession] = useState(false)
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -89,7 +89,7 @@ export default function RegistroForm() {
                 }
             }
         })
-    }, [])
+    }, [supabase])
 
     // Datos del negocio
     const [nombre, setNombre] = useState('')

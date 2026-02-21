@@ -683,7 +683,6 @@ export default function ClientePanel() {
 
     // Load analytics when tab changes
     // Dependencias acotadas intencionalmente para evitar bucles de recarga del panel.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (tab === 'analytics' && tenant && !analytics) {
             loadAnalytics()
