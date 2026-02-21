@@ -98,7 +98,7 @@ export default function RegistroForm() {
             await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/registro`
+                    redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent('/registro')}`
                 }
             })
         } catch {

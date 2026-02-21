@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { getOptionalAuthenticatedUser, requireTenantOwnerBySlug } from '@/lib/authz'
 import { isProgramType } from '@/lib/programTypes'
+import { normalizeBrandColor } from '@/lib/brandColor'
 
 type TenantRow = {
     id: string
@@ -211,7 +212,9 @@ export async function PUT(
 
         for (const field of tenantFields) {
             if (body[field] !== undefined) {
-                tenantUpdates[field] = body[field]
+                tenantUpdates[field] = field === 'color_primario'
+                    ? normalizeBrandColor(body[field])
+                    : body[field]
             }
         }
 

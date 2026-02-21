@@ -36,7 +36,7 @@ npm audit --omit=dev
 ## Checklist de salida a produccion
 
 1. Base de datos:
-   - Ejecutar migraciones en orden (`migrations/001` a `migrations/005`).
+   - Ejecutar migraciones en orden (`migrations/001` a `migrations/006`).
    - Verificar que el schema en produccion quedo actualizado.
 2. Variables:
    - Cargar todas las variables de `.env.example` en Vercel.

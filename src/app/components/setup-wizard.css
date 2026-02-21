@@ -117,13 +117,13 @@
     margin-bottom: 16px;
 }
 
-h1 {
+.sw-view h1 {
     font-size: 2.2rem;
     color: #0f172a;
     margin-bottom: 16px;
 }
 
-h2 {
+.sw-view h2 {
     font-size: 1.8rem;
     color: #0f172a;
     margin-bottom: 12px;

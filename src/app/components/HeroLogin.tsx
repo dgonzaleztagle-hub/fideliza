@@ -46,7 +46,7 @@ export default function HeroLogin() {
             const { error: authError } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/cliente`
+                    redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent('/cliente')}`
                 }
             })
 

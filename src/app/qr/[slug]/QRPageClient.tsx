@@ -166,7 +166,7 @@ export default function QRPageClient({ tenant, program }: Props) {
         await supabase.auth.signInWithOAuth({
             provider,
             options: {
-                redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
+                redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`
             }
         })
     }

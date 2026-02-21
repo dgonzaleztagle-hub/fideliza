@@ -3,6 +3,7 @@ import { getSupabase } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { isProgramType } from '@/lib/programTypes'
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
+import { normalizeBrandColor } from '@/lib/brandColor'
 
 // POST /api/tenant/register
 // Registrar un nuevo negocio
@@ -180,7 +181,7 @@ export async function POST(req: NextRequest) {
                 lat: lat || null,
                 lng: lng || null,
                 logo_url: logo_url || null,
-                color_primario: color_primario || '#6366f1',
+                color_primario: normalizeBrandColor(color_primario),
                 mensaje_geofencing: mensaje_geofencing || '¡Estás cerca! Pasa a sumar puntos 🎉',
                 slug,
                 plan: 'trial',
