@@ -60,7 +60,7 @@ El sistema genera un código QR único. El cliente lo muestra, tú lo canjeas de
                 question: '¿Cuánto cuesta Vuelve+?',
                 answer: `Vuelve+ tiene un <strong>periodo de prueba gratuito de 14 días</strong> donde puedes probar todas las funciones sin restricciones.
 
-Después del trial, se aplican planes mensuales según las necesidades de tu negocio. Consulta con tu ejecutivo comercial para conocer los planes disponibles.
+Después del trial, puedes activar <strong>Vuelve+ Pro por $34.990/mes</strong> directamente desde tu panel con pago por Flow.
 
 <em>Tip: Aprovecha el trial para configurar todo, invitar a tus primeros clientes y ver los resultados antes de decidir.</em>`
             }
@@ -172,7 +172,7 @@ Al presionarlo, se abrirá la cámara de tu dispositivo. Apunta al código QR de
                 answer: `No hay problema. El premio queda registrado en el sistema.
 
 <strong>¿Cómo recuperarlo?</strong>
-El cliente puede ir a <strong>vfrases.com/mi-tarjeta</strong> (o el link de tu página), ingresar su WhatsApp, y ver todos sus premios pendientes con sus códigos QR.
+El cliente puede ir a <strong>/mi-tarjeta</strong> (desde tu mismo sitio), ingresar su WhatsApp, y ver todos sus premios pendientes con sus códigos QR.
 
 <em>Otra opción: Tú puedes buscar al cliente en tu lista de clientes y verificar sus premios pendientes.</em>`
             }
@@ -225,17 +225,17 @@ Saldo cargado que el cliente puede gastar.
                 answer: `Activar el modo VIP es muy sencillo y te permite dar un trato preferencial a tus clientes más leales.
 
 <strong>Pasos para activar:</strong>
-1. Ve a la pestaña <strong>"Dashboard"</strong>
-2. En la parte superior derecha, verás un botón con una corona que dice <strong>"👑 Activar VIP"</strong>
-3. Al presionarlo, tu programa cambiará automáticamente al modo Membresía
-4. Tus clientes empezarán a ver los beneficios de ser socios VIP en sus tarjetas digitales
+1. Ve a la pestaña <strong>"Configuración"</strong>
+2. Presiona <strong>"✏️ Editar"</strong>
+3. En <strong>"Motor de programa"</strong>, selecciona <strong>"👑 Membresía VIP"</strong>
+4. Guarda los cambios para activar el modo membresía
 
 <strong>¿Qué cambia al ser VIP?</strong>
 • Los clientes se sienten parte de un club exclusivo
 • Puedes definir beneficios permanentes (como descuentos fijos)
 • Las tarjetas en Google Wallet muestran el estatus VIP del cliente
 
-<em>Tip: ¡Puedes activar y desactivar este modo cuando quieras! Si quieres volver al sistema de sellos tradicional, solo vuelve a presionar el botón de gestión en el Dashboard.</em>`
+<em>Tip: Puedes cambiar entre motores de programa cuando quieras desde Configuración.</em>`
             },
             {
                 question: '¿Puedo cambiar el tipo de programa después?',
@@ -477,7 +477,7 @@ Después de que un cliente suma un punto, aparece un botón <strong>"Agregar a G
             },
             {
                 question: '¿Puedo tener mi programa en otro idioma?',
-                answer: `Actualmente Vuelve+ está disponible solo en <strong>español</strong>. Si necesitas soporte en otro idioma, contacta a tu ejecutivo comercial.`
+                answer: `Actualmente Vuelve+ está disponible solo en <strong>español</strong>.`
             },
             {
                 question: '¿Los datos de mis clientes están seguros?',
@@ -500,8 +500,8 @@ Esto se hace para mantener tu programa limpio y evitar acumulación de premios a
                 question: '¿Qué hago si tengo un problema técnico?',
                 answer: `<strong>Opciones de soporte:</strong>
 1. Revisa esta sección de ayuda — la mayoría de las dudas están cubiertas aquí
-2. Contacta a tu ejecutivo comercial por WhatsApp
-3. Envía un email a soporte con tu slug (identificador de negocio) y una descripción del problema
+2. Usa el botón de <strong>Soporte</strong> dentro del panel (WhatsApp)
+3. Comparte tu slug del negocio y una captura del error para resolver más rápido
 
 <em>Tip: Si algo no se ve bien, prueba refrescar la página (F5) o cerrar y abrir el navegador.</em>`
             }
@@ -671,7 +671,7 @@ export default function AyudaPanel() {
             <div className="ayuda-footer">
                 <p>¿No encontraste lo que buscabas?</p>
                 <p className="ayuda-footer-hint">
-                    Contacta a tu ejecutivo comercial para soporte personalizado
+                    Usa el botón de soporte del panel para ayuda personalizada
                 </p>
             </div>
         </div>

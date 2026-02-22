@@ -2582,7 +2582,7 @@ export default function ClientePanel() {
 
                 {/* ═══════ PERSONAL ═══════ */}
                 {
-                    tab === 'personal' && (
+                    tab === 'personal' && !isRestricted && (
                         <div className="cliente-content">
                             <div className="cliente-content-header">
                                 <div className="cliente-content-title">
