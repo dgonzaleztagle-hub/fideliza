@@ -1395,6 +1395,112 @@
     font-family: 'Courier New', monospace;
 }
 
+.cliente-card-preview-live-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin-top: 0.35rem;
+}
+
+.cliente-card-preview-title {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.cliente-card-preview-live {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    padding: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(145deg, var(--preview-color, #6366f1), #0f172a);
+    min-height: 150px;
+}
+
+.cliente-card-preview-live.has-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--preview-bg);
+    background-size: cover;
+    background-position: center;
+    opacity: 0.32;
+}
+
+.cliente-card-preview-live>* {
+    position: relative;
+    z-index: 1;
+}
+
+.cliente-card-preview-live-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+}
+
+.cliente-card-preview-live-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.cliente-card-preview-live-logo-fallback {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+}
+
+.cliente-card-preview-live-header strong {
+    display: block;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.cliente-card-preview-live-header p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 0.72rem;
+}
+
+.cliente-card-preview-live-stamps {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.4rem;
+}
+
+.cliente-card-preview-live-stamp {
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.cliente-card-preview-live-stamp img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+.cliente-card-preview-live-stamp.filled {
+    background: rgba(16, 185, 129, 0.24);
+    border-color: rgba(16, 185, 129, 0.55);
+}
+
 .status-active {
     color: #4ade80 !important;
 }

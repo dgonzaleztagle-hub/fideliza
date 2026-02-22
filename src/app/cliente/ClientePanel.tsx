@@ -2334,6 +2334,42 @@ export default function ClientePanel() {
                                                     {configForm.stamp_icon_url && <a href={configForm.stamp_icon_url} target="_blank" rel="noreferrer">Ver</a>}
                                                 </div>
                                             </label>
+
+                                            <div className="cliente-card-preview-live-wrap">
+                                                <span className="cliente-card-preview-title">Vista previa en vivo</span>
+                                                <div
+                                                    className={`cliente-card-preview-live ${configForm.card_background_url ? 'has-bg' : ''}`}
+                                                    style={{
+                                                        '--preview-color': configForm.color_primario || '#6366f1',
+                                                        '--preview-bg': configForm.card_background_url ? `url(${configForm.card_background_url})` : 'none'
+                                                    } as React.CSSProperties & Record<'--preview-color' | '--preview-bg', string>}
+                                                >
+                                                    <div className="cliente-card-preview-live-header">
+                                                        {configForm.logo_url ? (
+                                                            <img src={configForm.logo_url} alt="" className="cliente-card-preview-live-logo" />
+                                                        ) : (
+                                                            <div className="cliente-card-preview-live-logo-fallback">
+                                                                {(configForm.nombre || 'V').charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <strong>{configForm.nombre || 'Tu negocio'}</strong>
+                                                            <p>{formatProgramTypeLabel(configForm.tipo_programa)}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="cliente-card-preview-live-stamps">
+                                                        {Array.from({ length: 6 }).map((_, idx) => (
+                                                            <div key={idx} className={`cliente-card-preview-live-stamp ${idx < 3 ? 'filled' : ''}`}>
+                                                                {configForm.stamp_icon_url ? (
+                                                                    <img src={configForm.stamp_icon_url} alt="" />
+                                                                ) : (
+                                                                    <span>{idx < 3 ? '⭐' : '○'}</span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     ) : (
                                         <>
@@ -2363,6 +2399,41 @@ export default function ClientePanel() {
                                             </div>
                                             <div className="cliente-config-item">
                                                 <span>Stamp personalizado:</span> <strong>{tenant.stamp_icon_url ? 'Configurado ✅' : 'Sin stamp'}</strong>
+                                            </div>
+                                            <div className="cliente-card-preview-live-wrap" style={{ marginTop: '0.7rem' }}>
+                                                <span className="cliente-card-preview-title">Vista previa actual</span>
+                                                <div
+                                                    className={`cliente-card-preview-live ${configForm.card_background_url ? 'has-bg' : ''}`}
+                                                    style={{
+                                                        '--preview-color': configForm.color_primario || '#6366f1',
+                                                        '--preview-bg': configForm.card_background_url ? `url(${configForm.card_background_url})` : 'none'
+                                                    } as React.CSSProperties & Record<'--preview-color' | '--preview-bg', string>}
+                                                >
+                                                    <div className="cliente-card-preview-live-header">
+                                                        {configForm.logo_url ? (
+                                                            <img src={configForm.logo_url} alt="" className="cliente-card-preview-live-logo" />
+                                                        ) : (
+                                                            <div className="cliente-card-preview-live-logo-fallback">
+                                                                {(configForm.nombre || 'V').charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <strong>{configForm.nombre || 'Tu negocio'}</strong>
+                                                            <p>{formatProgramTypeLabel(configForm.tipo_programa)}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="cliente-card-preview-live-stamps">
+                                                        {Array.from({ length: 6 }).map((_, idx) => (
+                                                            <div key={idx} className={`cliente-card-preview-live-stamp ${idx < 3 ? 'filled' : ''}`}>
+                                                                {configForm.stamp_icon_url ? (
+                                                                    <img src={configForm.stamp_icon_url} alt="" />
+                                                                ) : (
+                                                                    <span>{idx < 3 ? '⭐' : '○'}</span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </>
                                     )}
