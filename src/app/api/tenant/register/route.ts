@@ -20,6 +20,8 @@ function looksLikeMissingTenantPlanColumns(error: unknown): boolean {
     return err.code === '42703'
         || haystack.includes('selected_plan')
         || haystack.includes('selected_program_types')
+        || haystack.includes('card_background_url')
+        || haystack.includes('stamp_icon_url')
 }
 
 // POST /api/tenant/register
@@ -59,6 +61,8 @@ export async function POST(req: NextRequest) {
             lat,
             lng,
             logo_url,
+            card_background_url,
+            stamp_icon_url,
             color_primario,
             mensaje_geofencing,
             // Datos del programa
@@ -98,6 +102,8 @@ export async function POST(req: NextRequest) {
             ? mensaje_geofencing.trim()
             : ''
         const normalizedLogoUrl = typeof logo_url === 'string' ? logo_url.trim() : ''
+        const normalizedCardBackgroundUrl = typeof card_background_url === 'string' ? card_background_url.trim() : ''
+        const normalizedStampIconUrl = typeof stamp_icon_url === 'string' ? stamp_icon_url.trim() : ''
         const parsedLat = toOptionalNumber(lat)
         const parsedLng = toOptionalNumber(lng)
 
@@ -164,6 +170,26 @@ export async function POST(req: NextRequest) {
             } catch {
                 return NextResponse.json(
                     { error: 'El logo_url no es una URL válida' },
+                    { status: 400 }
+                )
+            }
+        }
+        if (normalizedCardBackgroundUrl) {
+            try {
+                new URL(normalizedCardBackgroundUrl)
+            } catch {
+                return NextResponse.json(
+                    { error: 'El card_background_url no es una URL válida' },
+                    { status: 400 }
+                )
+            }
+        }
+        if (normalizedStampIconUrl) {
+            try {
+                new URL(normalizedStampIconUrl)
+            } catch {
+                return NextResponse.json(
+                    { error: 'El stamp_icon_url no es una URL válida' },
                     { status: 400 }
                 )
             }
@@ -445,6 +471,27 @@ export async function POST(req: NextRequest) {
             lat: parsedLat ?? null,
             lng: parsedLng ?? null,
             logo_url: normalizedLogoUrl || null,
+            card_background_url: normalizedCardBackgroundUrl || null,
+            stamp_icon_url: normalizedStampIconUrl || null,
+            color_primario: normalizeBrandColor(color_primario),
+            mensaje_geofencing: normalizedGeoMessage || '¡Estás cerca! Pasa a sumar puntos 🎉',
+            slug,
+            plan: 'trial',
+            trial_hasta: trialHasta.toISOString(),
+            estado: 'activo',
+            onboarding_completado: false
+        }
+
+        const tenantInsertLegacy = {
+            auth_user_id: authUserId,
+            nombre: normalizedName,
+            rubro: rubro || null,
+            direccion: normalizedAddress || null,
+            email: normalizedEmail,
+            telefono: normalizedPhone || null,
+            lat: parsedLat ?? null,
+            lng: parsedLng ?? null,
+            logo_url: normalizedLogoUrl || null,
             color_primario: normalizeBrandColor(color_primario),
             mensaje_geofencing: normalizedGeoMessage || '¡Estás cerca! Pasa a sumar puntos 🎉',
             slug,
@@ -468,7 +515,7 @@ export async function POST(req: NextRequest) {
             console.warn('Tenants sin columnas selected_plan/selected_program_types. Reintentando inserción compatible.')
             const fallbackInsert = await supabase
                 .from('tenants')
-                .insert(tenantInsertBase)
+                .insert(tenantInsertLegacy)
                 .select()
                 .single()
             tenant = fallbackInsert.data

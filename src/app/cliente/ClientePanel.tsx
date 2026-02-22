@@ -17,6 +17,8 @@ interface TenantData {
     rubro: string
     direccion: string | null
     logo_url: string | null
+    card_background_url: string | null
+    stamp_icon_url: string | null
     color_primario: string
     slug: string
     qr_code: string
@@ -223,6 +225,9 @@ export default function ClientePanel() {
         nombre: '',
         rubro: '',
         direccion: '',
+        logo_url: '',
+        card_background_url: '',
+        stamp_icon_url: '',
         color_primario: '',
         tipo_programa: 'sellos',
         mensaje_geofencing: '',
@@ -252,6 +257,7 @@ export default function ClientePanel() {
     const [selectedPlan, setSelectedPlan] = useState<'pyme' | 'pro' | 'full'>('pro')
     const [selectedProgramTypes, setSelectedProgramTypes] = useState<string[]>(['sellos'])
     const [saving, setSaving] = useState(false)
+    const [assetUploading, setAssetUploading] = useState<'logo' | 'background' | 'stamp' | null>(null)
     const [saveMessage, setSaveMessage] = useState('')
     const [detectingLocation, setDetectingLocation] = useState(false)
 
@@ -405,6 +411,9 @@ export default function ClientePanel() {
                 nombre: data.tenant.nombre || '',
                 rubro: data.tenant.rubro || '',
                 direccion: data.tenant.direccion || '',
+                logo_url: data.tenant.logo_url || '',
+                card_background_url: data.tenant.card_background_url || '',
+                stamp_icon_url: data.tenant.stamp_icon_url || '',
                 color_primario: data.tenant.color_primario || '#ff6b6b',
                 tipo_programa: data.program?.tipo_programa || 'sellos',
                 mensaje_geofencing: data.tenant.mensaje_geofencing || '',
@@ -650,6 +659,9 @@ export default function ClientePanel() {
                     nombre: configForm.nombre,
                     rubro: configForm.rubro,
                     direccion: configForm.direccion,
+                    logo_url: configForm.logo_url || null,
+                    card_background_url: configForm.card_background_url || null,
+                    stamp_icon_url: configForm.stamp_icon_url || null,
                     color_primario: configForm.color_primario,
                     mensaje_geofencing: configForm.mensaje_geofencing,
                     lat: configForm.lat ? Number(configForm.lat) : null,
@@ -766,6 +778,40 @@ export default function ClientePanel() {
             }
         } catch (err) {
             console.error('Error adding staff:', err)
+        }
+    }
+
+    async function handleUploadTenantAsset(type: 'logo' | 'background' | 'stamp', file: File | null) {
+        if (!file) return
+        setAssetUploading(type)
+        try {
+            const fd = new FormData()
+            fd.append('file', file)
+            const res = await fetch(`/api/upload/tenant-asset?type=${type}`, {
+                method: 'POST',
+                body: fd
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                alert(`❌ ${data.error || 'No se pudo subir la imagen'}`)
+                return
+            }
+            const assetUrl = data.asset_url || ''
+            if (!assetUrl) {
+                alert('❌ La subida no devolvió URL pública')
+                return
+            }
+            if (type === 'logo') {
+                setConfigForm((prev) => ({ ...prev, logo_url: assetUrl }))
+            } else if (type === 'background') {
+                setConfigForm((prev) => ({ ...prev, card_background_url: assetUrl }))
+            } else {
+                setConfigForm((prev) => ({ ...prev, stamp_icon_url: assetUrl }))
+            }
+        } catch {
+            alert('❌ Error de conexión al subir imagen')
+        } finally {
+            setAssetUploading(null)
         }
     }
 
@@ -2222,6 +2268,72 @@ export default function ClientePanel() {
                                                     <span>{configForm.color_primario}</span>
                                                 </div>
                                             </label>
+                                            <label>
+                                                <span>Logo de la tarjeta</span>
+                                                <input
+                                                    type="text"
+                                                    value={configForm.logo_url}
+                                                    onChange={e => setConfigForm({ ...configForm, logo_url: e.target.value })}
+                                                    placeholder="https://..."
+                                                />
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.45rem' }}>
+                                                    <label className="cliente-gps-btn" style={{ margin: 0 }}>
+                                                        {assetUploading === 'logo' ? 'Subiendo...' : 'Subir logo'}
+                                                        <input
+                                                            type="file"
+                                                            accept="image/png,image/jpeg,image/webp"
+                                                            style={{ display: 'none' }}
+                                                            onChange={(e) => handleUploadTenantAsset('logo', e.target.files?.[0] || null)}
+                                                            disabled={assetUploading !== null}
+                                                        />
+                                                    </label>
+                                                    {configForm.logo_url && <a href={configForm.logo_url} target="_blank" rel="noreferrer">Ver</a>}
+                                                </div>
+                                            </label>
+                                            <label>
+                                                <span>Imagen de fondo de tarjeta</span>
+                                                <input
+                                                    type="text"
+                                                    value={configForm.card_background_url}
+                                                    onChange={e => setConfigForm({ ...configForm, card_background_url: e.target.value })}
+                                                    placeholder="https://..."
+                                                />
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.45rem' }}>
+                                                    <label className="cliente-gps-btn" style={{ margin: 0 }}>
+                                                        {assetUploading === 'background' ? 'Subiendo...' : 'Subir fondo'}
+                                                        <input
+                                                            type="file"
+                                                            accept="image/png,image/jpeg,image/webp"
+                                                            style={{ display: 'none' }}
+                                                            onChange={(e) => handleUploadTenantAsset('background', e.target.files?.[0] || null)}
+                                                            disabled={assetUploading !== null}
+                                                        />
+                                                    </label>
+                                                    {configForm.card_background_url && <a href={configForm.card_background_url} target="_blank" rel="noreferrer">Ver</a>}
+                                                </div>
+                                            </label>
+                                            <label>
+                                                <span>Icono de sello/stamp</span>
+                                                <input
+                                                    type="text"
+                                                    value={configForm.stamp_icon_url}
+                                                    onChange={e => setConfigForm({ ...configForm, stamp_icon_url: e.target.value })}
+                                                    placeholder="https://..."
+                                                />
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.45rem' }}>
+                                                    <label className="cliente-gps-btn" style={{ margin: 0 }}>
+                                                        {assetUploading === 'stamp' ? 'Subiendo...' : 'Subir stamp'}
+                                                        <input
+                                                            type="file"
+                                                            accept="image/png,image/jpeg,image/webp"
+                                                            style={{ display: 'none' }}
+                                                            onChange={(e) => handleUploadTenantAsset('stamp', e.target.files?.[0] || null)}
+                                                            disabled={assetUploading !== null}
+                                                        />
+                                                    </label>
+                                                    {configForm.stamp_icon_url && <a href={configForm.stamp_icon_url} target="_blank" rel="noreferrer">Ver</a>}
+                                                </div>
+                                            </label>
                                         </div>
                                     ) : (
                                         <>
@@ -2242,6 +2354,15 @@ export default function ClientePanel() {
                                                 <strong className={tenant.estado === 'activo' ? 'status-active' : 'status-inactive'}>
                                                     {tenant.estado}
                                                 </strong>
+                                            </div>
+                                            <div className="cliente-config-item">
+                                                <span>Logo:</span> <strong>{tenant.logo_url ? 'Configurado ✅' : 'Sin logo'}</strong>
+                                            </div>
+                                            <div className="cliente-config-item">
+                                                <span>Fondo tarjeta:</span> <strong>{tenant.card_background_url ? 'Configurado ✅' : 'Sin fondo'}</strong>
+                                            </div>
+                                            <div className="cliente-config-item">
+                                                <span>Stamp personalizado:</span> <strong>{tenant.stamp_icon_url ? 'Configurado ✅' : 'Sin stamp'}</strong>
                                             </div>
                                         </>
                                     )}

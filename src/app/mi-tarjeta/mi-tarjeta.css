@@ -183,6 +183,23 @@ body {
     overflow: hidden;
     transition: all 0.3s;
     border-top: 3px solid var(--card-color, #6366f1);
+    position: relative;
+}
+
+.mt-card.mt-card-has-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--card-bg-image);
+    background-size: cover;
+    background-position: center;
+    opacity: 0.22;
+    pointer-events: none;
+}
+
+.mt-card>* {
+    position: relative;
+    z-index: 1;
 }
 
 .mt-card:hover {
@@ -238,6 +255,36 @@ body {
 
 .mt-progress {
     margin-bottom: 0.5rem;
+}
+
+.mt-stamps-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.4rem;
+    margin-bottom: 0.65rem;
+}
+
+.mt-stamp {
+    height: 34px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    color: #a5b4fc;
+    font-size: 0.95rem;
+}
+
+.mt-stamp img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+.mt-stamp.filled {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.45);
 }
 
 .mt-progress-bar {

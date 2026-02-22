@@ -20,6 +20,8 @@ interface TarjetaData {
         nombre: string
         slug: string
         logo_url: string | null
+        card_background_url: string | null
+        stamp_icon_url: string | null
         color_primario: string
         rubro: string | null
     } | null
@@ -165,8 +167,24 @@ export default function MiTarjetaClient() {
             const pct = tarjeta.programa
                 ? Math.min(100, (tarjeta.customer.puntos_actuales / tarjeta.programa.puntos_meta) * 100)
                 : 0
+            const maxStamps = tarjeta.programa?.puntos_meta || 10
+            const filledStamps = Math.min(maxStamps, tarjeta.customer.puntos_actuales)
             return (
                 <>
+                    <div className="mt-stamps-grid">
+                        {Array.from({ length: Math.min(maxStamps, 10) }).map((_, i) => {
+                            const isFilled = i < filledStamps
+                            return (
+                                <div key={i} className={`mt-stamp ${isFilled ? 'filled' : ''}`}>
+                                    {tarjeta.negocio?.stamp_icon_url ? (
+                                        <img src={tarjeta.negocio.stamp_icon_url} alt="" />
+                                    ) : (
+                                        <span>{isFilled ? '⭐' : '○'}</span>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
                     <div className="mt-progress">
                         <div className="mt-progress-bar">
                             <div
@@ -346,8 +364,11 @@ export default function MiTarjetaClient() {
                         {tarjetas.map((tarjeta) => (
                             <div
                                 key={`${tarjeta.customer.id}-${tarjeta.negocio?.slug || 'negocio'}`}
-                                className="mt-card"
-                                style={{ '--card-color': tarjeta.negocio?.color_primario || '#6366f1' } as React.CSSProperties}
+                                className={`mt-card ${tarjeta.negocio?.card_background_url ? 'mt-card-has-bg' : ''}`}
+                                style={{
+                                    '--card-color': tarjeta.negocio?.color_primario || '#6366f1',
+                                    '--card-bg-image': tarjeta.negocio?.card_background_url ? `url(${tarjeta.negocio.card_background_url})` : 'none'
+                                } as React.CSSProperties}
                             >
                                 <div className="mt-card-header">
                                     {tarjeta.negocio?.logo_url ? (

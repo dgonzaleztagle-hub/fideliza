@@ -40,11 +40,22 @@ export async function GET(req: NextRequest) {
             )
         }
 
-        const { data: tenant } = await supabase
+        const tenantWithAssets = await supabase
             .from('tenants')
-            .select('id, nombre, slug, logo_url, color_primario, rubro')
+            .select('id, nombre, slug, logo_url, card_background_url, stamp_icon_url, color_primario, rubro')
             .eq('slug', normalizedTenantSlug)
             .single()
+        let tenant = tenantWithAssets.data
+        if (!tenant && tenantWithAssets.error && tenantWithAssets.error.code === '42703') {
+            const tenantLegacy = await supabase
+                .from('tenants')
+                .select('id, nombre, slug, logo_url, color_primario, rubro')
+                .eq('slug', normalizedTenantSlug)
+                .single()
+            tenant = tenantLegacy.data
+                ? { ...tenantLegacy.data, card_background_url: null, stamp_icon_url: null }
+                : null
+        }
 
         if (!tenant) {
             return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
@@ -104,6 +115,8 @@ export async function GET(req: NextRequest) {
                     nombre: tenant.nombre,
                     slug: tenant.slug,
                     logo_url: tenant.logo_url,
+                    card_background_url: tenant.card_background_url,
+                    stamp_icon_url: tenant.stamp_icon_url,
                     color_primario: tenant.color_primario,
                     rubro: tenant.rubro
                 } : null,

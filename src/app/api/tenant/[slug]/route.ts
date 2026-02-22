@@ -19,6 +19,8 @@ type TenantRow = {
     selected_program_types: string[] | null
     trial_hasta: string | null
     logo_url: string | null
+    card_background_url: string | null
+    stamp_icon_url: string | null
     color_primario: string | null
     lat: number | null
     lng: number | null
@@ -51,15 +53,39 @@ export async function GET(
 
         let tenant: TenantRow | null = null
 
-        const findBySlug = async (value: string) => supabase
-            .from('tenants')
-            .select(`
-                id, nombre, slug, rubro, direccion, email, telefono, estado, plan, selected_plan, selected_program_types, trial_hasta,
-                logo_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
-                validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
-            `)
-            .eq('slug', value)
-            .maybeSingle()
+        const tenantSelectWithAssets = `
+            id, nombre, slug, rubro, direccion, email, telefono, estado, plan, selected_plan, selected_program_types, trial_hasta,
+            logo_url, card_background_url, stamp_icon_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
+            validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
+        `
+        const tenantSelectLegacy = `
+            id, nombre, slug, rubro, direccion, email, telefono, estado, plan, selected_plan, selected_program_types, trial_hasta,
+            logo_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
+            validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
+        `
+
+        const findBySlug = async (value: string) => {
+            const withAssets = await supabase
+                .from('tenants')
+                .select(tenantSelectWithAssets)
+                .eq('slug', value)
+                .maybeSingle()
+            if (!withAssets.error) return withAssets
+            const looksMissingAssetCols = withAssets.error.code === '42703'
+                || `${withAssets.error.message || ''} ${withAssets.error.details || ''}`.includes('card_background_url')
+                || `${withAssets.error.message || ''} ${withAssets.error.details || ''}`.includes('stamp_icon_url')
+            if (!looksMissingAssetCols) return withAssets
+
+            const legacy = await supabase
+                .from('tenants')
+                .select(tenantSelectLegacy)
+                .eq('slug', value)
+                .maybeSingle()
+            if (legacy.data) {
+                return { ...legacy, data: { ...legacy.data, card_background_url: null, stamp_icon_url: null } }
+            }
+            return legacy
+        }
 
         const { data: byExact } = await findBySlug(slug)
         tenant = (byExact as TenantRow | null) || null
@@ -70,17 +96,24 @@ export async function GET(
         }
 
         if (!tenant) {
-            const { data: byName } = await supabase
+            const byNameWithAssets = await supabase
                 .from('tenants')
-                .select(`
-                    id, nombre, slug, rubro, direccion, email, telefono, estado, plan, selected_plan, selected_program_types, trial_hasta,
-                    logo_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
-                    validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
-                `)
+                .select(tenantSelectWithAssets)
                 .ilike('nombre', slug.trim())
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle()
+            let byName = byNameWithAssets.data
+            if (!byName && byNameWithAssets.error && byNameWithAssets.error.code === '42703') {
+                const byNameLegacy = await supabase
+                    .from('tenants')
+                    .select(tenantSelectLegacy)
+                    .ilike('nombre', slug.trim())
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+                byName = byNameLegacy.data ? { ...byNameLegacy.data, card_background_url: null, stamp_icon_url: null } : null
+            }
             tenant = (byName as TenantRow | null) || null
         }
 
@@ -108,6 +141,8 @@ export async function GET(
                     direccion: tenant.direccion,
                     estado: tenant.estado,
                     logo_url: tenant.logo_url,
+                    card_background_url: tenant.card_background_url,
+                    stamp_icon_url: tenant.stamp_icon_url,
                     color_primario: tenant.color_primario,
                     mensaje_geofencing: tenant.mensaje_geofencing,
                     google_business_url: tenant.google_business_url
@@ -154,6 +189,8 @@ export async function GET(
                 selected_program_types: tenant.selected_program_types,
                 trial_hasta: tenant.trial_hasta,
                 logo_url: tenant.logo_url,
+                card_background_url: tenant.card_background_url,
+                stamp_icon_url: tenant.stamp_icon_url,
                 color_primario: tenant.color_primario,
                 lat: tenant.lat,
                 lng: tenant.lng,
@@ -213,6 +250,14 @@ export async function PUT(
         if (body.selected_plan !== undefined && !isBillingPlan(body.selected_plan)) {
             return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
         }
+        for (const imageField of ['logo_url', 'card_background_url', 'stamp_icon_url'] as const) {
+            if (body[imageField] === undefined || body[imageField] === null || body[imageField] === '') continue
+            try {
+                new URL(String(body[imageField]))
+            } catch {
+                return NextResponse.json({ error: `${imageField} no es una URL válida` }, { status: 400 })
+            }
+        }
 
         const normalizedAllowedTypes = normalizeProgramChoices(
             body.selected_program_types ?? currentTenantPlan?.selected_program_types,
@@ -234,6 +279,8 @@ export async function PUT(
             'rubro',
             'direccion',
             'logo_url',
+            'card_background_url',
+            'stamp_icon_url',
             'color_primario',
             'lat',
             'lng',
@@ -262,10 +309,26 @@ export async function PUT(
 
         if (Object.keys(tenantUpdates).length > 0) {
             tenantUpdates.updated_at = new Date().toISOString()
-            const { error } = await supabase
+            let { error } = await supabase
                 .from('tenants')
                 .update(tenantUpdates)
                 .eq('id', ownerTenant.id)
+
+            if (error) {
+                const looksLikeMissingAssetCols = error.code === '42703'
+                    || `${error.message || ''} ${error.details || ''}`.includes('card_background_url')
+                    || `${error.message || ''} ${error.details || ''}`.includes('stamp_icon_url')
+                if (looksLikeMissingAssetCols) {
+                    const fallbackUpdates = { ...tenantUpdates }
+                    delete fallbackUpdates.card_background_url
+                    delete fallbackUpdates.stamp_icon_url
+                    const fallback = await supabase
+                        .from('tenants')
+                        .update(fallbackUpdates)
+                        .eq('id', ownerTenant.id)
+                    error = fallback.error
+                }
+            }
 
             if (error) {
                 console.error('Error actualizando tenant:', error)
