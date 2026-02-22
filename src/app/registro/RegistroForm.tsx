@@ -87,6 +87,7 @@ export default function RegistroForm() {
     const [errorMeta, setErrorMeta] = useState<RegistroErrorMeta | null>(null)
     const [result, setResult] = useState<RegistroApiResult | null>(null)
     const [hasSession, setHasSession] = useState(false)
+    const [sessionEmail, setSessionEmail] = useState('')
     const supabase = useMemo(() => createClient(), [])
 
     function setLocalError(message: string) {
@@ -104,7 +105,8 @@ export default function RegistroForm() {
             if (session && session.user) {
                 setHasSession(true)
                 if (session.user.email) {
-                    setEmail(session.user.email)
+                    setSessionEmail(session.user.email)
+                    setEmail((prev) => prev || session.user.email || '')
                 }
             }
         })
@@ -163,7 +165,8 @@ export default function RegistroForm() {
 
     const nombreTrimmed = nombre.trim()
     const emailTrimmed = email.trim().toLowerCase()
-    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)
+    const effectiveEmail = hasSession ? (emailTrimmed || sessionEmail.toLowerCase()) : emailTrimmed
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail)
     const canContinueNegocio =
         nombreTrimmed.length >= 3 &&
         emailValido &&
@@ -186,6 +189,15 @@ export default function RegistroForm() {
                 setDetectingLocation(false)
             }
         )
+    }
+
+    async function handleUseAnotherEmail() {
+        await supabase.auth.signOut()
+        setHasSession(false)
+        setSessionEmail('')
+        setEmail('')
+        setPassword('')
+        clearError()
     }
 
     function buildProgramConfig() {
@@ -280,7 +292,7 @@ export default function RegistroForm() {
                 body: JSON.stringify({
                     nombre,
                     rubro,
-                    email,
+                    email: effectiveEmail,
                     password,
                     telefono,
                     direccion,
@@ -332,9 +344,9 @@ export default function RegistroForm() {
                 return
             }
 
-            if (!hasSession && email && password) {
+            if (!hasSession && effectiveEmail && password) {
                 const { error: loginError } = await supabase.auth.signInWithPassword({
-                    email,
+                    email: effectiveEmail,
                     password
                 })
                 if (!loginError) {
@@ -367,7 +379,7 @@ export default function RegistroForm() {
     }
 
     function validateNegocioStep(): boolean {
-        if (!nombreTrimmed || !emailTrimmed || (!hasSession && !password)) {
+        if (!nombreTrimmed || !effectiveEmail || (!hasSession && !password)) {
             setLocalError('Faltan campos obligatorios')
             return false
         }
@@ -499,9 +511,19 @@ export default function RegistroForm() {
                                     if (error) clearError()
                                 }}
                                 placeholder="tu@email.com"
-                                disabled={hasSession}
-                                style={hasSession ? { opacity: 0.7, background: '#f8fafc' } : {}}
                             />
+                            {hasSession && (
+                                <p className="registro-field-hint">
+                                    Sesión activa con <strong>{sessionEmail}</strong>. Para usar otro correo en una prueba nueva,{' '}
+                                    <button
+                                        type="button"
+                                        onClick={handleUseAnotherEmail}
+                                        style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', padding: 0 }}
+                                    >
+                                        cerrar sesión
+                                    </button>.
+                                </p>
+                            )}
                         </div>
 
                         {!hasSession && (
