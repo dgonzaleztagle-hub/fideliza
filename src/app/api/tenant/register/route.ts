@@ -313,9 +313,34 @@ export async function POST(req: NextRequest) {
 
             if (authError) {
                 console.error('Error creando usuario Auth:', authError)
-                const rawMessage = authError.message || 'unknown'
+                const authErrorAny = authError as {
+                    status?: number | string
+                    code?: number | string
+                    name?: string
+                    message?: string
+                    error_description?: string
+                    details?: string
+                    hint?: string
+                }
+
+                const authStatusRaw = authErrorAny.status ?? authErrorAny.code
+                const authStatus =
+                    typeof authStatusRaw === 'number'
+                        ? authStatusRaw
+                        : Number.isFinite(Number(authStatusRaw))
+                            ? Number(authStatusRaw)
+                            : null
+
+                const rawMessageCandidates = [
+                    authErrorAny.message,
+                    authErrorAny.error_description,
+                    authErrorAny.details,
+                    authErrorAny.hint,
+                    authErrorAny.name
+                ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+
+                const rawMessage = rawMessageCandidates.join(' | ') || 'unknown'
                 const normalizedMessage = rawMessage.toLowerCase()
-                const authStatus = (authError as { status?: number }).status
 
                 const looksLikeDuplicateEmail =
                     normalizedMessage.includes('already registered') ||
@@ -357,6 +382,24 @@ export async function POST(req: NextRequest) {
                         400,
                         'El correo ingresado no es válido.',
                         'TENANT_REGISTER_EMAIL_INVALID',
+                        { error_detail: rawMessage }
+                    )
+                }
+
+                const looksLikeInvalidServerApiKey =
+                    authStatus === 401 ||
+                    authStatus === 403 ||
+                    normalizedMessage.includes('invalid api key') ||
+                    normalizedMessage.includes('api key is invalid') ||
+                    normalizedMessage.includes('apikey is invalid') ||
+                    normalizedMessage.includes('invalid jwt') ||
+                    normalizedMessage.includes('apikey')
+
+                if (looksLikeInvalidServerApiKey) {
+                    return errorResponse(
+                        500,
+                        'Configuración de servidor inválida: revisa SUPABASE_SERVICE_ROLE_KEY y NEXT_PUBLIC_SUPABASE_URL (deben ser del mismo proyecto).',
+                        'TENANT_REGISTER_SUPABASE_SERVER_KEY_INVALID',
                         { error_detail: rawMessage }
                     )
                 }
