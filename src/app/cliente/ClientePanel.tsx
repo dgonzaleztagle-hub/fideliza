@@ -140,6 +140,36 @@ function formatProgramTypeLabel(tipo?: string | null) {
     return PROGRAM_TYPE_LABELS[tipo] || tipo
 }
 
+function nivelesToText(niveles: unknown): string {
+    if (!Array.isArray(niveles)) return '5:5,15:10,30:15'
+    const clean = niveles
+        .map((n) => {
+            const row = n as { visitas?: unknown; descuento?: unknown }
+            const visitas = Number(row.visitas)
+            const descuento = Number(row.descuento)
+            if (!Number.isFinite(visitas) || !Number.isFinite(descuento)) return null
+            if (visitas <= 0 || descuento < 0) return null
+            return `${Math.round(visitas)}:${Math.round(descuento)}`
+        })
+        .filter((v): v is string => !!v)
+    return clean.length ? clean.join(',') : '5:5,15:10,30:15'
+}
+
+function textToNiveles(value: string): Array<{ visitas: number; descuento: number }> {
+    return value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => {
+            const [visitasRaw, descuentoRaw] = item.split(':')
+            return {
+                visitas: Number(visitasRaw),
+                descuento: Number(descuentoRaw)
+            }
+        })
+        .filter((n) => Number.isFinite(n.visitas) && Number.isFinite(n.descuento) && n.visitas > 0 && n.descuento >= 0)
+}
+
 export default function ClientePanel() {
     const supabase = useMemo(() => createClient(), [])
     const [tab, setTab] = useState<Tab>('dashboard')
@@ -197,7 +227,15 @@ export default function ClientePanel() {
         marketing_winback: '',
         marketing_review: '',
         referrals_enabled: true,
-        referrals_bonus_points: 1
+        referrals_bonus_points: 1,
+        cashback_porcentaje: 5,
+        cashback_tope_mensual: 10000,
+        multipase_cantidad_usos: 10,
+        multipase_precio_pack: 0,
+        membresia_duracion_dias: 30,
+        descuento_niveles: '5:5,15:10,30:15',
+        cupon_descuento_porcentaje: 15,
+        regalo_valor_maximo: 0
     })
     const [saving, setSaving] = useState(false)
     const [saveMessage, setSaveMessage] = useState('')
@@ -366,7 +404,15 @@ export default function ClientePanel() {
                 marketing_winback: data.program?.config?.marketing?.winback_msg || '',
                 marketing_review: data.program?.config?.marketing?.review_msg || '',
                 referrals_enabled: data.program?.config?.referrals?.enabled ?? true,
-                referrals_bonus_points: data.program?.config?.referrals?.bonus_points ?? 1
+                referrals_bonus_points: data.program?.config?.referrals?.bonus_points ?? 1,
+                cashback_porcentaje: data.program?.config?.porcentaje ?? 5,
+                cashback_tope_mensual: data.program?.config?.tope_mensual ?? 10000,
+                multipase_cantidad_usos: data.program?.config?.cantidad_usos ?? 10,
+                multipase_precio_pack: data.program?.config?.precio_pack ?? 0,
+                membresia_duracion_dias: data.program?.config?.duracion_dias ?? 30,
+                descuento_niveles: nivelesToText(data.program?.config?.niveles),
+                cupon_descuento_porcentaje: data.program?.config?.descuento_porcentaje ?? 15,
+                regalo_valor_maximo: data.program?.config?.valor_maximo ?? 0
             })
         } catch {
             alert('No se encontró el negocio. Verifica el slug.')
@@ -520,6 +566,62 @@ export default function ClientePanel() {
         setSaving(true)
         setSaveMessage('')
         try {
+            const baseProgramConfig = {
+                ...(program?.config || {}),
+                marketing: {
+                    welcome_msg: configForm.marketing_welcome,
+                    birthday_msg: configForm.marketing_birthday,
+                    winback_msg: configForm.marketing_winback,
+                    review_msg: configForm.marketing_review
+                },
+                referrals: {
+                    enabled: Boolean(configForm.referrals_enabled),
+                    bonus_points: Math.max(1, Number(configForm.referrals_bonus_points) || 1)
+                }
+            } as Record<string, unknown>
+
+            const typedProgramConfig = (() => {
+                if (configForm.tipo_programa === 'cashback') {
+                    return {
+                        ...baseProgramConfig,
+                        porcentaje: Math.max(1, Number(configForm.cashback_porcentaje) || 5),
+                        tope_mensual: Math.max(0, Number(configForm.cashback_tope_mensual) || 0)
+                    }
+                }
+                if (configForm.tipo_programa === 'multipase') {
+                    return {
+                        ...baseProgramConfig,
+                        cantidad_usos: Math.max(1, Number(configForm.multipase_cantidad_usos) || 10),
+                        precio_pack: Math.max(0, Number(configForm.multipase_precio_pack) || 0)
+                    }
+                }
+                if (configForm.tipo_programa === 'membresia') {
+                    return {
+                        ...baseProgramConfig,
+                        duracion_dias: Math.max(1, Number(configForm.membresia_duracion_dias) || 30)
+                    }
+                }
+                if (configForm.tipo_programa === 'descuento') {
+                    return {
+                        ...baseProgramConfig,
+                        niveles: textToNiveles(configForm.descuento_niveles)
+                    }
+                }
+                if (configForm.tipo_programa === 'cupon') {
+                    return {
+                        ...baseProgramConfig,
+                        descuento_porcentaje: Math.max(1, Number(configForm.cupon_descuento_porcentaje) || 15)
+                    }
+                }
+                if (configForm.tipo_programa === 'regalo') {
+                    return {
+                        ...baseProgramConfig,
+                        valor_maximo: Math.max(0, Number(configForm.regalo_valor_maximo) || 0)
+                    }
+                }
+                return baseProgramConfig
+            })()
+
             const res = await fetch(`/api/tenant/${tenant.slug}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -539,19 +641,7 @@ export default function ClientePanel() {
                         tipo_premio: configForm.tipo_premio,
                         tipo_programa: configForm.tipo_programa,
                         valor_premio: configForm.valor_premio,
-                        config: {
-                            ...(program?.config || {}),
-                            marketing: {
-                                welcome_msg: configForm.marketing_welcome,
-                                birthday_msg: configForm.marketing_birthday,
-                                winback_msg: configForm.marketing_winback,
-                                review_msg: configForm.marketing_review
-                            },
-                            referrals: {
-                                enabled: Boolean(configForm.referrals_enabled),
-                                bonus_points: Math.max(1, Number(configForm.referrals_bonus_points) || 1)
-                            }
-                        }
+                        config: typedProgramConfig
                     }
                 })
             })
@@ -2126,6 +2216,54 @@ export default function ClientePanel() {
                                                     <option value="afiliacion">📱 Afiliación</option>
                                                 </select>
                                             </label>
+                                            {configForm.tipo_programa === 'cashback' && (
+                                                <>
+                                                    <label>
+                                                        <span>Porcentaje cashback</span>
+                                                        <input type="number" min="1" max="100" value={configForm.cashback_porcentaje} onChange={e => setConfigForm({ ...configForm, cashback_porcentaje: Number(e.target.value) })} />
+                                                    </label>
+                                                    <label>
+                                                        <span>Tope mensual (CLP)</span>
+                                                        <input type="number" min="0" value={configForm.cashback_tope_mensual} onChange={e => setConfigForm({ ...configForm, cashback_tope_mensual: Number(e.target.value) })} />
+                                                    </label>
+                                                </>
+                                            )}
+                                            {configForm.tipo_programa === 'multipase' && (
+                                                <>
+                                                    <label>
+                                                        <span>Cantidad de usos</span>
+                                                        <input type="number" min="1" value={configForm.multipase_cantidad_usos} onChange={e => setConfigForm({ ...configForm, multipase_cantidad_usos: Number(e.target.value) })} />
+                                                    </label>
+                                                    <label>
+                                                        <span>Precio pack (CLP)</span>
+                                                        <input type="number" min="0" value={configForm.multipase_precio_pack} onChange={e => setConfigForm({ ...configForm, multipase_precio_pack: Number(e.target.value) })} />
+                                                    </label>
+                                                </>
+                                            )}
+                                            {configForm.tipo_programa === 'membresia' && (
+                                                <label>
+                                                    <span>Duración membresía (días)</span>
+                                                    <input type="number" min="1" value={configForm.membresia_duracion_dias} onChange={e => setConfigForm({ ...configForm, membresia_duracion_dias: Number(e.target.value) })} />
+                                                </label>
+                                            )}
+                                            {configForm.tipo_programa === 'descuento' && (
+                                                <label>
+                                                    <span>Niveles (visitas:descuento)</span>
+                                                    <input type="text" value={configForm.descuento_niveles} onChange={e => setConfigForm({ ...configForm, descuento_niveles: e.target.value })} placeholder="5:5,15:10,30:15" />
+                                                </label>
+                                            )}
+                                            {configForm.tipo_programa === 'cupon' && (
+                                                <label>
+                                                    <span>Descuento cupón (%)</span>
+                                                    <input type="number" min="1" max="100" value={configForm.cupon_descuento_porcentaje} onChange={e => setConfigForm({ ...configForm, cupon_descuento_porcentaje: Number(e.target.value) })} />
+                                                </label>
+                                            )}
+                                            {configForm.tipo_programa === 'regalo' && (
+                                                <label>
+                                                    <span>Valor máximo gift card (CLP)</span>
+                                                    <input type="number" min="0" value={configForm.regalo_valor_maximo} onChange={e => setConfigForm({ ...configForm, regalo_valor_maximo: Number(e.target.value) })} />
+                                                </label>
+                                            )}
                                             <label>
                                                 <span>PIN de Validación (4 dígitos)</span>
                                                 <input
@@ -2152,6 +2290,46 @@ export default function ClientePanel() {
                                                 {program.tipo_programa && (
                                                     <div className="cliente-config-item">
                                                         <span>Tipo de programa:</span> <strong>{formatProgramTypeLabel(program.tipo_programa)}</strong>
+                                                    </div>
+                                                )}
+                                                {program.tipo_programa === 'cashback' && (
+                                                    <>
+                                                        <div className="cliente-config-item">
+                                                            <span>% cashback:</span> <strong>{configForm.cashback_porcentaje}%</strong>
+                                                        </div>
+                                                        <div className="cliente-config-item">
+                                                            <span>Tope mensual:</span> <strong>${Number(configForm.cashback_tope_mensual || 0).toLocaleString('es-CL')}</strong>
+                                                        </div>
+                                                    </>
+                                                )}
+                                                {program.tipo_programa === 'multipase' && (
+                                                    <>
+                                                        <div className="cliente-config-item">
+                                                            <span>Usos por pack:</span> <strong>{configForm.multipase_cantidad_usos}</strong>
+                                                        </div>
+                                                        <div className="cliente-config-item">
+                                                            <span>Precio pack:</span> <strong>${Number(configForm.multipase_precio_pack || 0).toLocaleString('es-CL')}</strong>
+                                                        </div>
+                                                    </>
+                                                )}
+                                                {program.tipo_programa === 'membresia' && (
+                                                    <div className="cliente-config-item">
+                                                        <span>Duración membresía:</span> <strong>{configForm.membresia_duracion_dias} días</strong>
+                                                    </div>
+                                                )}
+                                                {program.tipo_programa === 'descuento' && (
+                                                    <div className="cliente-config-item">
+                                                        <span>Niveles:</span> <strong>{configForm.descuento_niveles}</strong>
+                                                    </div>
+                                                )}
+                                                {program.tipo_programa === 'cupon' && (
+                                                    <div className="cliente-config-item">
+                                                        <span>% cupón:</span> <strong>{configForm.cupon_descuento_porcentaje}%</strong>
+                                                    </div>
+                                                )}
+                                                {program.tipo_programa === 'regalo' && (
+                                                    <div className="cliente-config-item">
+                                                        <span>Valor máximo:</span> <strong>${Number(configForm.regalo_valor_maximo || 0).toLocaleString('es-CL')}</strong>
                                                     </div>
                                                 )}
                                                 <div className="cliente-config-item">
