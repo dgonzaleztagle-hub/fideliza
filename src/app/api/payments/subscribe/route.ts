@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { createSubscription } from '@/lib/flow';
 import { getSupabase } from '@/lib/supabase/admin';
 import { requireTenantOwnerById } from '@/lib/authz';
+import { BillingPlan, getFlowPlanId, isBillingPlan } from '@/lib/plans'
 
 export async function POST(req: Request) {
     try {
-        const { tenant_id } = await req.json();
+        const { tenant_id, plan_code } = await req.json();
 
         if (!tenant_id) {
             return NextResponse.json({ error: 'Falta tenant_id' }, { status: 400 });
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
         // 1. Obtener datos del tenant
         const { data: tenant, error: tError } = await supabase
             .from('tenants')
-            .select('email, nombre, id')
+            .select('email, nombre, id, selected_plan')
             .eq('id', tenant_id)
             .single();
 
@@ -27,8 +28,14 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 });
         }
 
-        // 2. Crear suscripción en Flow (Plan Pro Mensual)
-        const planId = 'vuelve_pro_mensual';
+        const requestedPlan: BillingPlan = isBillingPlan(plan_code)
+            ? plan_code
+            : isBillingPlan(tenant.selected_plan)
+                ? tenant.selected_plan
+                : 'pro'
+
+        // 2. Crear suscripción en Flow
+        const planId = getFlowPlanId(requestedPlan);
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
         const webhookSecret = process.env.FLOW_WEBHOOK_SECRET;
         const isProduction = process.env.NODE_ENV === 'production';
@@ -79,13 +86,16 @@ export async function POST(req: Request) {
         await supabase
             .from('tenants')
             .update({
-                flow_subscription_id: flowData.subscriptionId ?? null
+                flow_subscription_id: flowData.subscriptionId ?? null,
+                pending_plan: requestedPlan,
+                selected_plan: requestedPlan
             })
             .eq('id', tenant.id);
 
         return NextResponse.json({
             url: flowData.url,
-            token: flowData.token
+            token: flowData.token,
+            plan_code: requestedPlan
         });
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Error interno'

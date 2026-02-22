@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { isProgramType } from '@/lib/programTypes'
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
 import { normalizeBrandColor } from '@/lib/brandColor'
+import { BillingPlan, isBillingPlan, normalizeProgramChoices } from '@/lib/plans'
 
 function toOptionalNumber(value: unknown): number | null {
     if (value === null || value === undefined || value === '') return null
@@ -57,12 +58,20 @@ export async function POST(req: NextRequest) {
             tipo_premio,
             valor_premio,
             tipo_programa,
-            config
+            config,
+            selected_plan,
+            selected_program_types
         } = body
 
-        const normalizedProgramType = typeof tipo_programa === 'string'
+        const normalizedSelectedPlan: BillingPlan = isBillingPlan(selected_plan) ? selected_plan : 'pro'
+        const normalizedSelectedProgramTypes = normalizeProgramChoices(selected_program_types, normalizedSelectedPlan)
+
+        const incomingProgramType = typeof tipo_programa === 'string'
             ? tipo_programa.trim().toLowerCase()
             : 'sellos'
+        const normalizedProgramType = normalizedSelectedProgramTypes.includes(incomingProgramType as typeof normalizedSelectedProgramTypes[number])
+            ? incomingProgramType
+            : normalizedSelectedProgramTypes[0]
 
         if (!isProgramType(normalizedProgramType)) {
             return errorResponse(400, `Tipo de programa inválido: ${tipo_programa}`, 'TENANT_REGISTER_PROGRAM_TYPE_INVALID')
@@ -433,6 +442,8 @@ export async function POST(req: NextRequest) {
                 mensaje_geofencing: normalizedGeoMessage || '¡Estás cerca! Pasa a sumar puntos 🎉',
                 slug,
                 plan: 'trial',
+                selected_plan: normalizedSelectedPlan,
+                selected_program_types: normalizedSelectedProgramTypes,
                 trial_hasta: trialHasta.toISOString(),
                 estado: 'activo',
                 onboarding_completado: true

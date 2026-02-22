@@ -9,7 +9,7 @@ export function SignatureSEO() {
         "operatingSystem": "Web, Android (Google Wallet)",
         "offers": {
             "@type": "Offer",
-            "price": "34990",
+            "price": "19990",
             "priceCurrency": "CLP",
             "priceValidity": "2026-12-31"
         },
@@ -41,7 +41,7 @@ export function SignatureSEO() {
                 "name": "¿Cuánto cuesta un sistema de fidelización en Chile?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Vuelve+ ofrece una tarifa plana de $34.990 CLP mensuales con clientes ilimitados, geofencing y notificaciones push incluidas. Sin comisiones por visita."
+                    "text": "Vuelve+ ofrece planes desde $19.990 CLP mensuales y escala a Pro y Full según el nivel de motores y automatización que necesite el negocio."
                 }
             },
             {

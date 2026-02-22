@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireTenantOwnerById } from '@/lib/authz'
 import { hashPin, isValidPin } from '@/lib/security/pin'
+import { PLAN_CATALOG, getEffectiveBillingPlan } from '@/lib/plans'
 
 export async function GET(req: Request) {
     try {
@@ -46,6 +47,26 @@ export async function POST(req: Request) {
         if (!owner.ok) return owner.response
 
         const supabase = getSupabase()
+        const { data: tenantPlan } = await supabase
+            .from('tenants')
+            .select('plan, selected_plan')
+            .eq('id', tenant_id)
+            .maybeSingle()
+
+        const effectivePlan = getEffectiveBillingPlan(tenantPlan?.plan, tenantPlan?.selected_plan)
+        const maxStaff = PLAN_CATALOG[effectivePlan].limits.maxStaff
+        const { count: staffCount } = await supabase
+            .from('staff_profiles')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenant_id)
+
+        if ((staffCount || 0) >= maxStaff) {
+            return NextResponse.json(
+                { error: `Tu plan permite hasta ${maxStaff} personas en el equipo.` },
+                { status: 403 }
+            )
+        }
+
         const pinHash = hashPin(pin)
         const { data: staff, error } = await supabase
             .from('staff_profiles')

@@ -21,7 +21,7 @@ export function SEOHead({
     url = 'https://vuelve.vip',
     type = 'website',
     applicationName = 'Vuelve+',
-    priceAmount = '34990',
+    priceAmount = '19990',
     priceCurrency = 'CLP',
     operatingSystem = 'Web, Android (Google Wallet)',
     category = 'BusinessApplication',
@@ -62,7 +62,7 @@ export function SEOHead({
                 "name": "¿Cuánto cuesta Vuelve+?",
                 "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "El plan lanzamiento cuesta $34.990 CLP mensuales e incluye clientes ilimitados, notificaciones push y panel de control."
+                    "text": "Vuelve+ ofrece planes desde $19.990 CLP mensuales, con opción Pro y Full según el nivel de funciones que necesite tu negocio."
                 }
             }
         ]

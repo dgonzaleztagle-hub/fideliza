@@ -5,6 +5,8 @@ import AyudaPanel from './AyudaPanel'
 import StatusAlert from '@/components/cliente/StatusAlert'
 import { generateAdvisorInsights, Insight } from '@/lib/advisor'
 import { createClient } from '@/lib/supabase/client'
+import { BILLING_PLAN_VALUES, PLAN_CATALOG, getEffectiveBillingPlan, isBillingPlan, normalizeProgramChoices } from '@/lib/plans'
+import { ProgramType, PROGRAM_TYPE_VALUES } from '@/lib/programTypes'
 import './cliente.css'
 import './ayuda.css'
 import SetupWizard from '@/app/components/SetupWizard'
@@ -20,6 +22,8 @@ interface TenantData {
     qr_code: string
     estado: string
     plan: string
+    selected_plan?: string | null
+    selected_program_types?: string[] | null
     trial_hasta: string
     telefono: string | null
     lat: number | null
@@ -140,6 +144,14 @@ function formatProgramTypeLabel(tipo?: string | null) {
     return PROGRAM_TYPE_LABELS[tipo] || tipo
 }
 
+function formatPlanLabel(plan?: string | null) {
+    if (!plan) return 'Pro'
+    if (plan === 'trial') return 'Trial'
+    if (plan === 'pyme') return PLAN_CATALOG.pyme.label
+    if (plan === 'full') return PLAN_CATALOG.full.label
+    return PLAN_CATALOG.pro.label
+}
+
 function nivelesToText(niveles: unknown): string {
     if (!Array.isArray(niveles)) return '5:5,15:10,30:15'
     const clean = niveles
@@ -237,6 +249,8 @@ export default function ClientePanel() {
         cupon_descuento_porcentaje: 15,
         regalo_valor_maximo: 0
     })
+    const [selectedPlan, setSelectedPlan] = useState<'pyme' | 'pro' | 'full'>('pro')
+    const [selectedProgramTypes, setSelectedProgramTypes] = useState<string[]>(['sellos'])
     const [saving, setSaving] = useState(false)
     const [saveMessage, setSaveMessage] = useState('')
     const [detectingLocation, setDetectingLocation] = useState(false)
@@ -371,6 +385,9 @@ export default function ClientePanel() {
             }
             setTenant(data.tenant)
             setProgram(data.program)
+            const configuredPlan = getEffectiveBillingPlan(data.tenant?.plan, data.tenant?.selected_plan)
+            setSelectedPlan(configuredPlan)
+            setSelectedProgramTypes(normalizeProgramChoices(data.tenant?.selected_program_types, configuredPlan))
             setCustomers(data.customers || [])
             const newStats = {
                 totalClientes: data.customers?.length || 0,
@@ -544,7 +561,7 @@ export default function ClientePanel() {
             const res = await fetch('/api/payments/subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tenant_id: tenant.id })
+                body: JSON.stringify({ tenant_id: tenant.id, plan_code: selectedPlan })
             })
             const data = await res.json().catch(() => ({}))
             if (data.url) {
@@ -566,6 +583,10 @@ export default function ClientePanel() {
         setSaving(true)
         setSaveMessage('')
         try {
+            const normalizedSelectedTypes = normalizeProgramChoices(selectedProgramTypes, selectedPlan)
+            const safeProgramType = normalizedSelectedTypes.includes(configForm.tipo_programa as ProgramType)
+                ? (configForm.tipo_programa as ProgramType)
+                : normalizedSelectedTypes[0]
             const baseProgramConfig = {
                 ...(program?.config || {}),
                 marketing: {
@@ -581,39 +602,39 @@ export default function ClientePanel() {
             } as Record<string, unknown>
 
             const typedProgramConfig = (() => {
-                if (configForm.tipo_programa === 'cashback') {
+                if (safeProgramType === 'cashback') {
                     return {
                         ...baseProgramConfig,
                         porcentaje: Math.max(1, Number(configForm.cashback_porcentaje) || 5),
                         tope_mensual: Math.max(0, Number(configForm.cashback_tope_mensual) || 0)
                     }
                 }
-                if (configForm.tipo_programa === 'multipase') {
+                if (safeProgramType === 'multipase') {
                     return {
                         ...baseProgramConfig,
                         cantidad_usos: Math.max(1, Number(configForm.multipase_cantidad_usos) || 10),
                         precio_pack: Math.max(0, Number(configForm.multipase_precio_pack) || 0)
                     }
                 }
-                if (configForm.tipo_programa === 'membresia') {
+                if (safeProgramType === 'membresia') {
                     return {
                         ...baseProgramConfig,
                         duracion_dias: Math.max(1, Number(configForm.membresia_duracion_dias) || 30)
                     }
                 }
-                if (configForm.tipo_programa === 'descuento') {
+                if (safeProgramType === 'descuento') {
                     return {
                         ...baseProgramConfig,
                         niveles: textToNiveles(configForm.descuento_niveles)
                     }
                 }
-                if (configForm.tipo_programa === 'cupon') {
+                if (safeProgramType === 'cupon') {
                     return {
                         ...baseProgramConfig,
                         descuento_porcentaje: Math.max(1, Number(configForm.cupon_descuento_porcentaje) || 15)
                     }
                 }
-                if (configForm.tipo_programa === 'regalo') {
+                if (safeProgramType === 'regalo') {
                     return {
                         ...baseProgramConfig,
                         valor_maximo: Math.max(0, Number(configForm.regalo_valor_maximo) || 0)
@@ -635,11 +656,13 @@ export default function ClientePanel() {
                     lng: configForm.lng ? Number(configForm.lng) : null,
                     google_business_url: configForm.google_business_url,
                     validation_pin: configForm.validation_pin,
+                    selected_plan: selectedPlan,
+                    selected_program_types: normalizedSelectedTypes,
                     program: {
                         puntos_meta: Number(configForm.puntos_meta),
                         descripcion_premio: configForm.descripcion_premio,
                         tipo_premio: configForm.tipo_premio,
-                        tipo_programa: configForm.tipo_programa,
+                        tipo_programa: safeProgramType,
                         valor_premio: configForm.valor_premio,
                         config: typedProgramConfig
                     }
@@ -869,6 +892,16 @@ export default function ClientePanel() {
             loadMembershipStatuses()
         }
     }, [tab, tenant])
+
+    useEffect(() => {
+        const normalized = normalizeProgramChoices(selectedProgramTypes, selectedPlan)
+        if (normalized.join('|') !== selectedProgramTypes.join('|')) {
+            setSelectedProgramTypes(normalized)
+        }
+        if (!normalized.includes(configForm.tipo_programa as ProgramType)) {
+            setConfigForm((prev) => ({ ...prev, tipo_programa: normalized[0] }))
+        }
+    }, [selectedPlan, selectedProgramTypes, configForm.tipo_programa])
 
     // Filtered customers
     const filteredCustomers = customers.filter(c => {
@@ -1100,7 +1133,7 @@ export default function ClientePanel() {
                         : 'Tu periodo de prueba de 14 días ha finalizado.'}
                 </p>
                 <div className="cliente-blocked-info">
-                    Para activar tu cuenta y seguir fidelizando a tus clientes, solicita tu plan <strong>Vuelve+ Pro ($34.990/mes)</strong>.
+                    Para activar tu cuenta y seguir fidelizando a tus clientes, activa <strong>{PLAN_CATALOG[selectedPlan].label} (${PLAN_CATALOG[selectedPlan].monthlyPrice.toLocaleString('es-CL')}/mes)</strong>.
                 </div>
 
                 <button
@@ -1212,6 +1245,12 @@ export default function ClientePanel() {
         program?.descripcion_premio
     )
     const shouldShowSetupWizard = Boolean(tenant) && !tenant?.onboarding_completado && !hasProgramConfigured
+    const effectivePlan = tenant ? getEffectiveBillingPlan(tenant.plan, tenant.selected_plan) : 'pro'
+    const planLimits = PLAN_CATALOG[selectedPlan].limits
+    const availableProgramTypes = normalizeProgramChoices(selectedProgramTypes, selectedPlan)
+    const reachedProgramChoiceLimit = selectedPlan !== 'full' && availableProgramTypes.length >= planLimits.maxProgramChoices
+    const analyticsEnabledForPlan = PLAN_CATALOG[effectivePlan].limits.analyticsAdvanced
+    const csvExportEnabledForPlan = PLAN_CATALOG[effectivePlan].limits.exportCsv
 
     return (
         <div className={`cliente-page ${isIframe ? 'iframe-mode' : ''}`}>
@@ -1231,7 +1270,7 @@ export default function ClientePanel() {
                     <div>
                         <h3 className="cliente-sidebar-name">{tenant.nombre}</h3>
                         <span className="cliente-sidebar-plan">
-                            {tenant.plan === 'trial' ? `Trial · ${trialDaysLeft} días` : 'Plan Activo'}
+                            {tenant.plan === 'trial' ? `Trial · ${trialDaysLeft} días · Objetivo ${formatPlanLabel(tenant.selected_plan)}` : formatPlanLabel(effectivePlan)}
                         </span>
                     </div>
                 </div>
@@ -1241,7 +1280,7 @@ export default function ClientePanel() {
                         { key: 'dashboard' as Tab, icon: '📊', label: 'Dashboard' },
                         { key: 'clientes' as Tab, icon: '👥', label: 'Clientes', hidden: isRestricted },
                         { key: 'qr' as Tab, icon: '🎫', label: 'QR y Canje', hidden: isRestricted },
-                        { key: 'analytics' as Tab, icon: '📈', label: 'Analytics', hidden: isRestricted },
+                        { key: 'analytics' as Tab, icon: '📈', label: 'Analytics', hidden: isRestricted || !analyticsEnabledForPlan },
                         { key: 'notificaciones' as Tab, icon: '📢', label: 'Notificaciones', hidden: isRestricted },
                         { key: 'personal' as Tab, icon: '👥', label: 'Personal', hidden: isRestricted },
                         { key: 'configuracion' as Tab, icon: '⚙️', label: 'Configuración', hidden: isRestricted },
@@ -1285,7 +1324,7 @@ export default function ClientePanel() {
                             { key: 'dashboard' as Tab, label: 'Dashboard' },
                             { key: 'clientes' as Tab, label: 'Clientes', hidden: isRestricted },
                             { key: 'qr' as Tab, label: 'QR y Canje', hidden: isRestricted },
-                            { key: 'analytics' as Tab, label: 'Analytics', hidden: isRestricted },
+                            { key: 'analytics' as Tab, label: 'Analytics', hidden: isRestricted || !analyticsEnabledForPlan },
                             { key: 'notificaciones' as Tab, label: 'Notificaciones', hidden: isRestricted },
                             { key: 'personal' as Tab, label: 'Personal', hidden: isRestricted },
                             { key: 'configuracion' as Tab, label: 'Config.', hidden: isRestricted },
@@ -1436,10 +1475,10 @@ export default function ClientePanel() {
                             <button
                                 className="cliente-export-btn"
                                 onClick={handleExportCSV}
-                                disabled={exporting}
-                                title="Descargar toda tu base de datos en CSV"
+                                disabled={exporting || !csvExportEnabledForPlan}
+                                title={csvExportEnabledForPlan ? 'Descargar toda tu base de datos en CSV' : 'Disponible desde plan Pro'}
                             >
-                                {exporting ? '⏳ Generando...' : '📥 Exportar Base de Datos'}
+                                {csvExportEnabledForPlan ? (exporting ? '⏳ Generando...' : '📥 Exportar Base de Datos') : '🔒 Exportación Pro'}
                             </button>
                         </div>
 
@@ -2100,14 +2139,28 @@ export default function ClientePanel() {
                                     <div className={`cliente-config-card plan-card ${tenant.plan}`}>
                                         <div className="plan-header">
                                             <h3>💳 Plan Vuelve+</h3>
-                                            <span className={`badge-plan ${tenant.plan}`}>
-                                                {tenant.plan === 'pro' ? '🚀 PRO' : '🎁 TRIAL'}
+                                            <span className={`badge-plan ${effectivePlan}`}>
+                                                {tenant.plan === 'trial' ? '🎁 TRIAL' : formatPlanLabel(effectivePlan).toUpperCase()}
                                             </span>
                                         </div>
                                         <div className="plan-body">
+                                            <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+                                                <span style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', opacity: 0.8 }}>Plan objetivo</span>
+                                                <select
+                                                    value={selectedPlan}
+                                                    onChange={(e) => setSelectedPlan((isBillingPlan(e.target.value) ? e.target.value : 'pro'))}
+                                                >
+                                                    {BILLING_PLAN_VALUES.map((planCode) => (
+                                                        <option key={planCode} value={planCode}>
+                                                            {PLAN_CATALOG[planCode].label} (${PLAN_CATALOG[planCode].monthlyPrice.toLocaleString('es-CL')}/mes)
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </label>
+
                                             {tenant.plan === 'trial' ? (
                                                 <>
-                                                    <p>Estás usando la versión de prueba técnica.</p>
+                                                    <p>Estás usando el trial técnico con objetivo {PLAN_CATALOG[selectedPlan].label}.</p>
                                                     {tenant.trial_hasta && (
                                                         <p className="trial-date">Vence: {new Date(tenant.trial_hasta).toLocaleDateString()}</p>
                                                     )}
@@ -2116,7 +2169,7 @@ export default function ClientePanel() {
                                                         onClick={handleUpgrade}
                                                         disabled={subscribing}
                                                     >
-                                                        {subscribing ? '🚀 Preparando...' : 'Activar Vuelve+ Pro ($34.990)'}
+                                                        {subscribing ? '🚀 Preparando...' : `Activar ${PLAN_CATALOG[selectedPlan].label} ($${PLAN_CATALOG[selectedPlan].monthlyPrice.toLocaleString('es-CL')})`}
                                                     </button>
                                                     <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', opacity: 0.6, textAlign: 'center' }}>
                                                         🔒 Pagos seguros vía Flow
@@ -2124,12 +2177,27 @@ export default function ClientePanel() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <p>¡Gracias por ser Pro! Tienes todas las funciones desbloqueadas.</p>
+                                                    <p>Plan activo: <strong>{PLAN_CATALOG[effectivePlan].label}</strong>.</p>
                                                     <div className="plan-stats">
                                                         <span>Próximo cobro: {tenant.next_billing_date ? new Date(tenant.next_billing_date).toLocaleDateString() : 'Ver en Flow'}</span>
                                                     </div>
+                                                    {effectivePlan !== selectedPlan && (
+                                                        <button
+                                                            className="upgrade-btn"
+                                                            onClick={handleUpgrade}
+                                                            disabled={subscribing}
+                                                            style={{ marginTop: '0.75rem' }}
+                                                        >
+                                                            {subscribing ? '🚀 Preparando...' : `Cambiar a ${PLAN_CATALOG[selectedPlan].label}`}
+                                                        </button>
+                                                    )}
                                                 </>
                                             )}
+                                            <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', opacity: 0.8 }}>
+                                                <div>• Staff: hasta {planLimits.maxStaff >= 9999 ? 'ilimitado' : planLimits.maxStaff}</div>
+                                                <div>• Campañas programadas: {planLimits.maxScheduledCampaigns >= 9999 ? 'ilimitadas' : planLimits.maxScheduledCampaigns}</div>
+                                                <div>• Exportación CSV: {planLimits.exportCsv ? 'incluida' : 'no incluida'}</div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -2204,16 +2272,53 @@ export default function ClientePanel() {
                                                 </select>
                                             </label>
                                             <label>
+                                                <span>Motores habilitados para tu plan</span>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.45rem', marginTop: '0.35rem' }}>
+                                                    {PROGRAM_TYPE_VALUES.map((type) => {
+                                                        const checked = availableProgramTypes.includes(type)
+                                                        const disabled = selectedPlan === 'full'
+                                                            ? true
+                                                            : (!checked && reachedProgramChoiceLimit)
+                                                        return (
+                                                            <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', opacity: disabled ? 0.6 : 1 }}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={checked}
+                                                                    disabled={disabled}
+                                                                    onChange={() => {
+                                                                        if (selectedPlan === 'full') return
+                                                                        setSelectedProgramTypes((prev) => {
+                                                                            const current = normalizeProgramChoices(prev, selectedPlan)
+                                                                            if (current.includes(type)) {
+                                                                                const next = current.filter((t) => t !== type)
+                                                                                const ensured = next.length > 0 ? next : ['sellos']
+                                                                                if (!ensured.includes(configForm.tipo_programa as ProgramType)) {
+                                                                                    setConfigForm((prevForm) => ({ ...prevForm, tipo_programa: ensured[0] }))
+                                                                                }
+                                                                                return ensured
+                                                                            }
+                                                                            if (current.length >= planLimits.maxProgramChoices) return current
+                                                                            return [...current, type]
+                                                                        })
+                                                                    }}
+                                                                />
+                                                                <span>{PROGRAM_TYPE_LABELS[type]}</span>
+                                                            </label>
+                                                        )
+                                                    })}
+                                                </div>
+                                                {selectedPlan !== 'full' && (
+                                                    <small style={{ opacity: 0.75 }}>
+                                                        Puedes elegir hasta {planLimits.maxProgramChoices} motores en {PLAN_CATALOG[selectedPlan].label}.
+                                                    </small>
+                                                )}
+                                            </label>
+                                            <label>
                                                 <span>Motor de programa</span>
                                                 <select value={configForm.tipo_programa} onChange={e => setConfigForm({ ...configForm, tipo_programa: e.target.value })}>
-                                                    <option value="sellos">⭐ Tarjeta de Sellos</option>
-                                                    <option value="cashback">💰 Cashback</option>
-                                                    <option value="multipase">🎟️ Multipase</option>
-                                                    <option value="membresia">👑 Membresía VIP</option>
-                                                    <option value="descuento">📊 Descuento por Niveles</option>
-                                                    <option value="cupon">🎫 Cupón</option>
-                                                    <option value="regalo">🎁 Gift Card</option>
-                                                    <option value="afiliacion">📱 Afiliación</option>
+                                                    {availableProgramTypes.map((type) => (
+                                                        <option key={type} value={type}>{PROGRAM_TYPE_LABELS[type]}</option>
+                                                    ))}
                                                 </select>
                                             </label>
                                             {configForm.tipo_programa === 'cashback' && (
@@ -2455,7 +2560,11 @@ export default function ClientePanel() {
                                     <h3>💳 Plan</h3>
                                     <div className="cliente-config-item">
                                         <span>Plan actual:</span>
-                                        <strong>{tenant.plan === 'trial' ? 'Trial Gratuito' : 'Activo'}</strong>
+                                        <strong>{tenant.plan === 'trial' ? `Trial (${PLAN_CATALOG[selectedPlan].label})` : PLAN_CATALOG[effectivePlan].label}</strong>
+                                    </div>
+                                    <div className="cliente-config-item">
+                                        <span>Precio mensual:</span>
+                                        <strong>${PLAN_CATALOG[effectivePlan].monthlyPrice.toLocaleString('es-CL')}</strong>
                                     </div>
                                     {tenant.plan === 'trial' && (
                                         <div className="cliente-config-item">

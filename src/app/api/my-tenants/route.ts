@@ -15,7 +15,7 @@ export async function GET() {
         // 2. Buscar todos los tenants asociados a su ID
         const { data: tenants, error: dbError } = await supabase
             .from('tenants')
-            .select('id, nombre, slug, color_primario, estado, plan, trial_hasta, logo_url')
+            .select('id, nombre, slug, color_primario, estado, plan, selected_plan, selected_program_types, trial_hasta, logo_url')
             .eq('auth_user_id', user.id)
             .order('nombre', { ascending: true });
 

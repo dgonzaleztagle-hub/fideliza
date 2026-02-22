@@ -2,12 +2,14 @@
 
 import React from 'react'
 import { AlertCircle, MessageCircle, Clock } from 'lucide-react'
+import { PLAN_CATALOG, getEffectiveBillingPlan } from '@/lib/plans'
 
 interface StatusAlertProps {
     tenant: {
         nombre: string
         slug: string
         plan: string
+        selected_plan?: string | null
         trial_hasta?: string
         estado: string
     }
@@ -17,6 +19,7 @@ interface StatusAlertProps {
 
 export default function StatusAlert({ tenant, onUpgrade, supportLink }: StatusAlertProps) {
     const isTrial = tenant.plan === 'trial'
+    const planObjetivo = getEffectiveBillingPlan(tenant.plan, tenant.selected_plan)
     const isPausado = tenant.estado === 'pausado'
     const trialHasta = tenant.trial_hasta ? new Date(tenant.trial_hasta) : null
     const hoy = new Date()
@@ -47,11 +50,11 @@ export default function StatusAlert({ tenant, onUpgrade, supportLink }: StatusAl
                         </>
                     ) : isVencido ? (
                         <>
-                            <strong>Trial Finalizado.</strong> Tu periodo de prueba ha terminado. Haz click aquí para activar tu plan Pro.
+                            <strong>Trial Finalizado.</strong> Tu periodo de prueba ha terminado. Activa {PLAN_CATALOG[planObjetivo].label} para continuar.
                         </>
                     ) : (
                         <>
-                            <strong>Periodo de Prueba Activo.</strong> Te quedan {diasRestantes} días. Activa tu plan Pro para no interrumpir servicio.
+                            <strong>Periodo de Prueba Activo.</strong> Te quedan {diasRestantes} días. Activa {PLAN_CATALOG[planObjetivo].label} para no interrumpir servicio.
                         </>
                     )}
                 </div>

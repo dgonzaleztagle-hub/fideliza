@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireTenantOwnerById } from '@/lib/authz'
+import { PLAN_CATALOG, getEffectiveBillingPlan } from '@/lib/plans'
 
 // GET /api/notifications/scheduled?tenant_id=...
 // POST /api/notifications/scheduled
@@ -43,6 +44,26 @@ export async function POST(req: NextRequest) {
 
         const owner = await requireTenantOwnerById(tenant_id)
         if (!owner.ok) return owner.response
+
+        const { data: tenantPlan } = await supabase
+            .from('tenants')
+            .select('plan, selected_plan')
+            .eq('id', tenant_id)
+            .maybeSingle()
+        const effectivePlan = getEffectiveBillingPlan(tenantPlan?.plan, tenantPlan?.selected_plan)
+        const maxCampaigns = PLAN_CATALOG[effectivePlan].limits.maxScheduledCampaigns
+        const { count: currentCampaigns } = await supabase
+            .from('scheduled_campaigns')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenant_id)
+            .in('estado', ['pendiente', 'enviada'])
+
+        if ((currentCampaigns || 0) >= maxCampaigns) {
+            return NextResponse.json(
+                { error: `Tu plan permite hasta ${maxCampaigns} campañas programadas.` },
+                { status: 403 }
+            )
+        }
 
         const { data: campaign, error } = await supabase
             .from('scheduled_campaigns')

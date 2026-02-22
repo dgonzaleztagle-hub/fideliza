@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireSuperAdmin } from '@/lib/authz'
+import { PLAN_CATALOG } from '@/lib/plans'
 
 export async function GET() {
     const admin = await requireSuperAdmin()
@@ -42,12 +43,17 @@ export async function GET() {
 
         const statsPlan = {
             trial: tenantsData?.filter(t => t.plan === 'trial').length || 0,
+            pyme: tenantsData?.filter(t => t.plan === 'pyme').length || 0,
             pro: tenantsData?.filter(t => t.plan === 'pro' || t.plan === 'premium').length || 0,
+            full: tenantsData?.filter(t => t.plan === 'full').length || 0,
             pausados: tenantsData?.filter(t => t.estado === 'pausado').length || 0
         }
 
-        // 6. MRR Proyectado (en base a $34.990)
-        const mrrProyectado = statsPlan.pro * 34990
+        // 6. MRR Proyectado por plan
+        const mrrProyectado =
+            (statsPlan.pyme * PLAN_CATALOG.pyme.monthlyPrice) +
+            (statsPlan.pro * PLAN_CATALOG.pro.monthlyPrice) +
+            (statsPlan.full * PLAN_CATALOG.full.monthlyPrice)
 
         // 7. Clientes Activos (últimos 30 días)
         const hace30dias = new Date()

@@ -3,6 +3,7 @@ import { getSupabase } from '@/lib/supabase/admin'
 import { getOptionalAuthenticatedUser, requireTenantOwnerBySlug } from '@/lib/authz'
 import { isProgramType } from '@/lib/programTypes'
 import { normalizeBrandColor } from '@/lib/brandColor'
+import { getEffectiveBillingPlan, isBillingPlan, normalizeProgramChoices } from '@/lib/plans'
 
 type TenantRow = {
     id: string
@@ -14,6 +15,8 @@ type TenantRow = {
     telefono: string | null
     estado: string | null
     plan: string | null
+    selected_plan: string | null
+    selected_program_types: string[] | null
     trial_hasta: string | null
     logo_url: string | null
     color_primario: string | null
@@ -51,7 +54,7 @@ export async function GET(
         const findBySlug = async (value: string) => supabase
             .from('tenants')
             .select(`
-                id, nombre, slug, rubro, direccion, email, telefono, estado, plan, trial_hasta,
+                id, nombre, slug, rubro, direccion, email, telefono, estado, plan, selected_plan, selected_program_types, trial_hasta,
                 logo_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
                 validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
             `)
@@ -70,7 +73,7 @@ export async function GET(
             const { data: byName } = await supabase
                 .from('tenants')
                 .select(`
-                    id, nombre, slug, rubro, direccion, email, telefono, estado, plan, trial_hasta,
+                    id, nombre, slug, rubro, direccion, email, telefono, estado, plan, selected_plan, selected_program_types, trial_hasta,
                     logo_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
                     validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
                 `)
@@ -147,6 +150,8 @@ export async function GET(
                 telefono: tenant.telefono,
                 estado: tenant.estado,
                 plan: tenant.plan,
+                selected_plan: tenant.selected_plan,
+                selected_program_types: tenant.selected_program_types,
                 trial_hasta: tenant.trial_hasta,
                 logo_url: tenant.logo_url,
                 color_primario: tenant.color_primario,
@@ -185,6 +190,16 @@ export async function PUT(
         const ownerTenant = owner.tenant!
 
         const body = await req.json()
+        const { data: currentTenantPlan } = await supabase
+            .from('tenants')
+            .select('plan, selected_plan, selected_program_types')
+            .eq('id', ownerTenant.id)
+            .maybeSingle()
+
+        const effectiveSelectedPlan = getEffectiveBillingPlan(
+            currentTenantPlan?.plan,
+            isBillingPlan(body.selected_plan) ? body.selected_plan : currentTenantPlan?.selected_plan
+        )
 
         if (!body.nombre) {
             return NextResponse.json({ error: 'El nombre del negocio es obligatorio' }, { status: 400 })
@@ -194,6 +209,23 @@ export async function PUT(
         }
         if (body.program?.tipo_programa !== undefined && !isProgramType(body.program.tipo_programa)) {
             return NextResponse.json({ error: 'Tipo de programa inválido' }, { status: 400 })
+        }
+        if (body.selected_plan !== undefined && !isBillingPlan(body.selected_plan)) {
+            return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
+        }
+
+        const normalizedAllowedTypes = normalizeProgramChoices(
+            body.selected_program_types ?? currentTenantPlan?.selected_program_types,
+            effectiveSelectedPlan
+        )
+        if (
+            body.program?.tipo_programa !== undefined &&
+            !normalizedAllowedTypes.includes(body.program.tipo_programa)
+        ) {
+            return NextResponse.json(
+                { error: 'El motor seleccionado no está habilitado para este plan.' },
+                { status: 400 }
+            )
         }
 
         const tenantUpdates: Record<string, unknown> = {}
@@ -209,7 +241,9 @@ export async function PUT(
             'telefono',
             'google_business_url',
             'validation_pin',
-            'onboarding_completado'
+            'onboarding_completado',
+            'selected_plan',
+            'selected_program_types'
         ]
 
         for (const field of tenantFields) {
@@ -218,6 +252,12 @@ export async function PUT(
                     ? normalizeBrandColor(body[field])
                     : body[field]
             }
+        }
+        if (body.selected_plan !== undefined) {
+            tenantUpdates.selected_plan = body.selected_plan
+        }
+        if (body.selected_program_types !== undefined) {
+            tenantUpdates.selected_program_types = normalizedAllowedTypes
         }
 
         if (Object.keys(tenantUpdates).length > 0) {

@@ -60,7 +60,7 @@ El sistema genera un código QR único. El cliente lo muestra, tú lo canjeas de
                 question: '¿Cuánto cuesta Vuelve+?',
                 answer: `Vuelve+ tiene un <strong>periodo de prueba gratuito de 14 días</strong> donde puedes probar todas las funciones sin restricciones.
 
-Después del trial, puedes activar <strong>Vuelve+ Pro por $34.990/mes</strong> directamente desde tu panel con pago por Flow.
+Después del trial, puedes activar uno de los planes disponibles (Pyme, Pro o Full) directamente desde tu panel con pago por Flow.
 
 <em>Tip: Aprovecha el trial para configurar todo, invitar a tus primeros clientes y ver los resultados antes de decidir.</em>`
             }

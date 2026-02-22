@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireTenantOwnerById } from '@/lib/authz'
+import { PLAN_CATALOG, getEffectiveBillingPlan } from '@/lib/plans'
 
 export async function GET(req: NextRequest) {
     const supabase = getSupabase()
@@ -14,6 +15,19 @@ export async function GET(req: NextRequest) {
 
         const owner = await requireTenantOwnerById(tenant_id)
         if (!owner.ok) return owner.response
+
+        const { data: tenantPlan } = await supabase
+            .from('tenants')
+            .select('plan, selected_plan')
+            .eq('id', tenant_id)
+            .maybeSingle()
+        const effectivePlan = getEffectiveBillingPlan(tenantPlan?.plan, tenantPlan?.selected_plan)
+        if (!PLAN_CATALOG[effectivePlan].limits.exportCsv) {
+            return NextResponse.json(
+                { error: 'Tu plan actual no incluye exportación CSV.' },
+                { status: 403 }
+            )
+        }
 
         // Obtener clientes
         const { data: customers, error } = await supabase

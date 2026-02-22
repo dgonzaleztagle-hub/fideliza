@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { flowRequest } from '@/lib/flow';
 import { getSupabase } from '@/lib/supabase/admin';
+import { getEffectiveBillingPlan } from '@/lib/plans'
 
 export async function POST(req: Request) {
     try {
@@ -44,16 +45,19 @@ export async function POST(req: Request) {
 
             const { data: tenant } = await supabase
                 .from('tenants')
-                .select('id')
+                .select('id, pending_plan, selected_plan')
                 .eq('flow_subscription_id', subscriptionId)
                 .single();
 
             if (tenant) {
-                // 3. Activar el plan Pro
+                const paidPlan = getEffectiveBillingPlan(tenant.pending_plan, tenant.selected_plan)
+                // 3. Activar el plan pagado
                 await supabase
                     .from('tenants')
                     .update({
-                        plan: 'pro',
+                        plan: paidPlan,
+                        selected_plan: paidPlan,
+                        pending_plan: null,
                         estado: 'activo',
                         last_payment_date: new Date().toISOString(),
                         next_billing_date: result.next_billing_date // Proporcionado por Flow

@@ -21,7 +21,9 @@ interface AdminStats {
     totalPremios: number
     statsPlan: {
         trial: number
+        pyme: number
         pro: number
+        full: number
         pausados: number
     }
     mrrProyectado: number
@@ -164,7 +166,9 @@ export default function AdminPanel() {
                                         <span className="admin-stat-value accent">
                                             ${stats.mrrProyectado.toLocaleString('es-CL')}
                                         </span>
-                                        <span className="admin-stat-desc">En base a {stats.statsPlan.pro} planes Pro</span>
+                                        <span className="admin-stat-desc">
+                                            Basado en {stats.statsPlan.pyme} Pyme · {stats.statsPlan.pro} Pro · {stats.statsPlan.full} Full
+                                        </span>
                                     </div>
                                     <div className="admin-stat-card">
                                         <span className="admin-stat-label">Usuarios Activos (30d)</span>
@@ -176,7 +180,9 @@ export default function AdminPanel() {
                                         <span className="admin-stat-value">{stats.totalTenants}</span>
                                         <div className="admin-stat-mini">
                                             <span>{stats.statsPlan.trial} Trial</span>
+                                            <span>{stats.statsPlan.pyme} Pyme</span>
                                             <span>{stats.statsPlan.pro} Pro</span>
+                                            <span>{stats.statsPlan.full} Full</span>
                                         </div>
                                     </div>
                                     <div className="admin-stat-card">

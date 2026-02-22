@@ -3,9 +3,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { BILLING_PLAN_VALUES, PLAN_CATALOG, isBillingPlan, normalizeProgramChoices } from '@/lib/plans'
+import { ProgramType, PROGRAM_TYPE_VALUES } from '@/lib/programTypes'
 import './registro.css'
 
-type OnboardingStep = 'negocio' | 'tipo' | 'programa' | 'branding' | 'ubicacion' | 'listo'
+type OnboardingStep = 'negocio' | 'plan' | 'tipo' | 'programa' | 'branding' | 'ubicacion' | 'listo'
 type RegistroApiResult = {
     message?: string
     tenant?: { slug?: string; nombre?: string; qr_code?: string }
@@ -121,7 +123,27 @@ export default function RegistroForm() {
     const [direccion, setDireccion] = useState('')
 
     // Tipo de programa
+    const [selectedPlan, setSelectedPlan] = useState<'pyme' | 'pro' | 'full'>('pro')
+    const [selectedProgramTypes, setSelectedProgramTypes] = useState<string[]>(['sellos'])
     const [tipoPrograma, setTipoPrograma] = useState('sellos')
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        const planFromQuery = new URLSearchParams(window.location.search).get('plan')
+        if (isBillingPlan(planFromQuery)) {
+            setSelectedPlan(planFromQuery)
+        }
+    }, [])
+
+    useEffect(() => {
+        const normalized = normalizeProgramChoices(selectedProgramTypes, selectedPlan)
+        if (normalized.join('|') !== selectedProgramTypes.join('|')) {
+            setSelectedProgramTypes(normalized)
+        }
+        if (!normalized.includes(tipoPrograma as ProgramType)) {
+            setTipoPrograma(normalized[0])
+        }
+    }, [selectedPlan, selectedProgramTypes, tipoPrograma])
 
     // Programa - Sellos
     const [puntosMeta, setPuntosMeta] = useState(10)
@@ -301,6 +323,8 @@ export default function RegistroForm() {
                     tipo_premio: tipoPremio,
                     valor_premio: valorPremio,
                     tipo_programa: tipoPrograma,
+                    selected_plan: selectedPlan,
+                    selected_program_types: normalizeProgramChoices(selectedProgramTypes, selectedPlan),
                     config: buildProgramConfig(),
                     color_primario: colorPrimario,
                     logo_url: logoUrl || undefined,
@@ -400,10 +424,11 @@ export default function RegistroForm() {
 
     const steps: { key: OnboardingStep; label: string; number: number }[] = [
         { key: 'negocio', label: 'Tu negocio', number: 1 },
-        { key: 'tipo', label: 'Tipo', number: 2 },
-        { key: 'programa', label: 'Programa', number: 3 },
-        { key: 'branding', label: 'Diseño', number: 4 },
-        { key: 'ubicacion', label: 'Ubicación', number: 5 },
+        { key: 'plan', label: 'Plan', number: 2 },
+        { key: 'tipo', label: 'Motores', number: 3 },
+        { key: 'programa', label: 'Programa', number: 4 },
+        { key: 'branding', label: 'Diseño', number: 5 },
+        { key: 'ubicacion', label: 'Ubicación', number: 6 },
     ]
 
     const currentStepIndex = steps.findIndex(s => s.key === step)
@@ -569,7 +594,7 @@ export default function RegistroForm() {
                                     return
                                 }
                                 clearError()
-                                setStep('tipo')
+                                setStep('plan')
                             }}
                             disabled={!canContinueNegocio}
                         >
@@ -578,31 +603,121 @@ export default function RegistroForm() {
                     </div>
                 )}
 
-                {/* PASO 2: Tipo de programa */}
+                {/* PASO 2: Plan */}
+                {step === 'plan' && (
+                    <div className="registro-card registro-card-wide">
+                        <div className="registro-card-icon">💳</div>
+                        <h2>Elige tu plan desde ahora</h2>
+                        <p>Partes con 14 días de trial, pero defines desde ya el plan y alcance de motores.</p>
+
+                        <div className="registro-tipo-grid">
+                            {BILLING_PLAN_VALUES.map((planCode) => (
+                                <button
+                                    key={planCode}
+                                    className={`registro-tipo-card ${selectedPlan === planCode ? 'selected' : ''}`}
+                                    onClick={() => setSelectedPlan(planCode)}
+                                    type="button"
+                                >
+                                    <span className="registro-tipo-icon">💠</span>
+                                    <strong className="registro-tipo-nombre">{PLAN_CATALOG[planCode].label}</strong>
+                                    <p className="registro-tipo-desc">${PLAN_CATALOG[planCode].monthlyPrice.toLocaleString('es-CL')} / mes</p>
+                                    <span className="registro-tipo-ejemplo">
+                                        Hasta {PLAN_CATALOG[planCode].limits.maxProgramChoices >= PROGRAM_TYPE_VALUES.length
+                                            ? 'todos los motores'
+                                            : `${PLAN_CATALOG[planCode].limits.maxProgramChoices} motores`}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="registro-preview">
+                            <p className="registro-preview-label">Incluye en este plan:</p>
+                            <div className="registro-preview-card">
+                                • Geofencing incluido
+                                <br />
+                                • Staff: {PLAN_CATALOG[selectedPlan].limits.maxStaff >= 9999 ? 'Ilimitado' : PLAN_CATALOG[selectedPlan].limits.maxStaff}
+                                <br />
+                                • Campañas programadas: {PLAN_CATALOG[selectedPlan].limits.maxScheduledCampaigns >= 9999 ? 'Ilimitadas' : PLAN_CATALOG[selectedPlan].limits.maxScheduledCampaigns}
+                                <br />
+                                • Exportación CSV: {PLAN_CATALOG[selectedPlan].limits.exportCsv ? 'Sí' : 'No'}
+                            </div>
+                        </div>
+
+                        <div className="registro-btn-group">
+                            <button className="registro-btn-back" onClick={() => setStep('negocio')}>
+                                ← Atrás
+                            </button>
+                            <button className="registro-btn-next" onClick={() => setStep('tipo')}>
+                                Siguiente →
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* PASO 3: Motores habilitados */}
                 {step === 'tipo' && (
                     <div className="registro-card registro-card-wide">
                         <div className="registro-card-icon">🎯</div>
-                        <h2>¿Qué tipo de programa quieres?</h2>
-                        <p>Elige el que mejor se adapte a tu negocio. Puedes cambiarlo después.</p>
+                        <h2>Define los motores habilitados</h2>
+                        <p>
+                            {selectedPlan === 'full'
+                                ? 'En Full tienes todos los motores habilitados.'
+                                : `Puedes elegir hasta ${PLAN_CATALOG[selectedPlan].limits.maxProgramChoices} motores en ${PLAN_CATALOG[selectedPlan].label}.`}
+                        </p>
 
                         <div className="registro-tipo-grid">
                             {TIPOS_PROGRAMA.map((tipo) => (
                                 <button
                                     key={tipo.id}
                                     className={`registro-tipo-card ${tipoPrograma === tipo.id ? 'selected' : ''}`}
-                                    onClick={() => setTipoPrograma(tipo.id)}
+                                    onClick={() => {
+                                        const already = selectedProgramTypes.includes(tipo.id)
+                                        if (selectedPlan === 'full') {
+                                            setSelectedProgramTypes([...PROGRAM_TYPE_VALUES])
+                                            setTipoPrograma(tipo.id)
+                                            if (error) clearError()
+                                            return
+                                        }
+
+                                        if (!already && selectedProgramTypes.length >= PLAN_CATALOG[selectedPlan].limits.maxProgramChoices) {
+                                            setLocalError(`Tu plan permite hasta ${PLAN_CATALOG[selectedPlan].limits.maxProgramChoices} motores.`)
+                                            return
+                                        }
+
+                                        const next = already
+                                            ? selectedProgramTypes.filter((x) => x !== tipo.id)
+                                            : [...selectedProgramTypes, tipo.id]
+                                        const normalized = normalizeProgramChoices(next, selectedPlan)
+                                        setSelectedProgramTypes(normalized)
+                                        if (!normalized.includes(tipoPrograma as ProgramType)) {
+                                            setTipoPrograma(normalized[0])
+                                        } else if (!already) {
+                                            setTipoPrograma(tipo.id)
+                                        }
+                                        if (error) clearError()
+                                    }}
                                     type="button"
                                 >
                                     <span className="registro-tipo-icon">{tipo.icon}</span>
                                     <strong className="registro-tipo-nombre">{tipo.nombre}</strong>
                                     <p className="registro-tipo-desc">{tipo.descripcion}</p>
                                     <span className="registro-tipo-ejemplo">Ej: {tipo.ejemplo}</span>
+                                    <span className="registro-field-hint">
+                                        {selectedProgramTypes.includes(tipo.id) ? '✅ Habilitado' : '⬜ No habilitado'}
+                                    </span>
                                 </button>
                             ))}
                         </div>
 
+                        <div className="registro-preview">
+                            <p className="registro-preview-label">Motores seleccionados:</p>
+                            <div className="registro-preview-card">
+                                {normalizeProgramChoices(selectedProgramTypes, selectedPlan).map((id) => TIPOS_PROGRAMA.find((t) => t.id === id)?.nombre || id).join(' · ')}
+                            </div>
+                        </div>
+
                         <div className="registro-btn-group">
-                            <button className="registro-btn-back" onClick={() => setStep('negocio')}>
+                            <button className="registro-btn-back" onClick={() => setStep('plan')}>
                                 ← Atrás
                             </button>
                             <button className="registro-btn-next" onClick={() => setStep('programa')}>
@@ -1123,6 +1238,13 @@ export default function RegistroForm() {
                                             year: 'numeric'
                                         })
                                         : 'No disponible'}
+                                </span>
+                            </div>
+
+                            <div className="registro-success-item">
+                                <span className="registro-success-label">Plan seleccionado:</span>
+                                <span className="registro-success-value">
+                                    {PLAN_CATALOG[selectedPlan].label} · ${PLAN_CATALOG[selectedPlan].monthlyPrice.toLocaleString('es-CL')}/mes
                                 </span>
                             </div>
 

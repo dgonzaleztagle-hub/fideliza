@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import HeroLogin from './components/HeroLogin'
 import { Store, LayoutDashboard, Wallet, Mail, Instagram, Youtube, Linkedin, Facebook, Twitter } from 'lucide-react'
+import { PLAN_CATALOG } from '@/lib/plans'
 
 const TikTokIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -122,8 +123,8 @@ export default function Home() {
           </div>
           <div className="proof-divider" />
           <div className="proof-item">
-            <span className="proof-number">∞</span>
-            <span className="proof-label">Clientes ilimitados</span>
+            <span className="proof-number">3</span>
+            <span className="proof-label">Planes para escalar</span>
           </div>
           <div className="proof-divider" />
           <div className="proof-item">
@@ -273,47 +274,77 @@ export default function Home() {
         </div>
 
         <div className="pricing">
-          <div className="price-card">
-            <div className="price-card-ribbon">🚀 Lanzamiento</div>
-            <div className="price-top">
-              <h3>Plan Único</h3>
-              <p>Todo lo que necesitas para fidelizar</p>
+          {([
+            {
+              code: 'pyme' as const,
+              ribbon: '🟢 Nuevo',
+              title: PLAN_CATALOG.pyme.label,
+              desc: 'Ideal para empezar con foco y bajo costo.',
+              features: [
+                'Elige 1 motor de fidelización',
+                'Geofencing incluido',
+                'Hasta 2 personas de staff',
+                'Hasta 5 campañas programadas'
+              ]
+            },
+            {
+              code: 'pro' as const,
+              ribbon: '🚀 Recomendado',
+              title: PLAN_CATALOG.pro.label,
+              desc: 'El plan medio, flexible y con más potencia.',
+              features: [
+                'Elige hasta 4 motores',
+                'Analytics avanzado',
+                'Exportación CSV',
+                'Hasta 8 personas de staff'
+              ]
+            },
+            {
+              code: 'full' as const,
+              ribbon: '👑 Full',
+              title: PLAN_CATALOG.full.label,
+              desc: 'Todas las funcionalidades desbloqueadas.',
+              features: [
+                'Todos los motores habilitados',
+                'Sin límites operativos relevantes',
+                'Automatización total y soporte prioritario',
+                'Escalamiento completo'
+              ]
+            }
+          ]).map((plan) => (
+            <div key={plan.code} className={`price-card ${plan.code === 'pro' ? 'price-card-featured' : ''}`}>
+              <div className="price-card-ribbon">{plan.ribbon}</div>
+              <div className="price-top">
+                <h3>{plan.title}</h3>
+                <p>{plan.desc}</p>
+              </div>
+              <div className="price-amount-wrapper">
+                <div className="price-amount">
+                  <span className="price-currency">$</span>
+                  <span className="price-number">{PLAN_CATALOG[plan.code].monthlyPrice.toLocaleString('es-CL')}</span>
+                  <span className="price-period">/mes</span>
+                </div>
+              </div>
+              <ul className="price-features">
+                {plan.features.map((feature) => (
+                  <li key={feature}><span className="check">✓</span> {feature}</li>
+                ))}
+              </ul>
+              <Link href={`/registro?plan=${plan.code}`} className="btn btn-primary btn-lg btn-full">
+                Empezar con {plan.title}
+              </Link>
+              <p className="price-note">14 días gratis · Sin tarjeta de crédito para comenzar</p>
             </div>
-            <div className="price-amount-wrapper">
-              <div className="price-old">
-                $60.000
-              </div>
-              <div className="price-amount">
-                <span className="price-currency">$</span>
-                <span className="price-number">34.990</span>
-                <span className="price-period">/mes</span>
-              </div>
-            </div>
-            <ul className="price-features">
-              <li><span className="check">✓</span> Clientes ilimitados</li>
-              <li><span className="check">✓</span> QR personalizado</li>
-              <li><span className="check">✓</span> Google Wallet integrado</li>
-              <li><span className="check">✓</span> Geofencing incluido</li>
-              <li><span className="check">✓</span> Panel de estadísticas</li>
-              <li><span className="check">✓</span> Validación de premios por QR</li>
-              <li><span className="check">✓</span> Notificaciones automáticas</li>
-              <li><span className="check">✓</span> Soporte por WhatsApp</li>
-            </ul>
-            <Link href="/registro" className="btn btn-primary btn-lg btn-full">
-              Empezar 14 días gratis
-            </Link>
-            <p className="price-note">Sin tarjeta de crédito · Cancela cuando quieras</p>
-
-            <div className="payment-methods">
-              <div className="payment-secure">
-                <span className="lock-icon">🔒</span> Pagos seguros verificados por Flow
-              </div>
-              <div className="payment-brands">
-                <img src="https://cdn.worldvectorlogo.com/logos/webpay-1.svg" alt="Webpay Plus" className="payment-logo" style={{ filter: 'brightness(1.5)' }} />
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Mastercard_2019_logo.svg/1200px-Mastercard_2019_logo.svg.png" alt="Mastercard" className="payment-logo" />
-                <img src="https://cdn.worldvectorlogo.com/logos/visa.svg" alt="Visa" className="payment-logo" style={{ filter: 'brightness(1.5)' }} />
-              </div>
-            </div>
+          ))}
+        </div>
+        <div className="payment-methods" style={{ marginTop: '1rem' }}>
+          <div className="payment-secure">
+            <span className="lock-icon">🔒</span> Pagos seguros verificados por Flow
+          </div>
+          <div className="payment-brands">
+            <img src="https://cdn.worldvectorlogo.com/logos/webpay-1.svg" alt="Webpay Plus" className="payment-logo" style={{ filter: 'brightness(1.5)' }} />
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Mastercard_2019_logo.svg/1200px-Mastercard_2019_logo.svg.png" alt="Mastercard" className="payment-logo" />
+            <img src="https://cdn.worldvectorlogo.com/logos/visa.svg" alt="Visa" className="payment-logo" style={{ filter: 'brightness(1.5)' }} />
           </div>
         </div>
       </section>

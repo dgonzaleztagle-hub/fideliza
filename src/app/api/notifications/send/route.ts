@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireTenantOwnerById } from '@/lib/authz'
+import { PLAN_CATALOG, getEffectiveBillingPlan } from '@/lib/plans'
 
 // POST /api/notifications/send
 // Envía notificación manual a clientes vía Google Wallet
@@ -18,6 +19,23 @@ export async function POST(req: NextRequest) {
 
         const owner = await requireTenantOwnerById(tenant_id)
         if (!owner.ok) return owner.response
+
+        const { data: tenantPlan } = await supabase
+            .from('tenants')
+            .select('plan, selected_plan')
+            .eq('id', tenant_id)
+            .maybeSingle()
+        const effectivePlan = getEffectiveBillingPlan(tenantPlan?.plan, tenantPlan?.selected_plan)
+        const maxRecipients = PLAN_CATALOG[effectivePlan].limits.monthlyNotificationRecipients
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+        const { data: monthNotifications } = await supabase
+            .from('notifications')
+            .select('total_destinatarios')
+            .eq('tenant_id', tenant_id)
+            .gte('created_at', startOfMonth.toISOString())
+        const usedRecipients = (monthNotifications || []).reduce((sum, n) => sum + (n.total_destinatarios || 0), 0)
 
         // Buscar tenant
         const { data: tenant, error: tenantError } = await supabase
@@ -71,6 +89,14 @@ export async function POST(req: NextRequest) {
                 message: 'No hay clientes en este segmento',
                 enviadas: 0
             })
+        }
+
+        if (usedRecipients + customers.length > maxRecipients) {
+            const disponibles = Math.max(0, maxRecipients - usedRecipients)
+            return NextResponse.json(
+                { error: `Límite mensual alcanzado. Te quedan ${disponibles} envíos de destinatario este mes.` },
+                { status: 403 }
+            )
         }
 
         // Guardar la notificación en la tabla
