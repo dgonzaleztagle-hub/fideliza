@@ -36,7 +36,7 @@ END $$;
 DO $$
 DECLARE
     p record;
-    cmd text;
+    policy_cmd text;
     create_sql text;
 BEGIN
     FOR p IN
@@ -45,7 +45,7 @@ BEGIN
             tablename,
             policyname,
             permissive,
-            cmd,
+            cmd AS policy_cmd,
             roles,
             COALESCE(qual, '') AS qual,
             COALESCE(with_check, '') AS with_check
@@ -58,7 +58,7 @@ BEGIN
              OR COALESCE(with_check, '') ~* '\btrue\b'
           )
     LOOP
-        cmd := upper(p.cmd);
+        policy_cmd := upper(p.policy_cmd);
 
         EXECUTE format(
             'DROP POLICY IF EXISTS %I ON %I.%I',
@@ -71,12 +71,12 @@ BEGIN
             p.schemaname,
             p.tablename,
             p.permissive,
-            cmd
+            policy_cmd
         );
 
-        IF cmd = 'SELECT' OR cmd = 'DELETE' THEN
+        IF policy_cmd = 'SELECT' OR policy_cmd = 'DELETE' THEN
             create_sql := create_sql || ' USING (current_user = ''service_role'')';
-        ELSIF cmd = 'INSERT' THEN
+        ELSIF policy_cmd = 'INSERT' THEN
             create_sql := create_sql || ' WITH CHECK (current_user = ''service_role'')';
         ELSE
             -- UPDATE y ALL
@@ -119,4 +119,3 @@ BEGIN
         );
     END LOOP;
 END $$;
-
