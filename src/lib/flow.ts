@@ -8,7 +8,7 @@ interface FlowParams {
     [key: string]: string | number | boolean;
 }
 
-export async function flowRequest(endpoint: string, params: FlowParams, method: 'GET' | 'POST' = 'POST') {
+export async function flowRequest(endpoint: string, params: FlowParams, method: 'GET' | 'POST' = 'POST'): Promise<any> {
     if (!API_KEY || !SECRET_KEY || !BASE_URL) {
         throw new Error('Flow no está configurado correctamente (FLOW_API_KEY / FLOW_SECRET_KEY / FLOW_URL)')
     }
@@ -44,21 +44,42 @@ export async function flowRequest(endpoint: string, params: FlowParams, method: 
     }
 
     const url = `${BASE_URL}/${endpoint}`;
+    let response: Response;
 
     if (method === 'GET') {
         const queryString = new URLSearchParams(finalParams).toString();
-        const response = await fetch(`${url}?${queryString}`);
-        return await response.json();
+        response = await fetch(`${url}?${queryString}`);
     } else {
-        const response = await fetch(url, {
+        response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
             body: new URLSearchParams(finalParams).toString()
         });
-        return await response.json();
     }
+
+    const rawBody = await response.text();
+    let parsedBody: unknown = null;
+    try {
+        parsedBody = rawBody ? JSON.parse(rawBody) : null;
+    } catch {
+        parsedBody = { raw: rawBody };
+    }
+
+    if (!response.ok) {
+        const errorMessage =
+            typeof parsedBody === 'object' &&
+            parsedBody !== null &&
+            'message' in parsedBody &&
+            typeof (parsedBody as { message?: unknown }).message === 'string'
+                ? (parsedBody as { message: string }).message
+                : `Flow respondió HTTP ${response.status}`;
+
+        throw new Error(errorMessage);
+    }
+
+    return parsedBody;
 }
 
 // Crear una suscripción

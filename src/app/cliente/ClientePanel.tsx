@@ -486,11 +486,13 @@ export default function ClientePanel() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tenant_id: tenant.id })
             })
-            const data = await res.json()
+            const data = await res.json().catch(() => ({}))
             if (data.url) {
                 window.location.href = data.url
-            } else {
+            } else if (!res.ok) {
                 alert(`❌ Error: ${data.error || 'No se pudo iniciar la suscripción'}`)
+            } else {
+                alert(`❌ Error: ${data.error || 'Flow no devolvió el link de pago'}`)
             }
         } catch {
             alert('❌ Error de conexión con la pasarela de pagos')

@@ -41,8 +41,36 @@ export async function POST(req: Request) {
 
         const flowResult = await createSubscription(tenant.email, planId, urlCallback);
 
-        if (flowResult.error) {
-            return NextResponse.json({ error: flowResult.error.message }, { status: 400 });
+        if (typeof flowResult !== 'object' || flowResult === null) {
+            return NextResponse.json({ error: 'Respuesta inválida de Flow' }, { status: 502 });
+        }
+
+        const flowData = flowResult as {
+            error?: { message?: string };
+            code?: number | string;
+            message?: string;
+            subscriptionId?: string;
+            url?: string;
+            token?: string;
+        };
+
+        if (flowData.error?.message) {
+            return NextResponse.json({ error: flowData.error.message }, { status: 400 });
+        }
+
+        const flowCode = Number(flowData.code);
+        if (!Number.isNaN(flowCode) && flowCode !== 0) {
+            return NextResponse.json(
+                { error: flowData.message || `Flow rechazó la suscripción (código ${flowCode})` },
+                { status: 400 }
+            );
+        }
+
+        if (!flowData.url || !flowData.token) {
+            return NextResponse.json(
+                { error: flowData.message || 'Flow no devolvió URL de pago para continuar' },
+                { status: 502 }
+            );
         }
 
         // 3. Guardar el ID de suscripción temporal (o esperar al webhook)
@@ -50,13 +78,13 @@ export async function POST(req: Request) {
         await supabase
             .from('tenants')
             .update({
-                flow_subscription_id: flowResult.subscriptionId
+                flow_subscription_id: flowData.subscriptionId ?? null
             })
             .eq('id', tenant.id);
 
         return NextResponse.json({
-            url: flowResult.url,
-            token: flowResult.token
+            url: flowData.url,
+            token: flowData.token
         });
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Error interno'
