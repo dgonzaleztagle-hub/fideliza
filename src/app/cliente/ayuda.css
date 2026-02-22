@@ -125,21 +125,24 @@
 .ayuda-back {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    background: none;
-    border: none;
-    color: #6366f1;
-    font-size: 0.85rem;
-    font-weight: 600;
+    gap: 0.45rem;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    border-radius: 999px;
+    color: #c7d2fe;
+    font-size: 0.86rem;
+    font-weight: 700;
     cursor: pointer;
-    padding: 0.25rem 0;
+    padding: 0.45rem 0.9rem;
     margin-bottom: 1rem;
     font-family: inherit;
-    transition: opacity 0.2s;
+    transition: all 0.2s;
 }
 
 .ayuda-back:hover {
-    opacity: 0.7;
+    background: rgba(99, 102, 241, 0.25);
+    color: #eef2ff;
+    transform: translateY(-1px);
 }
 
 .ayuda-search-results {

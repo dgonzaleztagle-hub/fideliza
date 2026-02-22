@@ -182,6 +182,7 @@ export default function ClientePanel() {
         rubro: '',
         direccion: '',
         color_primario: '',
+        tipo_programa: 'sellos',
         mensaje_geofencing: '',
         lat: '',
         lng: '',
@@ -194,7 +195,9 @@ export default function ClientePanel() {
         marketing_welcome: '',
         marketing_birthday: '',
         marketing_winback: '',
-        marketing_review: ''
+        marketing_review: '',
+        referrals_enabled: true,
+        referrals_bonus_points: 1
     })
     const [saving, setSaving] = useState(false)
     const [saveMessage, setSaveMessage] = useState('')
@@ -250,6 +253,7 @@ export default function ClientePanel() {
     const [newStaffName, setNewStaffName] = useState('')
     const [newStaffPin, setNewStaffPin] = useState('')
     const [exporting, setExporting] = useState(false)
+    const SUPPORT_WA_LINK = "https://wa.me/56972739105?text=hola%20necesito%20soporte%20o%20pagar%20por%20transferencia%20en%20vuelve%2B"
 
     async function handleExportCSV() {
         if (!tenant) return
@@ -347,6 +351,7 @@ export default function ClientePanel() {
                 rubro: data.tenant.rubro || '',
                 direccion: data.tenant.direccion || '',
                 color_primario: data.tenant.color_primario || '#ff6b6b',
+                tipo_programa: data.program?.tipo_programa || 'sellos',
                 mensaje_geofencing: data.tenant.mensaje_geofencing || '',
                 lat: data.tenant.lat?.toString() || '',
                 lng: data.tenant.lng?.toString() || '',
@@ -359,7 +364,9 @@ export default function ClientePanel() {
                 marketing_welcome: data.program?.config?.marketing?.welcome_msg || '',
                 marketing_birthday: data.program?.config?.marketing?.birthday_msg || '',
                 marketing_winback: data.program?.config?.marketing?.winback_msg || '',
-                marketing_review: data.program?.config?.marketing?.review_msg || ''
+                marketing_review: data.program?.config?.marketing?.review_msg || '',
+                referrals_enabled: data.program?.config?.referrals?.enabled ?? true,
+                referrals_bonus_points: data.program?.config?.referrals?.bonus_points ?? 1
             })
         } catch {
             alert('No se encontró el negocio. Verifica el slug.')
@@ -530,6 +537,7 @@ export default function ClientePanel() {
                         puntos_meta: Number(configForm.puntos_meta),
                         descripcion_premio: configForm.descripcion_premio,
                         tipo_premio: configForm.tipo_premio,
+                        tipo_programa: configForm.tipo_programa,
                         valor_premio: configForm.valor_premio,
                         config: {
                             ...(program?.config || {}),
@@ -538,6 +546,10 @@ export default function ClientePanel() {
                                 birthday_msg: configForm.marketing_birthday,
                                 winback_msg: configForm.marketing_winback,
                                 review_msg: configForm.marketing_review
+                            },
+                            referrals: {
+                                enabled: Boolean(configForm.referrals_enabled),
+                                bonus_points: Math.max(1, Number(configForm.referrals_bonus_points) || 1)
                             }
                         }
                     }
@@ -642,6 +654,33 @@ export default function ClientePanel() {
         } catch (err) {
             console.error('Error adding staff:', err)
         }
+    }
+
+    const handleDeleteStaff = async (staffId: string, staffName: string) => {
+        if (!tenant) return
+        const ok = confirm(`¿Eliminar de forma definitiva a ${staffName}?`)
+        if (!ok) return
+        try {
+            const res = await fetch(`/api/staff?tenant_id=${tenant.id}&staff_id=${staffId}`, { method: 'DELETE' })
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) {
+                alert(`❌ ${data.error || 'No se pudo eliminar'}`)
+                return
+            }
+            setStaffList(prev => prev.filter(s => s.id !== staffId))
+        } catch {
+            alert('❌ Error de conexión al eliminar personal')
+        }
+    }
+
+    const handleOwnerLogout = async () => {
+        await supabase.auth.signOut()
+        setTenant(null)
+        setProgram(null)
+        setCustomers([])
+        setMyTenants([])
+        setNeedsSlug(true)
+        setAuthRequired(true)
     }
 
     const stopScanner = useCallback(() => {
@@ -983,13 +1022,13 @@ export default function ClientePanel() {
                 </button>
 
                 <a
-                    href="https://wa.me/56972739105?text=hola%20necesito%20pagar%20la%20suscripcion%20de%20vuelve%2B"
+                    href={SUPPORT_WA_LINK}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="cliente-blocked-btn"
                     style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.7)' }}
                 >
-                    💬 Contactar por WhatsApp
+                    💬 Soporte / Transferencia
                 </a>
 
                 <div className="cliente-blocked-trust">
@@ -1138,6 +1177,9 @@ export default function ClientePanel() {
                     <button className="cliente-refresh-btn" onClick={() => loadTenantData(tenant.slug)} disabled={loading}>
                         🔄 {loading ? 'Actualizando...' : 'Refrescar datos'}
                     </button>
+                    <button className="cliente-logout-btn" onClick={handleOwnerLogout}>
+                        🚪 Cerrar sesión
+                    </button>
                 </div>
             </aside>
 
@@ -1185,7 +1227,7 @@ export default function ClientePanel() {
 
                         {isRestricted ? <BlockedView /> : (
                             <>
-                                <StatusAlert tenant={tenant} />
+                                <StatusAlert tenant={tenant} onUpgrade={handleUpgrade} supportLink={SUPPORT_WA_LINK} />
 
                                 {/* 🧠 AI ADVISOR SECTION */}
                                 <div className="cliente-advisor-container">
@@ -1311,7 +1353,7 @@ export default function ClientePanel() {
                             </button>
                         </div>
 
-                        <StatusAlert tenant={tenant} />
+                        <StatusAlert tenant={tenant} onUpgrade={handleUpgrade} supportLink={SUPPORT_WA_LINK} />
 
                         <div className="cliente-searchbar">
                             <span className="cliente-search-icon">🔍</span>
@@ -1430,7 +1472,7 @@ export default function ClientePanel() {
                             <h1>QR y Canje de Premios</h1>
                             <p className="cliente-content-subtitle">Tu QR y validación de premios</p>
 
-                            <StatusAlert tenant={tenant} />
+                            <StatusAlert tenant={tenant} onUpgrade={handleUpgrade} supportLink={SUPPORT_WA_LINK} />
 
                             <div className="cliente-qr-section">
                                 <div className="cliente-qr-card">
@@ -1596,7 +1638,7 @@ export default function ClientePanel() {
                                     <p className="cliente-content-subtitle">Métricas avanzadas de tu programa</p>
                                 </div>
 
-                                <StatusAlert tenant={tenant} />
+                                <StatusAlert tenant={tenant} onUpgrade={handleUpgrade} supportLink={SUPPORT_WA_LINK} />
                                 <button className="cliente-edit-btn" onClick={loadAnalytics} disabled={loadingAnalytics}>
                                     🔄 {loadingAnalytics ? 'Cargando...' : 'Actualizar'}
                                 </button>
@@ -1940,7 +1982,6 @@ export default function ClientePanel() {
                                     <h1>Configuración</h1>
                                     <p className="cliente-content-subtitle">Ajustes de tu negocio y programa</p>
                                 </div>
-                                <StatusAlert tenant={tenant} />
                                 {!editingConfig ? (
                                     <button className="cliente-edit-btn" onClick={() => setEditingConfig(true)}>
                                         ✏️ Editar
@@ -1956,6 +1997,7 @@ export default function ClientePanel() {
                                     </div>
                                 )}
                             </div>
+                            <StatusAlert tenant={tenant} onUpgrade={handleUpgrade} supportLink={SUPPORT_WA_LINK} />
 
                             {saveMessage && (
                                 <div className={`cliente-toast ${saveMessage.includes('✅') ? 'toast-ok' : 'toast-err'}`}>
@@ -2069,6 +2111,19 @@ export default function ClientePanel() {
                                                     <option value="gratis">Gratis</option>
                                                     <option value="regalo">Regalo</option>
                                                     <option value="otro">Otro</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                <span>Motor de programa</span>
+                                                <select value={configForm.tipo_programa} onChange={e => setConfigForm({ ...configForm, tipo_programa: e.target.value })}>
+                                                    <option value="sellos">⭐ Tarjeta de Sellos</option>
+                                                    <option value="cashback">💰 Cashback</option>
+                                                    <option value="multipase">🎟️ Multipase</option>
+                                                    <option value="membresia">👑 Membresía VIP</option>
+                                                    <option value="descuento">📊 Descuento por Niveles</option>
+                                                    <option value="cupon">🎫 Cupón</option>
+                                                    <option value="regalo">🎁 Gift Card</option>
+                                                    <option value="afiliacion">📱 Afiliación</option>
                                                 </select>
                                             </label>
                                             <label>
@@ -2190,6 +2245,25 @@ export default function ClientePanel() {
                                                 <span>Google Review Link:</span>
                                                 <strong>{tenant.google_business_url ? 'Configurado ✅' : 'Sin configurar'}</strong>
                                             </div>
+                                            <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                <button
+                                                    type="button"
+                                                    className="cliente-edit-btn"
+                                                    onClick={() => setEditingConfig(true)}
+                                                >
+                                                    ✏️ Editar geolocalización
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="cliente-gps-btn"
+                                                    onClick={() => {
+                                                        setEditingConfig(true)
+                                                        setTimeout(() => detectarUbicacion(), 50)
+                                                    }}
+                                                >
+                                                    📍 Capturar ubicación real ahora
+                                                </button>
+                                            </div>
                                             {(!tenant.lat || !tenant.lng) && (
                                                 <p className="cliente-config-hint">
                                                     ⚠️ Configura las coordenadas para activar notificaciones por proximidad en Google Wallet.
@@ -2266,6 +2340,27 @@ export default function ClientePanel() {
                                                     />
                                                 </label>
                                             </div>
+                                            <div className="marketing-row">
+                                                <label>
+                                                    <span>🤝 Motor de referidos</span>
+                                                    <select
+                                                        value={configForm.referrals_enabled ? 'on' : 'off'}
+                                                        onChange={e => setConfigForm({ ...configForm, referrals_enabled: e.target.value === 'on' })}
+                                                    >
+                                                        <option value="on">Activado</option>
+                                                        <option value="off">Desactivado</option>
+                                                    </select>
+                                                </label>
+                                                <label>
+                                                    <span>🎁 Bono por referido (puntos)</span>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={configForm.referrals_bonus_points}
+                                                        onChange={e => setConfigForm({ ...configForm, referrals_bonus_points: Number(e.target.value) || 1 })}
+                                                    />
+                                                </label>
+                                            </div>
                                             <p className="cliente-config-hint">💡 Usa <strong>{"{negocio}"}</strong> y <strong>{"{nombre}"}</strong> para personalizar automáticamente.</p>
                                         </div>
                                     ) : (
@@ -2282,6 +2377,14 @@ export default function ClientePanel() {
                                                 <span>⭐ Reseña:</span>
                                                 <p>{configForm.marketing_review || 'Por defecto'}</p>
                                             </div>
+                                            <div className="m-item">
+                                                <span>🤝 Referidos:</span>
+                                                <p>
+                                                    {configForm.referrals_enabled
+                                                        ? `Activo (+${configForm.referrals_bonus_points} punto por referido)`
+                                                        : 'Desactivado'}
+                                                </p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -2293,7 +2396,7 @@ export default function ClientePanel() {
                 {
                     tab === 'ayuda' && (
                         <div className="cliente-content">
-                            <StatusAlert tenant={tenant} />
+                            <StatusAlert tenant={tenant} onUpgrade={handleUpgrade} supportLink={SUPPORT_WA_LINK} />
                             <AyudaPanel />
                         </div>
                     )
@@ -2362,8 +2465,17 @@ export default function ClientePanel() {
                                                         <strong>{s.nombre}</strong>
                                                         <span>{s.rol.toUpperCase()}</span>
                                                     </div>
-                                                    <div className={`staff-status ${s.activo ? 'status-active' : 'status-inactive'}`}>
-                                                        {s.activo ? '● Activo' : '○ Inactivo'}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                        <div className={`staff-status ${s.activo ? 'status-active' : 'status-inactive'}`}>
+                                                            {s.activo ? '● Activo' : '○ Inactivo'}
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            className="cliente-cancel-btn"
+                                                            onClick={() => handleDeleteStaff(s.id, s.nombre)}
+                                                        >
+                                                            Eliminar
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))}

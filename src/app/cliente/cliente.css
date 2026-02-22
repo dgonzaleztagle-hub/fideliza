@@ -129,6 +129,9 @@
 
 .cliente-sidebar-footer {
     margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
 }
 
 .cliente-refresh-btn {
@@ -152,6 +155,25 @@
 
 .cliente-refresh-btn:disabled {
     opacity: 0.5;
+}
+
+.cliente-logout-btn {
+    width: 100%;
+    padding: 0.6rem;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: var(--radius-sm);
+    color: #fecaca;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.cliente-logout-btn:hover {
+    background: rgba(239, 68, 68, 0.18);
+    color: #fff;
 }
 
 .cliente-nav-btn {

@@ -11,9 +11,11 @@ interface StatusAlertProps {
         trial_hasta?: string
         estado: string
     }
+    onUpgrade?: () => void
+    supportLink?: string
 }
 
-export default function StatusAlert({ tenant }: StatusAlertProps) {
+export default function StatusAlert({ tenant, onUpgrade, supportLink }: StatusAlertProps) {
     const isTrial = tenant.plan === 'trial'
     const isPausado = tenant.estado === 'pausado'
     const trialHasta = tenant.trial_hasta ? new Date(tenant.trial_hasta) : null
@@ -26,16 +28,12 @@ export default function StatusAlert({ tenant }: StatusAlertProps) {
 
     const isVencido = isTrial && diasRestantes <= 0
 
-    // WhatsApp Link
-    const waLink = "https://wa.me/56972739105?text=hola%20necesito%20pagar%20la%20suscripcion%20de%20vuelve%2B"
+    const waLink = supportLink || "https://wa.me/56972739105?text=hola%20necesito%20hablar%20con%20soporte%20de%20vuelve%2B"
 
     if (!isTrial && !isPausado) return null
 
     return (
-        <a
-            href={waLink}
-            target="_blank"
-            rel="noopener noreferrer"
+        <div
             className={`status-alert-banner ${isPausado || isVencido ? 'status-error' : 'status-warning'}`}
         >
             <div className="status-alert-content">
@@ -53,13 +51,25 @@ export default function StatusAlert({ tenant }: StatusAlertProps) {
                         </>
                     ) : (
                         <>
-                            <strong>Periodo de Prueba Activo.</strong> Te quedan {diasRestantes} días. Haz click aquí para asegurar tu servicio Pro.
+                            <strong>Periodo de Prueba Activo.</strong> Te quedan {diasRestantes} días. Activa tu plan Pro para no interrumpir servicio.
                         </>
                     )}
                 </div>
-                <div className="status-alert-whatsapp">
-                    <MessageCircle size={18} />
-                    <span>Contactar</span>
+                <div className="status-alert-actions">
+                    {onUpgrade && (
+                        <button type="button" className="status-alert-pay" onClick={onUpgrade}>
+                            💳 Pagar con Flow
+                        </button>
+                    )}
+                    <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="status-alert-whatsapp"
+                    >
+                        <MessageCircle size={18} />
+                        <span>Soporte / Transferencia</span>
+                    </a>
                 </div>
             </div>
 
@@ -78,12 +88,21 @@ export default function StatusAlert({ tenant }: StatusAlertProps) {
                     display: flex;
                     align-items: center;
                     gap: 0.75rem;
+                    justify-content: space-between;
                 }
 
                 .status-alert-text {
                     flex: 1;
                     font-size: 0.9rem;
                     line-height: 1.4;
+                }
+
+                .status-alert-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    flex-wrap: wrap;
+                    justify-content: flex-end;
                 }
 
                 .status-warning {
@@ -106,6 +125,17 @@ export default function StatusAlert({ tenant }: StatusAlertProps) {
                     background: rgba(239, 68, 68, 0.15);
                 }
 
+                .status-alert-pay {
+                    border: none;
+                    cursor: pointer;
+                    background: #0f766e;
+                    color: #fff;
+                    padding: 0.4rem 0.8rem;
+                    border-radius: 999px;
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                }
+
                 .status-alert-whatsapp {
                     display: flex;
                     align-items: center;
@@ -115,14 +145,24 @@ export default function StatusAlert({ tenant }: StatusAlertProps) {
                     border-radius: 20px;
                     font-size: 0.8rem;
                     font-weight: 700;
+                    text-decoration: none;
+                    color: inherit;
                 }
 
                 @media (max-width: 600px) {
+                    .status-alert-content {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                    .status-alert-actions {
+                        width: 100%;
+                        justify-content: flex-start;
+                    }
                     .status-alert-whatsapp span {
-                        display: none;
+                        display: inline;
                     }
                 }
             `}</style>
-        </a>
+        </div>
     )
 }

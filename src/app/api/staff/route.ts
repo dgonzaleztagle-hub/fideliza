@@ -75,3 +75,32 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: message }, { status: 500 })
     }
 }
+
+export async function DELETE(req: Request) {
+    try {
+        const { searchParams } = new URL(req.url)
+        const tenant_id = searchParams.get('tenant_id')
+        const staff_id = searchParams.get('staff_id')
+
+        if (!tenant_id || !staff_id) {
+            return NextResponse.json({ error: 'Faltan parámetros: tenant_id, staff_id' }, { status: 400 })
+        }
+
+        const owner = await requireTenantOwnerById(tenant_id)
+        if (!owner.ok) return owner.response
+
+        const supabase = getSupabase()
+        const { error } = await supabase
+            .from('staff_profiles')
+            .delete()
+            .eq('id', staff_id)
+            .eq('tenant_id', tenant_id)
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true })
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Error interno'
+        return NextResponse.json({ error: message }, { status: 500 })
+    }
+}
