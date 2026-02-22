@@ -66,10 +66,26 @@ interface StampResult {
     saldo?: number
 }
 
+interface ErrorMeta {
+    code: string
+    status?: number
+    requestId?: string
+    at: string
+    detail?: string
+}
+
+interface ApiErrorPayload {
+    error?: string
+    error_code?: string
+    request_id?: string
+    error_detail?: string
+}
+
 export default function QRPageClient({ tenant, program }: Props) {
     const [step, setStep] = useState<Step>('welcome')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [errorMeta, setErrorMeta] = useState<ErrorMeta | null>(null)
     const [result, setResult] = useState<StampResult | null>(null)
 
     const [nombre, setNombre] = useState('')
@@ -95,6 +111,18 @@ export default function QRPageClient({ tenant, program }: Props) {
     const cashbackPorcentaje = typeof program?.config?.porcentaje === 'number' ? program.config.porcentaje : 5
     const cuponPorcentaje = typeof program?.config?.descuento_porcentaje === 'number' ? program.config.descuento_porcentaje : 15
     const cantidadUsosPrograma = typeof program?.config?.cantidad_usos === 'number' ? program.config.cantidad_usos : 10
+
+    function clearErrorState() {
+        setError('')
+        setErrorMeta(null)
+    }
+
+    function buildRequestId(): string {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID()
+        }
+        return `qr-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    }
 
     // Capturar referrer de la URL
     useEffect(() => {
@@ -136,12 +164,16 @@ export default function QRPageClient({ tenant, program }: Props) {
     async function handleRegister(e: React.FormEvent) {
         e.preventDefault()
         setLoading(true)
-        setError('')
+        clearErrorState()
 
         try {
+            const requestId = buildRequestId()
             const regRes = await fetch('/api/customer/register', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-client-request-id': requestId
+                },
                 body: JSON.stringify({
                     tenant_id: tenant.id,
                     nombre,
@@ -152,12 +184,42 @@ export default function QRPageClient({ tenant, program }: Props) {
                 })
             })
 
-            const regData = await regRes.json()
-            if (!regRes.ok) throw new Error(regData.error || 'Error al registrar')
+            const raw = await regRes.text()
+            let regData: ApiErrorPayload = {}
+            if (raw) {
+                try {
+                    regData = JSON.parse(raw)
+                } catch {
+                    setError('El servidor respondió con un formato inválido. Reintenta.')
+                    setErrorMeta({
+                        code: `HTTP_${regRes.status}`,
+                        status: regRes.status,
+                        requestId,
+                        at: new Date().toLocaleString('es-CL')
+                    })
+                    return
+                }
+            }
+
+            if (!regRes.ok) {
+                setError(regData.error || 'Error al registrar cliente')
+                setErrorMeta({
+                    code: regData.error_code || `HTTP_${regRes.status}`,
+                    status: regRes.status,
+                    requestId: regData.request_id || requestId,
+                    at: new Date().toLocaleString('es-CL'),
+                    detail: regData.error_detail
+                })
+                return
+            }
 
             await handleStamp(whatsapp)
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Error inesperado')
+            setErrorMeta({
+                code: 'CLIENT_UNEXPECTED',
+                at: new Date().toLocaleString('es-CL')
+            })
             setLoading(false)
         }
     }
@@ -165,7 +227,7 @@ export default function QRPageClient({ tenant, program }: Props) {
     async function handleReturning(e: React.FormEvent) {
         e.preventDefault()
         setLoading(true)
-        setError('')
+        clearErrorState()
         await handleStamp(returningWhatsapp)
     }
 
@@ -217,7 +279,7 @@ export default function QRPageClient({ tenant, program }: Props) {
 
     async function handleStamp(wsp: string) {
         setLoading(true)
-        setError('')
+        clearErrorState()
         setLocationError('')
 
         try {
@@ -285,7 +347,7 @@ export default function QRPageClient({ tenant, program }: Props) {
     function resetState() {
         setStep('welcome')
         setResult(null)
-        setError('')
+        clearErrorState()
         setNombre('')
         setWhatsapp('')
         setEmail('')
@@ -582,8 +644,19 @@ export default function QRPageClient({ tenant, program }: Props) {
             <main className="qr-main">
                 {error && (
                     <div className="qr-error">
-                        <span>⚠️</span> {error}
-                        <button onClick={() => setError('')} className="qr-error-close">×</button>
+                        <div className="qr-error-content">
+                            <p className="qr-error-main">⚠️ {error}</p>
+                            {errorMeta && (
+                                <p className="qr-error-meta">
+                                    Código: <strong>{errorMeta.code}</strong>
+                                    {errorMeta.status ? ` | HTTP: ${errorMeta.status}` : ''}
+                                    {errorMeta.requestId ? ` | Ref: ${errorMeta.requestId}` : ''}
+                                    {` | Hora: ${errorMeta.at}`}
+                                    {errorMeta.detail ? ` | Detalle: ${errorMeta.detail}` : ''}
+                                </p>
+                            )}
+                        </div>
+                        <button onClick={clearErrorState} className="qr-error-close">×</button>
                     </div>
                 )}
 
