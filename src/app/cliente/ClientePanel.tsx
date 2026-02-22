@@ -18,6 +18,7 @@ interface TenantData {
     direccion: string | null
     logo_url: string | null
     card_background_url: string | null
+    card_background_overlay: number | null
     stamp_icon_url: string | null
     color_primario: string
     slug: string
@@ -227,6 +228,7 @@ export default function ClientePanel() {
         direccion: '',
         logo_url: '',
         card_background_url: '',
+        card_background_overlay: 0.22,
         stamp_icon_url: '',
         color_primario: '',
         tipo_programa: 'sellos',
@@ -413,6 +415,9 @@ export default function ClientePanel() {
                 direccion: data.tenant.direccion || '',
                 logo_url: data.tenant.logo_url || '',
                 card_background_url: data.tenant.card_background_url || '',
+                card_background_overlay: Number.isFinite(Number(data.tenant.card_background_overlay))
+                    ? Number(data.tenant.card_background_overlay)
+                    : 0.22,
                 stamp_icon_url: data.tenant.stamp_icon_url || '',
                 color_primario: data.tenant.color_primario || '#ff6b6b',
                 tipo_programa: data.program?.tipo_programa || 'sellos',
@@ -661,6 +666,7 @@ export default function ClientePanel() {
                     direccion: configForm.direccion,
                     logo_url: configForm.logo_url || null,
                     card_background_url: configForm.card_background_url || null,
+                    card_background_overlay: Math.max(0, Math.min(0.8, Number(configForm.card_background_overlay) || 0.22)),
                     stamp_icon_url: configForm.stamp_icon_url || null,
                     color_primario: configForm.color_primario,
                     mensaje_geofencing: configForm.mensaje_geofencing,
@@ -2313,6 +2319,21 @@ export default function ClientePanel() {
                                                 </div>
                                             </label>
                                             <label>
+                                                <span>Intensidad del fondo ({Math.round((Number(configForm.card_background_overlay) || 0.22) * 100)}%)</span>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="0.8"
+                                                    step="0.05"
+                                                    value={configForm.card_background_overlay}
+                                                    onChange={e => setConfigForm({ ...configForm, card_background_overlay: Number(e.target.value) })}
+                                                    disabled={!configForm.card_background_url}
+                                                />
+                                                <small style={{ opacity: 0.75 }}>
+                                                    0% casi oculto · 80% muy visible
+                                                </small>
+                                            </label>
+                                            <label>
                                                 <span>Icono de sello/stamp</span>
                                                 <input
                                                     type="text"
@@ -2341,8 +2362,9 @@ export default function ClientePanel() {
                                                     className={`cliente-card-preview-live ${configForm.card_background_url ? 'has-bg' : ''}`}
                                                     style={{
                                                         '--preview-color': configForm.color_primario || '#6366f1',
-                                                        '--preview-bg': configForm.card_background_url ? `url(${configForm.card_background_url})` : 'none'
-                                                    } as React.CSSProperties & Record<'--preview-color' | '--preview-bg', string>}
+                                                        '--preview-bg': configForm.card_background_url ? `url(${configForm.card_background_url})` : 'none',
+                                                        '--preview-bg-opacity': String(Math.max(0, Math.min(0.8, Number(configForm.card_background_overlay) || 0.22)))
+                                                    } as React.CSSProperties & Record<'--preview-color' | '--preview-bg' | '--preview-bg-opacity', string>}
                                                 >
                                                     <div className="cliente-card-preview-live-header">
                                                         {configForm.logo_url ? (
@@ -2398,6 +2420,9 @@ export default function ClientePanel() {
                                                 <span>Fondo tarjeta:</span> <strong>{tenant.card_background_url ? 'Configurado ✅' : 'Sin fondo'}</strong>
                                             </div>
                                             <div className="cliente-config-item">
+                                                <span>Intensidad fondo:</span> <strong>{Math.round((Number(configForm.card_background_overlay) || 0.22) * 100)}%</strong>
+                                            </div>
+                                            <div className="cliente-config-item">
                                                 <span>Stamp personalizado:</span> <strong>{tenant.stamp_icon_url ? 'Configurado ✅' : 'Sin stamp'}</strong>
                                             </div>
                                             <div className="cliente-card-preview-live-wrap" style={{ marginTop: '0.7rem' }}>
@@ -2406,8 +2431,9 @@ export default function ClientePanel() {
                                                     className={`cliente-card-preview-live ${configForm.card_background_url ? 'has-bg' : ''}`}
                                                     style={{
                                                         '--preview-color': configForm.color_primario || '#6366f1',
-                                                        '--preview-bg': configForm.card_background_url ? `url(${configForm.card_background_url})` : 'none'
-                                                    } as React.CSSProperties & Record<'--preview-color' | '--preview-bg', string>}
+                                                        '--preview-bg': configForm.card_background_url ? `url(${configForm.card_background_url})` : 'none',
+                                                        '--preview-bg-opacity': String(Math.max(0, Math.min(0.8, Number(configForm.card_background_overlay) || 0.22)))
+                                                    } as React.CSSProperties & Record<'--preview-color' | '--preview-bg' | '--preview-bg-opacity', string>}
                                                 >
                                                     <div className="cliente-card-preview-live-header">
                                                         {configForm.logo_url ? (

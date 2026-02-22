@@ -21,6 +21,7 @@ interface TarjetaData {
         slug: string
         logo_url: string | null
         card_background_url: string | null
+        card_background_overlay: number | null
         stamp_icon_url: string | null
         color_primario: string
         rubro: string | null
@@ -367,7 +368,10 @@ export default function MiTarjetaClient() {
                                 className={`mt-card ${tarjeta.negocio?.card_background_url ? 'mt-card-has-bg' : ''}`}
                                 style={{
                                     '--card-color': tarjeta.negocio?.color_primario || '#6366f1',
-                                    '--card-bg-image': tarjeta.negocio?.card_background_url ? `url(${tarjeta.negocio.card_background_url})` : 'none'
+                                    '--card-bg-image': tarjeta.negocio?.card_background_url ? `url(${tarjeta.negocio.card_background_url})` : 'none',
+                                    '--card-bg-opacity': String(
+                                        Math.max(0, Math.min(0.8, Number(tarjeta.negocio?.card_background_overlay ?? 0.22)))
+                                    )
                                 } as React.CSSProperties}
                             >
                                 <div className="mt-card-header">

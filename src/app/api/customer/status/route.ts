@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
         const tenantWithAssets = await supabase
             .from('tenants')
-            .select('id, nombre, slug, logo_url, card_background_url, stamp_icon_url, color_primario, rubro')
+            .select('id, nombre, slug, logo_url, card_background_url, card_background_overlay, stamp_icon_url, color_primario, rubro')
             .eq('slug', normalizedTenantSlug)
             .single()
         let tenant = tenantWithAssets.data
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
                 .eq('slug', normalizedTenantSlug)
                 .single()
             tenant = tenantLegacy.data
-                ? { ...tenantLegacy.data, card_background_url: null, stamp_icon_url: null }
+                ? { ...tenantLegacy.data, card_background_url: null, card_background_overlay: 0.22, stamp_icon_url: null }
                 : null
         }
 
@@ -116,6 +116,7 @@ export async function GET(req: NextRequest) {
                     slug: tenant.slug,
                     logo_url: tenant.logo_url,
                     card_background_url: tenant.card_background_url,
+                    card_background_overlay: tenant.card_background_overlay,
                     stamp_icon_url: tenant.stamp_icon_url,
                     color_primario: tenant.color_primario,
                     rubro: tenant.rubro

@@ -193,7 +193,7 @@ body {
     background-image: var(--card-bg-image);
     background-size: cover;
     background-position: center;
-    opacity: 0.22;
+    opacity: var(--card-bg-opacity, 0.22);
     pointer-events: none;
 }
 

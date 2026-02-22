@@ -20,6 +20,7 @@ type TenantRow = {
     trial_hasta: string | null
     logo_url: string | null
     card_background_url: string | null
+    card_background_overlay: number | null
     stamp_icon_url: string | null
     color_primario: string | null
     lat: number | null
@@ -55,7 +56,7 @@ export async function GET(
 
         const tenantSelectWithAssets = `
             id, nombre, slug, rubro, direccion, email, telefono, estado, plan, selected_plan, selected_program_types, trial_hasta,
-            logo_url, card_background_url, stamp_icon_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
+            logo_url, card_background_url, card_background_overlay, stamp_icon_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
             validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
         `
         const tenantSelectLegacy = `
@@ -73,6 +74,7 @@ export async function GET(
             if (!withAssets.error) return withAssets
             const looksMissingAssetCols = withAssets.error.code === '42703'
                 || `${withAssets.error.message || ''} ${withAssets.error.details || ''}`.includes('card_background_url')
+                || `${withAssets.error.message || ''} ${withAssets.error.details || ''}`.includes('card_background_overlay')
                 || `${withAssets.error.message || ''} ${withAssets.error.details || ''}`.includes('stamp_icon_url')
             if (!looksMissingAssetCols) return withAssets
 
@@ -82,7 +84,7 @@ export async function GET(
                 .eq('slug', value)
                 .maybeSingle()
             if (legacy.data) {
-                return { ...legacy, data: { ...legacy.data, card_background_url: null, stamp_icon_url: null } }
+                return { ...legacy, data: { ...legacy.data, card_background_url: null, card_background_overlay: 0.22, stamp_icon_url: null } }
             }
             return legacy
         }
@@ -112,7 +114,7 @@ export async function GET(
                     .order('created_at', { ascending: false })
                     .limit(1)
                     .maybeSingle()
-                byName = byNameLegacy.data ? { ...byNameLegacy.data, card_background_url: null, stamp_icon_url: null } : null
+                byName = byNameLegacy.data ? { ...byNameLegacy.data, card_background_url: null, card_background_overlay: 0.22, stamp_icon_url: null } : null
             }
             tenant = (byName as TenantRow | null) || null
         }
@@ -142,6 +144,7 @@ export async function GET(
                     estado: tenant.estado,
                     logo_url: tenant.logo_url,
                     card_background_url: tenant.card_background_url,
+                    card_background_overlay: tenant.card_background_overlay,
                     stamp_icon_url: tenant.stamp_icon_url,
                     color_primario: tenant.color_primario,
                     mensaje_geofencing: tenant.mensaje_geofencing,
@@ -190,6 +193,7 @@ export async function GET(
                 trial_hasta: tenant.trial_hasta,
                 logo_url: tenant.logo_url,
                 card_background_url: tenant.card_background_url,
+                card_background_overlay: tenant.card_background_overlay,
                 stamp_icon_url: tenant.stamp_icon_url,
                 color_primario: tenant.color_primario,
                 lat: tenant.lat,
@@ -258,6 +262,12 @@ export async function PUT(
                 return NextResponse.json({ error: `${imageField} no es una URL válida` }, { status: 400 })
             }
         }
+        if (body.card_background_overlay !== undefined) {
+            const parsedOverlay = Number(body.card_background_overlay)
+            if (!Number.isFinite(parsedOverlay) || parsedOverlay < 0 || parsedOverlay > 0.8) {
+                return NextResponse.json({ error: 'card_background_overlay debe estar entre 0 y 0.8' }, { status: 400 })
+            }
+        }
 
         const normalizedAllowedTypes = normalizeProgramChoices(
             body.selected_program_types ?? currentTenantPlan?.selected_program_types,
@@ -280,6 +290,7 @@ export async function PUT(
             'direccion',
             'logo_url',
             'card_background_url',
+            'card_background_overlay',
             'stamp_icon_url',
             'color_primario',
             'lat',
@@ -317,10 +328,12 @@ export async function PUT(
             if (error) {
                 const looksLikeMissingAssetCols = error.code === '42703'
                     || `${error.message || ''} ${error.details || ''}`.includes('card_background_url')
+                    || `${error.message || ''} ${error.details || ''}`.includes('card_background_overlay')
                     || `${error.message || ''} ${error.details || ''}`.includes('stamp_icon_url')
                 if (looksLikeMissingAssetCols) {
                     const fallbackUpdates = { ...tenantUpdates }
                     delete fallbackUpdates.card_background_url
+                    delete fallbackUpdates.card_background_overlay
                     delete fallbackUpdates.stamp_icon_url
                     const fallback = await supabase
                         .from('tenants')

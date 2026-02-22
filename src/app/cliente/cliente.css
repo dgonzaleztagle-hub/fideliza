@@ -1425,7 +1425,7 @@
     background-image: var(--preview-bg);
     background-size: cover;
     background-position: center;
-    opacity: 0.32;
+    opacity: var(--preview-bg-opacity, 0.32);
 }
 
 .cliente-card-preview-live>* {

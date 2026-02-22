@@ -21,6 +21,7 @@ function looksLikeMissingTenantPlanColumns(error: unknown): boolean {
         || haystack.includes('selected_plan')
         || haystack.includes('selected_program_types')
         || haystack.includes('card_background_url')
+        || haystack.includes('card_background_overlay')
         || haystack.includes('stamp_icon_url')
 }
 
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
             lng,
             logo_url,
             card_background_url,
+            card_background_overlay,
             stamp_icon_url,
             color_primario,
             mensaje_geofencing,
@@ -103,6 +105,10 @@ export async function POST(req: NextRequest) {
             : ''
         const normalizedLogoUrl = typeof logo_url === 'string' ? logo_url.trim() : ''
         const normalizedCardBackgroundUrl = typeof card_background_url === 'string' ? card_background_url.trim() : ''
+        const rawCardBackgroundOverlay = toOptionalNumber(card_background_overlay)
+        const normalizedCardBackgroundOverlay = rawCardBackgroundOverlay === null
+            ? 0.22
+            : Math.max(0, Math.min(0.8, rawCardBackgroundOverlay))
         const normalizedStampIconUrl = typeof stamp_icon_url === 'string' ? stamp_icon_url.trim() : ''
         const parsedLat = toOptionalNumber(lat)
         const parsedLng = toOptionalNumber(lng)
@@ -472,6 +478,7 @@ export async function POST(req: NextRequest) {
             lng: parsedLng ?? null,
             logo_url: normalizedLogoUrl || null,
             card_background_url: normalizedCardBackgroundUrl || null,
+            card_background_overlay: normalizedCardBackgroundOverlay,
             stamp_icon_url: normalizedStampIconUrl || null,
             color_primario: normalizeBrandColor(color_primario),
             mensaje_geofencing: normalizedGeoMessage || '¡Estás cerca! Pasa a sumar puntos 🎉',
