@@ -7,6 +7,39 @@ type StampAnalyticsRow = {
     created_at: string | null
 }
 
+const ANALYTICS_TIMEZONE = process.env.ANALYTICS_TIMEZONE || 'America/Santiago'
+const WEEKDAY_INDEX: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6
+}
+
+function getDayHourInTimezone(value: string, timeZone: string): { day: number; hour: number } | null {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return null
+
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        weekday: 'short',
+        hour: '2-digit',
+        hourCycle: 'h23'
+    }).formatToParts(date)
+
+    const weekday = parts.find((p) => p.type === 'weekday')?.value
+    const hourRaw = parts.find((p) => p.type === 'hour')?.value
+    if (!weekday || !hourRaw) return null
+
+    const day = WEEKDAY_INDEX[weekday]
+    const hour = Number(hourRaw)
+    if (!Number.isInteger(day) || !Number.isFinite(hour) || hour < 0 || hour > 23) return null
+
+    return { day, hour }
+}
+
 // GET /api/analytics/[slug]
 // Analytics avanzados del negocio
 export async function GET(
@@ -158,19 +191,9 @@ export async function GET(
 
                     ;(stampsData as StampAnalyticsRow[] | null)?.forEach((s) => {
                         if (!s.created_at) return
-                        const d = new Date(s.created_at)
-                        // Ajustar a hora local Chile (UTC-4/-3) si es necesario, 
-                        // pero created_at viene en UTC. El cliente lo verá en su hora local.
-                        // Para simplificar, asumiremos que la visualización maneja la zona horaria 
-                        // o procesamos aquí offset. Usaremos UTC por consistencia con fecha servidor.
-
-                        // Mejor estrategia: Usar hora del servidor (UTC) y que el cliente detecte.
-                        // PERO, para analytics de negocio, suele ser mejor la hora local del negocio.
-                        // Asumiremos UTC-3 (Chile) por ahora hardcoded o UTC.
-                        // Usaremos getUTCDay() y getUTCHours() para estandarizar.
-
-                        const day = d.getDay() // 0-6 local time (donde corre el server)
-                        const hour = d.getHours() // 0-23 local time
+                        const zoned = getDayHourInTimezone(s.created_at, ANALYTICS_TIMEZONE)
+                        if (!zoned) return
+                        const { day, hour } = zoned
 
                         const key = `${day}-${hour}`
                         map[key] = (map[key] || 0) + 1

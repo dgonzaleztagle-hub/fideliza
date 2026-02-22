@@ -1108,7 +1108,7 @@ export default function ClientePanel() {
                     onClick={handleUpgrade}
                     disabled={subscribing}
                 >
-                    {subscribing ? '🚀 Procesando...' : '💳 Pague Aquí (Activar Plan)'}
+                    {subscribing ? '🚀 Procesando...' : '💳 Pagar con Flow (Activar Plan)'}
                 </button>
 
                 <a
@@ -1256,7 +1256,7 @@ export default function ClientePanel() {
                                 setMobileMenuOpen(false)
                                 if (item.key === 'personal') loadStaff()
                             }}
-                            title={item.hidden ? 'Ocupas pago para acceder' : ''}
+                            title={item.hidden ? 'Necesitas plan activo para acceder' : ''}
                         >
                             <span>{item.icon}</span> {item.label}
                         </button>
