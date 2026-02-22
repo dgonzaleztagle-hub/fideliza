@@ -1239,12 +1239,7 @@ export default function ClientePanel() {
         </div>
     )
 
-    const hasProgramConfigured = Boolean(
-        program?.tipo_programa &&
-        (program?.puntos_meta ?? 0) > 0 &&
-        program?.descripcion_premio
-    )
-    const shouldShowSetupWizard = Boolean(tenant) && !tenant?.onboarding_completado && !hasProgramConfigured
+    const shouldShowSetupWizard = Boolean(tenant) && !tenant?.onboarding_completado
     const effectivePlan = tenant ? getEffectiveBillingPlan(tenant.plan, tenant.selected_plan) : 'pro'
     const planLimits = PLAN_CATALOG[selectedPlan].limits
     const availableProgramTypes = normalizeProgramChoices(selectedProgramTypes, selectedPlan)
@@ -1258,6 +1253,8 @@ export default function ClientePanel() {
                 <SetupWizard
                     tenant={tenant}
                     program={program}
+                    selectedPlan={selectedPlan}
+                    selectedProgramTypes={selectedProgramTypes}
                     onComplete={() => loadTenantData(tenant.slug)}
                 />
             )}

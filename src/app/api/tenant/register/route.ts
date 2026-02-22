@@ -451,7 +451,7 @@ export async function POST(req: NextRequest) {
             plan: 'trial',
             trial_hasta: trialHasta.toISOString(),
             estado: 'activo',
-            onboarding_completado: true
+            onboarding_completado: false
         }
 
         let { data: tenant, error: tenantError } = await supabase

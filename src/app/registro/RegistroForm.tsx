@@ -419,12 +419,7 @@ export default function RegistroForm() {
     }
 
     const steps: { key: OnboardingStep; label: string; number: number }[] = [
-        { key: 'negocio', label: 'Tu negocio', number: 1 },
-        { key: 'plan', label: 'Plan', number: 2 },
-        { key: 'tipo', label: 'Motores', number: 3 },
-        { key: 'programa', label: 'Programa', number: 4 },
-        { key: 'branding', label: 'Diseño', number: 5 },
-        { key: 'ubicacion', label: 'Ubicación', number: 6 },
+        { key: 'negocio', label: 'Crear cuenta', number: 1 }
     ]
 
     const currentStepIndex = steps.findIndex(s => s.key === step)
@@ -488,7 +483,7 @@ export default function RegistroForm() {
                     <div className="registro-card">
                         <div className="registro-card-icon">🏪</div>
                         <h2>Cuéntanos de tu negocio</h2>
-                        <p>La info básica para crear tu cuenta</p>
+                        <p>Solo la info basica para crear tu cuenta. El resto lo configuras en el panel con wizard guiado.</p>
 
                         <div className="registro-field">
                             <label>Nombre del negocio *</label>
@@ -601,15 +596,13 @@ export default function RegistroForm() {
                         <button
                             className="registro-btn-next"
                             onClick={() => {
-                                if (!validateNegocioStep()) {
-                                    return
-                                }
+                                if (!validateNegocioStep()) return
                                 clearError()
-                                setStep('plan')
+                                handleSubmit()
                             }}
                             disabled={loading}
                         >
-                            Siguiente →
+                            {loading ? 'Creando cuenta...' : 'Crear cuenta y entrar al panel'}
                         </button>
                     </div>
                 )}
