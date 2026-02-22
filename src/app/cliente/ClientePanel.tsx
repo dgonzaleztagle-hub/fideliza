@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import AyudaPanel from './AyudaPanel'
 import StatusAlert from '@/components/cliente/StatusAlert'
 import { generateAdvisorInsights, Insight } from '@/lib/advisor'
+import { createClient } from '@/lib/supabase/client'
 import './cliente.css'
 import './ayuda.css'
 import SetupWizard from '@/app/components/SetupWizard'
@@ -140,12 +141,18 @@ function formatProgramTypeLabel(tipo?: string | null) {
 }
 
 export default function ClientePanel() {
+    const supabase = useMemo(() => createClient(), [])
     const [tab, setTab] = useState<Tab>('dashboard')
     const [loading, setLoading] = useState(false)
     const [tenantSlug, setTenantSlug] = useState('')
     const [needsSlug, setNeedsSlug] = useState(true)
     const [myTenants, setMyTenants] = useState<TenantData[]>([])
     const [loadingTenants, setLoadingTenants] = useState(false)
+    const [authRequired, setAuthRequired] = useState(false)
+    const [authEmail, setAuthEmail] = useState('')
+    const [authPassword, setAuthPassword] = useState('')
+    const [authLoading, setAuthLoading] = useState(false)
+    const [authError, setAuthError] = useState('')
 
     const [tenant, setTenant] = useState<TenantData | null>(null)
     const [program, setProgram] = useState<ProgramData | null>(null)
@@ -645,28 +652,64 @@ export default function ClientePanel() {
         setScannerActive(false)
     }, [])
 
-    useEffect(() => {
-        async function fetchMyTenants() {
-            setLoadingTenants(true)
-            try {
-                const res = await fetch('/api/my-tenants')
-                if (res.ok) {
-                    const data = await res.json()
-                    setMyTenants(data.tenants || [])
-                    // Si solo hay uno, cargarlo automáticamente
-                    if (data.tenants?.length === 1) {
-                        loadTenantData(data.tenants[0].slug)
-                    } else if (data.tenants?.length > 1) {
-                        setNeedsSlug(false) // No necesitamos el form del slug, mostraremos el selector
-                    }
-                }
-            } catch (err) {
-                console.error('Error fetching my-tenants:', err)
-            } finally {
-                setLoadingTenants(false)
+    const loadMyTenants = useCallback(async () => {
+        setLoadingTenants(true)
+        try {
+            const res = await fetch('/api/my-tenants')
+            if (res.status === 401) {
+                setAuthRequired(true)
+                setMyTenants([])
+                setTenant(null)
+                return
             }
+            if (!res.ok) {
+                setAuthRequired(true)
+                return
+            }
+
+            const data = await res.json()
+            const tenants = data.tenants || []
+            setMyTenants(tenants)
+            setAuthRequired(false)
+            setAuthError('')
+
+            if (tenants.length === 1) {
+                loadTenantData(tenants[0].slug)
+            } else if (tenants.length > 1) {
+                setNeedsSlug(false)
+            }
+        } catch (err) {
+            console.error('Error fetching my-tenants:', err)
+            setAuthRequired(true)
+        } finally {
+            setLoadingTenants(false)
         }
-        fetchMyTenants()
+    }, [])
+
+    const handleOwnerLogin = useCallback(async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!authEmail || !authPassword) return
+        setAuthLoading(true)
+        setAuthError('')
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email: authEmail.trim(),
+                password: authPassword
+            })
+            if (error) {
+                setAuthError('Correo o contraseña inválidos')
+                return
+            }
+            await loadMyTenants()
+        } catch {
+            setAuthError('No pudimos iniciar sesión. Intenta nuevamente.')
+        } finally {
+            setAuthLoading(false)
+        }
+    }, [authEmail, authPassword, loadMyTenants, supabase.auth])
+
+    useEffect(() => {
+        void loadMyTenants()
 
         // Hide sidebar if embedded
         if (typeof window !== 'undefined') {
@@ -681,7 +724,7 @@ export default function ClientePanel() {
                 streamRef.current.getTracks().forEach(track => track.stop())
             }
         }
-    }, [])
+    }, [loadMyTenants])
 
     // Load analytics when tab changes
     // Dependencias acotadas intencionalmente para evitar bucles de recarga del panel.
@@ -765,6 +808,44 @@ export default function ClientePanel() {
     }
 
     if (needsSlug && myTenants.length === 0) {
+        if (authRequired) {
+            return (
+                <div className="cliente-page">
+                    <div className="cliente-login">
+                        <div className="cliente-login-icon">🔐</div>
+                        <h1>Acceso Dueño</h1>
+                        <p>Ingresa con tu correo y contraseña para abrir tu panel</p>
+                        <form onSubmit={handleOwnerLogin}>
+                            <div className="cliente-login-field">
+                                <input
+                                    type="email"
+                                    value={authEmail}
+                                    onChange={(e) => setAuthEmail(e.target.value)}
+                                    placeholder="tu@email.com"
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="cliente-login-field">
+                                <input
+                                    type="password"
+                                    value={authPassword}
+                                    onChange={(e) => setAuthPassword(e.target.value)}
+                                    placeholder="Contraseña"
+                                />
+                            </div>
+                            {authError && <p className="login-error" style={{ color: '#f87171', marginBottom: '0.75rem' }}>❌ {authError}</p>}
+                            <button type="submit" className="cliente-login-btn" disabled={authLoading || !authEmail || !authPassword}>
+                                {authLoading ? '⏳ Entrando...' : 'Ingresar al panel →'}
+                            </button>
+                        </form>
+                        <p style={{ marginTop: '1rem', opacity: 0.8 }}>
+                            ¿Aún no tienes cuenta? <a href="/registro">Registra tu negocio</a>
+                        </p>
+                    </div>
+                </div>
+            )
+        }
+
         return (
             <div className="cliente-page">
                 <div className="cliente-login">

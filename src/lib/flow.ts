@@ -8,7 +8,7 @@ interface FlowParams {
     [key: string]: string | number | boolean;
 }
 
-export async function flowRequest(endpoint: string, params: FlowParams, method: 'GET' | 'POST' = 'POST'): Promise<any> {
+export async function flowRequest(endpoint: string, params: FlowParams, method: 'GET' | 'POST' = 'POST'): Promise<unknown> {
     if (!API_KEY || !SECRET_KEY || !BASE_URL) {
         throw new Error('Flow no está configurado correctamente (FLOW_API_KEY / FLOW_SECRET_KEY / FLOW_URL)')
     }

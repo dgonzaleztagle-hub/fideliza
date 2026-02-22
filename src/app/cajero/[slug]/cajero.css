@@ -248,6 +248,11 @@
 }
 
 /* Search Bar */
+.search-bar {
+    display: grid;
+    gap: 0.75rem;
+}
+
 .search-bar input {
     width: 100%;
     padding: 1.25rem;
@@ -261,4 +266,15 @@
 
 .search-bar input:focus {
     border-color: var(--cajero-accent);
+}
+
+.search-bar button {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    border: none;
+    border-radius: 12px;
+    background: var(--cajero-accent);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
 }

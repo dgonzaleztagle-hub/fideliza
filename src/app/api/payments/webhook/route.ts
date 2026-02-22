@@ -27,7 +27,14 @@ export async function POST(req: Request) {
         // Nota: Flow envía el token en el POST. Debemos consultar 'subscription/getStatus' o similar.
         // Para pagos simples es 'payment/getStatus'. Para suscripciones, revisamos el estado.
 
-        const result = await flowRequest('subscription/getStatus', { token: token.toString() }, 'GET');
+        const rawResult = await flowRequest('subscription/getStatus', { token: token.toString() }, 'GET');
+        const result = (typeof rawResult === 'object' && rawResult !== null
+            ? rawResult
+            : {}) as {
+                status?: number
+                subscriptionId?: string
+                next_billing_date?: string
+            }
 
         if (result.status === 1) { // 1 = Activa / Pagada (depende del endpoint de Flow)
             const supabase = getSupabase();

@@ -17,6 +17,28 @@ interface TenantInfo {
     slug: string
 }
 
+interface CustomerLookupCard {
+    customer: {
+        id: string
+        nombre: string
+        puntos_actuales: number
+        total_puntos_historicos: number
+    }
+    programa: {
+        tipo_programa: string
+        descripcion_premio: string
+        puntos_meta: number
+    } | null
+    membership: {
+        saldo_cashback?: number
+        usos_restantes?: number
+    } | null
+}
+
+function normalizeWhatsapp(value: string): string {
+    return value.replace(/[^\d+]/g, '')
+}
+
 export default function CajeroPage() {
     const params = useParams()
     const slug = params.slug as string
@@ -29,7 +51,12 @@ export default function CajeroPage() {
 
     // App State
     const [activeMode, setActiveMode] = useState<'scan' | 'search'>('scan')
-    const [searchQuery, setSearchQuery] = useState('')
+    const [scanWhatsapp, setScanWhatsapp] = useState('')
+    const [lookupPhone, setLookupPhone] = useState('')
+    const [purchaseAmount, setPurchaseAmount] = useState('')
+    const [lookupLoading, setLookupLoading] = useState(false)
+    const [submittingStamp, setSubmittingStamp] = useState(false)
+    const [foundCard, setFoundCard] = useState<CustomerLookupCard | null>(null)
 
     // Transaction State
     const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
@@ -75,6 +102,100 @@ export default function CajeroPage() {
         localStorage.removeItem(`staff_session_${slug}`)
         setSession(null)
         setTenant(null)
+    }
+
+    async function findCustomerByWhatsapp(rawWhatsapp: string) {
+        const normalized = normalizeWhatsapp(rawWhatsapp)
+        if (!normalized) {
+            setError('Ingresa un WhatsApp válido')
+            return null
+        }
+
+        setLookupLoading(true)
+        setError('')
+        try {
+            const res = await fetch(`/api/customer/status?whatsapp=${encodeURIComponent(normalized)}&tenant_slug=${encodeURIComponent(slug)}`)
+            const data = await res.json()
+
+            if (!res.ok) {
+                setError(data.error || 'No se pudo buscar el cliente')
+                setFoundCard(null)
+                return null
+            }
+
+            const card = (data.tarjetas && data.tarjetas[0]) ? data.tarjetas[0] as CustomerLookupCard : null
+            if (!card) {
+                setError('No encontramos cliente con ese número en este negocio')
+                setFoundCard(null)
+                return null
+            }
+
+            setFoundCard(card)
+            return { card, normalizedWhatsapp: normalized }
+        } catch {
+            setError('Error de conexión al buscar cliente')
+            setFoundCard(null)
+            return null
+        } finally {
+            setLookupLoading(false)
+        }
+    }
+
+    async function submitStamp(rawWhatsapp: string) {
+        if (!tenant) return
+        const normalizedWhatsapp = normalizeWhatsapp(rawWhatsapp)
+        if (!normalizedWhatsapp) {
+            setResult({ success: false, message: 'Ingresa un WhatsApp válido' })
+            return
+        }
+
+        const tipoPrograma = foundCard?.programa?.tipo_programa || ''
+        const amount = Number(purchaseAmount)
+        const needsAmount = tipoPrograma === 'cashback' || tipoPrograma === 'regalo'
+
+        if (needsAmount && (!Number.isFinite(amount) || amount <= 0)) {
+            setResult({ success: false, message: 'Debes ingresar el monto de la compra para este tipo de programa' })
+            return
+        }
+
+        setSubmittingStamp(true)
+        setError('')
+        try {
+            const payload: Record<string, unknown> = {
+                tenant_id: tenant.id,
+                whatsapp: normalizedWhatsapp
+            }
+            if (needsAmount) payload.monto_compra = amount
+
+            const res = await fetch('/api/stamp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            const data = await res.json()
+
+            setResult({
+                success: res.ok,
+                message: data.message || data.error || (res.ok ? 'Operación completada' : 'No se pudo registrar')
+            })
+        } catch {
+            setResult({ success: false, message: 'Error de conexión al registrar' })
+        } finally {
+            setSubmittingStamp(false)
+        }
+    }
+
+    async function handleSearchModeSubmit(e: React.FormEvent) {
+        e.preventDefault()
+        await findCustomerByWhatsapp(lookupPhone)
+    }
+
+    async function handleScanModeSubmit(e: React.FormEvent) {
+        e.preventDefault()
+        const lookup = await findCustomerByWhatsapp(scanWhatsapp)
+        if (lookup) {
+            await submitStamp(lookup.normalizedWhatsapp)
+        }
     }
 
     if (!session || !tenant) {
@@ -134,25 +255,67 @@ export default function CajeroPage() {
 
                 {activeMode === 'scan' ? (
                     <div className="scan-section">
-                        <div className="scanner-mock">
-                            {/* Aquí IRÁ el componente Scanner real en el siguiente paso */}
-                            <div className="scanner-placeholder">
-                                <Camera size={48} />
-                                <p>Escanea el código del cliente</p>
-                            </div>
-                        </div>
+                        <form onSubmit={handleScanModeSubmit} className="search-bar">
+                            <input
+                                type="text"
+                                placeholder="WhatsApp cliente (+569...)"
+                                value={scanWhatsapp}
+                                onChange={e => setScanWhatsapp(e.target.value)}
+                            />
+                            <button type="submit" disabled={lookupLoading || submittingStamp}>
+                                {lookupLoading || submittingStamp ? 'Procesando...' : 'Registrar visita'}
+                            </button>
+                        </form>
+                        <p style={{ opacity: 0.7, marginTop: '0.75rem' }}>
+                            Si usas lector QR en caja, pega aquí el dato del cliente y se registrará la visita.
+                        </p>
                     </div>
                 ) : (
                     <div className="search-section">
-                        <div className="search-bar">
+                        <form onSubmit={handleSearchModeSubmit} className="search-bar">
                             <input
                                 type="text"
-                                placeholder="Nombre o WhatsApp..."
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
+                                placeholder="WhatsApp cliente (+569...)"
+                                value={lookupPhone}
+                                onChange={e => {
+                                    setLookupPhone(e.target.value)
+                                }}
                             />
-                        </div>
-                        {/* Resultados de búsqueda... */}
+                            <button type="submit" disabled={lookupLoading}>
+                                {lookupLoading ? 'Buscando...' : 'Buscar'}
+                            </button>
+                        </form>
+
+                        {foundCard && (
+                            <div style={{ marginTop: '1rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px' }}>
+                                <h3 style={{ marginBottom: '0.5rem' }}>{foundCard.customer.nombre}</h3>
+                                <p>Puntos actuales: {foundCard.customer.puntos_actuales}</p>
+                                <p>Visitas históricas: {foundCard.customer.total_puntos_historicos}</p>
+                                <p>Programa: {foundCard.programa?.tipo_programa || 'sellos'}</p>
+
+                                {(foundCard.programa?.tipo_programa === 'cashback' || foundCard.programa?.tipo_programa === 'regalo') && (
+                                    <div style={{ marginTop: '0.75rem' }}>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            value={purchaseAmount}
+                                            onChange={e => setPurchaseAmount(e.target.value)}
+                                            placeholder="Monto compra"
+                                            style={{ width: '100%', padding: '0.8rem', borderRadius: '10px' }}
+                                        />
+                                    </div>
+                                )}
+
+                                <button
+                                    style={{ marginTop: '0.75rem', width: '100%' }}
+                                    onClick={() => submitStamp(lookupPhone)}
+                                    disabled={submittingStamp}
+                                >
+                                    {submittingStamp ? 'Registrando...' : 'Registrar ahora'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
