@@ -83,8 +83,9 @@ export async function flowRequest(endpoint: string, params: FlowParams, method: 
 }
 
 // Crear una suscripción
-export async function createSubscription(customerEmail: string, planId: string, urlCallback: string) {
+export async function createSubscription(customerId: string, customerEmail: string, planId: string, urlCallback: string) {
     return await flowRequest('subscription/create', {
+        customerId,
         planId,
         customerEmail,
         urlCallback

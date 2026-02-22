@@ -140,20 +140,44 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        const insertPayload = {
+            tenant_id,
+            nombre: normalizedName,
+            whatsapp: normalizedWhatsapp,
+            email: normalizedEmail || null,
+            fecha_nacimiento: normalizedBirthdate || null,
+            puntos_actuales: 0,
+            referido_por: referido_por || null
+        }
+
         // Crear nuevo cliente
-        const { data: customer, error: createError } = await supabase
+        let { data: customer, error: createError } = await supabase
             .from('customers')
-            .insert({
-                tenant_id,
-                nombre: normalizedName,
-                whatsapp: normalizedWhatsapp,
-                email: normalizedEmail || null,
-                fecha_nacimiento: normalizedBirthdate || null,
-                puntos_actuales: 0,
-                referido_por: referido_por || null
-            })
+            .insert(insertPayload)
             .select()
             .single()
+
+        const dbErrorDetail = createError ? buildDbErrorDetail(createError) : ''
+        const isReferralTriggerBug =
+            !!createError &&
+            !!referido_por &&
+            dbErrorDetail.toLowerCase().includes('operator does not exist: text >> unknown')
+        let referralFallbackApplied = false
+
+        if (isReferralTriggerBug) {
+            console.warn('Registro con referido falló por trigger SQL; reintentando sin referido:', dbErrorDetail)
+            const retry = await supabase
+                .from('customers')
+                .insert({
+                    ...insertPayload,
+                    referido_por: null
+                })
+                .select()
+                .single()
+            customer = retry.data
+            createError = retry.error
+            referralFallbackApplied = !retry.error
+        }
 
         if (createError) {
             console.error('Error creando cliente:', createError)
@@ -200,7 +224,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
             message: '¡Bienvenido! Te registraste correctamente',
             customer,
-            isNew: true
+            isNew: true,
+            warning: referralFallbackApplied
+                ? 'Registro completado sin referido por una inconsistencia temporal en base de datos'
+                : undefined
         }, { status: 201 })
 
     } catch (error) {

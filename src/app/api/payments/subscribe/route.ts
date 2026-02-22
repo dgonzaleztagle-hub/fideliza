@@ -39,7 +39,8 @@ export async function POST(req: Request) {
             ? `${appUrl}/api/payments/webhook?secret=${encodeURIComponent(webhookSecret)}`
             : `${appUrl}/api/payments/webhook`;
 
-        const flowResult = await createSubscription(tenant.email, planId, urlCallback);
+        const customerEmail = tenant.email || `tenant-${tenant.id}@vuelve.vip`
+        const flowResult = await createSubscription(tenant.id, customerEmail, planId, urlCallback);
 
         if (typeof flowResult !== 'object' || flowResult === null) {
             return NextResponse.json({ error: 'Respuesta inválida de Flow' }, { status: 502 });
