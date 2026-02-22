@@ -528,6 +528,23 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.75rem;
+}
+
+.registro-error-content {
+    min-width: 0;
+}
+
+.registro-error-main {
+    margin: 0;
+}
+
+.registro-error-meta {
+    margin: 0.35rem 0 0;
+    font-size: 0.72rem;
+    color: #fecaca;
+    line-height: 1.35;
+    word-break: break-word;
 }
 
 .registro-error button {

@@ -13,6 +13,14 @@ type RegistroApiResult = {
     trial_hasta?: string
 }
 
+type RegistroErrorMeta = {
+    code: string
+    status?: number
+    requestId?: string
+    at: string
+    detail?: string
+}
+
 const TIPOS_PROGRAMA = [
     {
         id: 'sellos',
@@ -76,9 +84,20 @@ export default function RegistroForm() {
     const [step, setStep] = useState<OnboardingStep>('negocio')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [errorMeta, setErrorMeta] = useState<RegistroErrorMeta | null>(null)
     const [result, setResult] = useState<RegistroApiResult | null>(null)
     const [hasSession, setHasSession] = useState(false)
     const supabase = useMemo(() => createClient(), [])
+
+    function setLocalError(message: string) {
+        setError(message)
+        setErrorMeta(null)
+    }
+
+    function clearError() {
+        setError('')
+        setErrorMeta(null)
+    }
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -142,7 +161,7 @@ export default function RegistroForm() {
 
     function detectarUbicacion() {
         if (!navigator.geolocation) {
-            setError('Tu navegador no soporta geolocalización')
+            setLocalError('Tu navegador no soporta geolocalización')
             return
         }
         setDetectingLocation(true)
@@ -153,7 +172,7 @@ export default function RegistroForm() {
                 setDetectingLocation(false)
             },
             () => {
-                setError('No pudimos obtener tu ubicación. Puedes ingresarla manualmente.')
+                setLocalError('No pudimos obtener tu ubicación. Puedes ingresarla manualmente.')
                 setDetectingLocation(false)
             }
         )
@@ -210,14 +229,19 @@ export default function RegistroForm() {
 
     async function handleSubmit() {
         setLoading(true)
-        setError('')
+        clearError()
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 35000)
+        const requestId = globalThis.crypto?.randomUUID?.()
+            || `reg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
         try {
             const res = await fetch('/api/tenant/register', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-client-request-id': requestId
+                },
                 signal: controller.signal,
                 body: JSON.stringify({
                     nombre,
@@ -240,10 +264,37 @@ export default function RegistroForm() {
             })
 
             const raw = await res.text()
-            const data = raw ? JSON.parse(raw) : {}
+            let data: RegistroApiResult & {
+                error?: string
+                error_code?: string
+                request_id?: string
+                error_detail?: string
+            } = {}
+            if (raw) {
+                try {
+                    data = JSON.parse(raw)
+                } catch {
+                    setError('El servidor respondió con un formato inválido. Reintenta.')
+                    setErrorMeta({
+                        code: `HTTP_${res.status}`,
+                        status: res.status,
+                        requestId,
+                        at: new Date().toLocaleString('es-CL')
+                    })
+                    return
+                }
+            }
 
             if (!res.ok) {
-                throw new Error(data.error || 'Error al registrar')
+                setError(data.error || 'Error al registrar')
+                setErrorMeta({
+                    code: data.error_code || `HTTP_${res.status}`,
+                    status: res.status,
+                    requestId: data.request_id || requestId,
+                    at: new Date().toLocaleString('es-CL'),
+                    detail: data.error_detail
+                })
+                return
             }
 
             if (!hasSession && email && password) {
@@ -261,10 +312,18 @@ export default function RegistroForm() {
         } catch (err: unknown) {
             if (err instanceof Error && err.name === 'AbortError') {
                 setError('La creación está tardando demasiado. Reintenta en unos segundos.')
-            } else if (err instanceof Error && err.message.includes('JSON')) {
-                setError('El servidor respondió con un formato inválido. Reintenta.')
+                setErrorMeta({
+                    code: 'CLIENT_TIMEOUT',
+                    requestId,
+                    at: new Date().toLocaleString('es-CL')
+                })
             } else {
                 setError(err instanceof Error ? err.message : 'Error inesperado')
+                setErrorMeta({
+                    code: 'CLIENT_UNEXPECTED',
+                    requestId,
+                    at: new Date().toLocaleString('es-CL')
+                })
             }
         } finally {
             clearTimeout(timeoutId)
@@ -313,8 +372,19 @@ export default function RegistroForm() {
                     {/* Error */}
                     {error && (
                         <div className="registro-error">
-                            ⚠️ {error}
-                            <button onClick={() => setError('')}>×</button>
+                            <div className="registro-error-content">
+                                <p className="registro-error-main">⚠️ {error}</p>
+                                {errorMeta && (
+                                    <p className="registro-error-meta">
+                                        Código: <strong>{errorMeta.code}</strong>
+                                        {errorMeta.status ? ` | HTTP: ${errorMeta.status}` : ''}
+                                        {errorMeta.requestId ? ` | Ref: ${errorMeta.requestId}` : ''}
+                                        {` | Hora: ${errorMeta.at}`}
+                                        {errorMeta.detail ? ` | Detalle: ${errorMeta.detail}` : ''}
+                                    </p>
+                                )}
+                            </div>
+                            <button type="button" onClick={clearError}>×</button>
                         </div>
                     )}
                 </>
@@ -406,14 +476,14 @@ export default function RegistroForm() {
                             className="registro-btn-next"
                             onClick={() => {
                                 if (!nombre || !email || (!hasSession && !password)) {
-                                    setError('Faltan campos obligatorios')
+                                    setLocalError('Faltan campos obligatorios')
                                     return
                                 }
                                 if (!hasSession && password.length < 8) {
-                                    setError('La contraseña debe tener al menos 8 caracteres')
+                                    setLocalError('La contraseña debe tener al menos 8 caracteres')
                                     return
                                 }
-                                setError('')
+                                clearError()
                                 setStep('tipo')
                             }}
                         >
@@ -701,10 +771,10 @@ export default function RegistroForm() {
                                 className="registro-btn-next"
                                 onClick={() => {
                                     if (tipoPrograma === 'sellos' && !descripcionPremio && !valorPremio) {
-                                        setError('Define un premio para tus clientes')
+                                        setLocalError('Define un premio para tus clientes')
                                         return
                                     }
-                                    setError('')
+                                    clearError()
                                     setStep('branding')
                                 }}
                             >

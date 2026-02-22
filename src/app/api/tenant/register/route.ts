@@ -15,14 +15,26 @@ function toOptionalNumber(value: unknown): number | null {
 // POST /api/tenant/register
 // Registrar un nuevo negocio
 export async function POST(req: NextRequest) {
+    const clientRequestId = req.headers.get('x-client-request-id')?.trim() || null
+
+    const errorResponse = (status: number, message: string, code: string, extra?: Record<string, unknown>) =>
+        NextResponse.json(
+            {
+                error: message,
+                error_code: code,
+                request_id: clientRequestId || undefined,
+                ...(extra || {})
+            },
+            { status }
+        )
+
     try {
         const ip = getClientIp(req.headers)
         const ipRate = checkRateLimit(`tenant_register:ip:${ip}`, 8, 60 * 60 * 1000)
         if (!ipRate.allowed) {
-            return NextResponse.json(
-                { error: 'Demasiados intentos de registro. Intenta más tarde.' },
-                { status: 429, headers: { 'Retry-After': String(ipRate.retryAfterSec) } }
-            )
+            const res = errorResponse(429, 'Demasiados intentos de registro. Intenta más tarde.', 'TENANT_REGISTER_RATE_LIMIT_IP')
+            res.headers.set('Retry-After', String(ipRate.retryAfterSec))
+            return res
         }
 
         const supabase = getSupabase()
@@ -53,10 +65,7 @@ export async function POST(req: NextRequest) {
             : 'sellos'
 
         if (!isProgramType(normalizedProgramType)) {
-            return NextResponse.json(
-                { error: `Tipo de programa inválido: ${tipo_programa}` },
-                { status: 400 }
-            )
+            return errorResponse(400, `Tipo de programa inválido: ${tipo_programa}`, 'TENANT_REGISTER_PROGRAM_TYPE_INVALID')
         }
 
         const supabaseServer = await createClient()
@@ -251,10 +260,9 @@ export async function POST(req: NextRequest) {
 
         const emailRate = checkRateLimit(`tenant_register:email:${normalizedEmail}`, 3, 60 * 60 * 1000)
         if (!emailRate.allowed) {
-            return NextResponse.json(
-                { error: 'Demasiados intentos para este correo. Intenta más tarde.' },
-                { status: 429, headers: { 'Retry-After': String(emailRate.retryAfterSec) } }
-            )
+            const res = errorResponse(429, 'Demasiados intentos para este correo. Intenta más tarde.', 'TENANT_REGISTER_RATE_LIMIT_EMAIL')
+            res.headers.set('Retry-After', String(emailRate.retryAfterSec))
+            return res
         }
 
         // Generar slug único
@@ -279,7 +287,7 @@ export async function POST(req: NextRequest) {
             slug = `${baseSlug}-${attempt}`
         }
         if (attempt >= 50) {
-            return NextResponse.json({ error: 'No se pudo generar un slug único para tu negocio' }, { status: 500 })
+            return errorResponse(500, 'No se pudo generar un slug único para tu negocio', 'TENANT_REGISTER_SLUG_EXHAUSTED')
         }
 
         // Calcular fecha de trial (14 días)
@@ -307,7 +315,7 @@ export async function POST(req: NextRequest) {
                 console.error('Error creando usuario Auth:', authError)
                 let msg = 'Error al crear la cuenta'
                 if (authError.message.includes('already registered')) msg = 'El email ya está registrado. Intenta iniciar sesión.'
-                return NextResponse.json({ error: msg }, { status: 400 })
+                return errorResponse(400, msg, 'TENANT_REGISTER_AUTH_CREATE_FAILED')
             }
             authUserId = authData.user.id
             authUserCreatedByThisRequest = true
@@ -343,9 +351,9 @@ export async function POST(req: NextRequest) {
                 await supabase.auth.admin.deleteUser(authUserId)
             }
             if (tenantError.code === '23505') {
-                return NextResponse.json({ error: 'Ya existe un negocio con ese email' }, { status: 409 })
+                return errorResponse(409, 'Ya existe un negocio con ese email', 'TENANT_REGISTER_TENANT_DUPLICATE')
             }
-            return NextResponse.json({ error: 'Error al crear negocio' }, { status: 500 })
+            return errorResponse(500, 'Error al crear negocio', 'TENANT_REGISTER_TENANT_CREATE_FAILED')
         }
 
         // Crear el programa de lealtad
@@ -373,12 +381,14 @@ export async function POST(req: NextRequest) {
             }
 
             if (programError.code === '23514') {
-                return NextResponse.json({
-                    error: 'La base de datos no acepta este tipo de programa todavía. Aplica la migración de tipos y reintenta.'
-                }, { status: 500 })
+                return errorResponse(
+                    500,
+                    'La base de datos no acepta este tipo de programa todavía. Aplica la migración de tipos y reintenta.',
+                    'TENANT_REGISTER_PROGRAM_CONSTRAINT_FAILED'
+                )
             }
 
-            return NextResponse.json({ error: 'Error al crear programa de lealtad' }, { status: 500 })
+            return errorResponse(500, 'Error al crear programa de lealtad', 'TENANT_REGISTER_PROGRAM_CREATE_FAILED')
         }
 
         // Generar URL del QR (apunta a la página de escaneo)
@@ -403,6 +413,8 @@ export async function POST(req: NextRequest) {
 
     } catch (error) {
         console.error('Error en registro de tenant:', error)
-        return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+        return errorResponse(500, 'Error interno', 'TENANT_REGISTER_UNEXPECTED', {
+            error_detail: error instanceof Error ? error.message : 'unknown'
+        })
     }
 }
