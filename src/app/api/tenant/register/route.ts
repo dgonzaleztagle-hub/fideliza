@@ -313,9 +313,60 @@ export async function POST(req: NextRequest) {
 
             if (authError) {
                 console.error('Error creando usuario Auth:', authError)
-                let msg = 'Error al crear la cuenta'
-                if (authError.message.includes('already registered')) msg = 'El email ya está registrado. Intenta iniciar sesión.'
-                return errorResponse(400, msg, 'TENANT_REGISTER_AUTH_CREATE_FAILED')
+                const rawMessage = authError.message || 'unknown'
+                const normalizedMessage = rawMessage.toLowerCase()
+                const authStatus = (authError as { status?: number }).status
+
+                const looksLikeDuplicateEmail =
+                    normalizedMessage.includes('already registered') ||
+                    normalizedMessage.includes('already exists') ||
+                    normalizedMessage.includes('duplicate') ||
+                    normalizedMessage.includes('email exists')
+
+                if (looksLikeDuplicateEmail) {
+                    return errorResponse(
+                        409,
+                        'El email ya está registrado. Intenta iniciar sesión.',
+                        'TENANT_REGISTER_EMAIL_ALREADY_EXISTS',
+                        { error_detail: rawMessage }
+                    )
+                }
+
+                const looksLikePasswordPolicyError =
+                    normalizedMessage.includes('password') &&
+                    (normalizedMessage.includes('weak') ||
+                        normalizedMessage.includes('least') ||
+                        normalizedMessage.includes('characters') ||
+                        normalizedMessage.includes('policy'))
+
+                if (looksLikePasswordPolicyError) {
+                    return errorResponse(
+                        400,
+                        'La contraseña no cumple la política de seguridad configurada.',
+                        'TENANT_REGISTER_PASSWORD_POLICY_FAILED',
+                        { error_detail: rawMessage }
+                    )
+                }
+
+                const looksLikeInvalidEmail =
+                    normalizedMessage.includes('invalid email') ||
+                    normalizedMessage.includes('email address is invalid')
+
+                if (looksLikeInvalidEmail) {
+                    return errorResponse(
+                        400,
+                        'El correo ingresado no es válido.',
+                        'TENANT_REGISTER_EMAIL_INVALID',
+                        { error_detail: rawMessage }
+                    )
+                }
+
+                return errorResponse(
+                    authStatus && authStatus >= 400 && authStatus < 600 ? authStatus : 400,
+                    'Error al crear la cuenta',
+                    'TENANT_REGISTER_AUTH_CREATE_FAILED',
+                    { error_detail: rawMessage }
+                )
             }
             authUserId = authData.user.id
             authUserCreatedByThisRequest = true
