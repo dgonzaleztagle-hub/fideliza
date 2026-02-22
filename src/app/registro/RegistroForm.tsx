@@ -675,12 +675,15 @@ export default function RegistroForm() {
                                 ? 'En Full tienes todos los motores habilitados.'
                                 : `Puedes elegir hasta ${PLAN_CATALOG[selectedPlan].limits.maxProgramChoices} motores en ${PLAN_CATALOG[selectedPlan].label}.`}
                         </p>
+                        <p className="registro-field-hint">
+                            Aquí defines los motores que quedarán habilitados. En el siguiente paso configuras uno inicial y luego podrás crear los otros desde el panel.
+                        </p>
 
                         <div className="registro-tipo-grid">
                             {TIPOS_PROGRAMA.map((tipo) => (
                                 <button
                                     key={tipo.id}
-                                    className={`registro-tipo-card ${tipoPrograma === tipo.id ? 'selected' : ''}`}
+                                    className={`registro-tipo-card ${selectedProgramTypes.includes(tipo.id) ? 'selected' : ''} ${tipoPrograma === tipo.id ? 'active' : ''}`}
                                     onClick={() => {
                                         const already = selectedProgramTypes.includes(tipo.id)
                                         if (selectedPlan === 'full') {
@@ -714,7 +717,9 @@ export default function RegistroForm() {
                                     <p className="registro-tipo-desc">{tipo.descripcion}</p>
                                     <span className="registro-tipo-ejemplo">Ej: {tipo.ejemplo}</span>
                                     <span className="registro-field-hint">
-                                        {selectedProgramTypes.includes(tipo.id) ? '✅ Habilitado' : '⬜ No habilitado'}
+                                        {selectedProgramTypes.includes(tipo.id)
+                                            ? (tipoPrograma === tipo.id ? '✅ Habilitado + configurando ahora' : '✅ Habilitado')
+                                            : '⬜ No habilitado'}
                                     </span>
                                 </button>
                             ))}

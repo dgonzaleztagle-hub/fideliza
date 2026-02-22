@@ -13,6 +13,15 @@ function toOptionalNumber(value: unknown): number | null {
     return Number.isFinite(n) ? n : null
 }
 
+function looksLikeMissingTenantPlanColumns(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false
+    const err = error as { code?: string; message?: string; details?: string; hint?: string }
+    const haystack = `${err.message || ''} ${err.details || ''} ${err.hint || ''}`.toLowerCase()
+    return err.code === '42703'
+        || haystack.includes('selected_plan')
+        || haystack.includes('selected_program_types')
+}
+
 // POST /api/tenant/register
 // Registrar un nuevo negocio
 export async function POST(req: NextRequest) {
@@ -426,30 +435,45 @@ export async function POST(req: NextRequest) {
 
         // 2. Crear el tenant
 
-        const { data: tenant, error: tenantError } = await supabase
+        const tenantInsertBase = {
+            auth_user_id: authUserId,
+            nombre: normalizedName,
+            rubro: rubro || null,
+            direccion: normalizedAddress || null,
+            email: normalizedEmail,
+            telefono: normalizedPhone || null,
+            lat: parsedLat ?? null,
+            lng: parsedLng ?? null,
+            logo_url: normalizedLogoUrl || null,
+            color_primario: normalizeBrandColor(color_primario),
+            mensaje_geofencing: normalizedGeoMessage || '¡Estás cerca! Pasa a sumar puntos 🎉',
+            slug,
+            plan: 'trial',
+            trial_hasta: trialHasta.toISOString(),
+            estado: 'activo',
+            onboarding_completado: true
+        }
+
+        let { data: tenant, error: tenantError } = await supabase
             .from('tenants')
             .insert({
-                auth_user_id: authUserId,
-                nombre: normalizedName,
-                rubro: rubro || null,
-                direccion: normalizedAddress || null,
-                email: normalizedEmail,
-                telefono: normalizedPhone || null,
-                lat: parsedLat ?? null,
-                lng: parsedLng ?? null,
-                logo_url: normalizedLogoUrl || null,
-                color_primario: normalizeBrandColor(color_primario),
-                mensaje_geofencing: normalizedGeoMessage || '¡Estás cerca! Pasa a sumar puntos 🎉',
-                slug,
-                plan: 'trial',
+                ...tenantInsertBase,
                 selected_plan: normalizedSelectedPlan,
-                selected_program_types: normalizedSelectedProgramTypes,
-                trial_hasta: trialHasta.toISOString(),
-                estado: 'activo',
-                onboarding_completado: true
+                selected_program_types: normalizedSelectedProgramTypes
             })
             .select()
             .single()
+
+        if (tenantError && looksLikeMissingTenantPlanColumns(tenantError)) {
+            console.warn('Tenants sin columnas selected_plan/selected_program_types. Reintentando inserción compatible.')
+            const fallbackInsert = await supabase
+                .from('tenants')
+                .insert(tenantInsertBase)
+                .select()
+                .single()
+            tenant = fallbackInsert.data
+            tenantError = fallbackInsert.error
+        }
 
         if (tenantError) {
             console.error('Error creando tenant:', tenantError)
@@ -459,7 +483,9 @@ export async function POST(req: NextRequest) {
             if (tenantError.code === '23505') {
                 return errorResponse(409, 'Ya existe un negocio con ese email', 'TENANT_REGISTER_TENANT_DUPLICATE')
             }
-            return errorResponse(500, 'Error al crear negocio', 'TENANT_REGISTER_TENANT_CREATE_FAILED')
+            return errorResponse(500, 'Error al crear negocio', 'TENANT_REGISTER_TENANT_CREATE_FAILED', {
+                error_detail: tenantError.message || tenantError.details || 'unknown'
+            })
         }
 
         // Crear el programa de lealtad
