@@ -189,10 +189,6 @@ export default function RegistroForm() {
     const emailTrimmed = email.trim().toLowerCase()
     const effectiveEmail = hasSession ? (emailTrimmed || sessionEmail.toLowerCase()) : emailTrimmed
     const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail)
-    const canContinueNegocio =
-        nombreTrimmed.length >= 3 &&
-        emailValido &&
-        (hasSession || password.length >= 8)
 
     function detectarUbicacion() {
         if (!navigator.geolocation) {
@@ -506,6 +502,11 @@ export default function RegistroForm() {
                                 placeholder="Ej: Barbería Don Pedro"
                                 autoFocus
                             />
+                            {nombre.length > 0 && nombreTrimmed.length < 3 && (
+                                <p className="registro-field-hint registro-field-hint-error">
+                                    El nombre debe tener al menos 3 caracteres.
+                                </p>
+                            )}
                         </div>
 
                         <div className="registro-field">
@@ -537,6 +538,11 @@ export default function RegistroForm() {
                                 }}
                                 placeholder="tu@email.com"
                             />
+                            {email.length > 0 && !emailValido && (
+                                <p className="registro-field-hint registro-field-hint-error">
+                                    Ingresa un correo válido (ejemplo: nombre@dominio.com).
+                                </p>
+                            )}
                             {hasSession && (
                                 <p className="registro-field-hint">
                                     Sesión activa con <strong>{sessionEmail}</strong>. Para usar otro correo en una prueba nueva,{' '}
@@ -553,7 +559,7 @@ export default function RegistroForm() {
 
                         {!hasSession && (
                             <div className="registro-field">
-                                <label>Contraseña de acceso *</label>
+                                <label>Contraseña de acceso * (mínimo 8 caracteres)</label>
                                 <input
                                     type="password"
                                     value={password}
@@ -564,6 +570,11 @@ export default function RegistroForm() {
                                     placeholder="Mínimo 8 caracteres"
                                 />
                                 <p className="registro-field-hint">Con esta clave entrarás a tu panel de Vuelve+</p>
+                                {password.length > 0 && password.length < 8 && (
+                                    <p className="registro-field-hint registro-field-hint-error">
+                                        La contraseña debe tener al menos 8 caracteres.
+                                    </p>
+                                )}
                             </div>
                         )}
 
@@ -596,7 +607,7 @@ export default function RegistroForm() {
                                 clearError()
                                 setStep('plan')
                             }}
-                            disabled={!canContinueNegocio}
+                            disabled={loading}
                         >
                             Siguiente →
                         </button>
