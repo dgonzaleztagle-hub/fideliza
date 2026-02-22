@@ -159,6 +159,14 @@ export default function RegistroForm() {
     const [mensajeGeo, setMensajeGeo] = useState('¡Estás cerca! Pasa a sumar puntos 🎉')
     const [detectingLocation, setDetectingLocation] = useState(false)
 
+    const nombreTrimmed = nombre.trim()
+    const emailTrimmed = email.trim().toLowerCase()
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)
+    const canContinueNegocio =
+        nombreTrimmed.length >= 3 &&
+        emailValido &&
+        (hasSession || password.length >= 8)
+
     function detectarUbicacion() {
         if (!navigator.geolocation) {
             setLocalError('Tu navegador no soporta geolocalización')
@@ -331,6 +339,26 @@ export default function RegistroForm() {
         }
     }
 
+    function validateNegocioStep(): boolean {
+        if (!nombreTrimmed || !emailTrimmed || (!hasSession && !password)) {
+            setLocalError('Faltan campos obligatorios')
+            return false
+        }
+        if (nombreTrimmed.length < 3) {
+            setLocalError('El nombre del negocio debe tener al menos 3 caracteres')
+            return false
+        }
+        if (!emailValido) {
+            setLocalError('Ingresa un email válido')
+            return false
+        }
+        if (!hasSession && password.length < 8) {
+            setLocalError('La contraseña debe tener al menos 8 caracteres')
+            return false
+        }
+        return true
+    }
+
     const steps: { key: OnboardingStep; label: string; number: number }[] = [
         { key: 'negocio', label: 'Tu negocio', number: 1 },
         { key: 'tipo', label: 'Tipo', number: 2 },
@@ -342,6 +370,10 @@ export default function RegistroForm() {
     const currentStepIndex = steps.findIndex(s => s.key === step)
 
     const tipoActual = TIPOS_PROGRAMA.find(t => t.id === tipoPrograma)
+    const qrUrl = result?.qr_url || result?.tenant?.qr_code || ''
+    const qrPreviewUrl = qrUrl
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrUrl)}&bgcolor=0a0a0f&color=ffffff&format=png`
+        : ''
 
     return (
         <div className="registro-page">
@@ -403,7 +435,10 @@ export default function RegistroForm() {
                             <input
                                 type="text"
                                 value={nombre}
-                                onChange={(e) => setNombre(e.target.value)}
+                                onChange={(e) => {
+                                    setNombre(e.target.value)
+                                    if (error) clearError()
+                                }}
                                 placeholder="Ej: Barbería Don Pedro"
                                 autoFocus
                             />
@@ -432,7 +467,10 @@ export default function RegistroForm() {
                             <input
                                 type="email"
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e) => {
+                                    setEmail(e.target.value)
+                                    if (error) clearError()
+                                }}
                                 placeholder="tu@email.com"
                                 disabled={hasSession}
                                 style={hasSession ? { opacity: 0.7, background: '#f8fafc' } : {}}
@@ -445,7 +483,10 @@ export default function RegistroForm() {
                                 <input
                                     type="password"
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value)
+                                        if (error) clearError()
+                                    }}
                                     placeholder="Mínimo 8 caracteres"
                                 />
                                 <p className="registro-field-hint">Con esta clave entrarás a tu panel de Vuelve+</p>
@@ -475,17 +516,13 @@ export default function RegistroForm() {
                         <button
                             className="registro-btn-next"
                             onClick={() => {
-                                if (!nombre || !email || (!hasSession && !password)) {
-                                    setLocalError('Faltan campos obligatorios')
-                                    return
-                                }
-                                if (!hasSession && password.length < 8) {
-                                    setLocalError('La contraseña debe tener al menos 8 caracteres')
+                                if (!validateNegocioStep()) {
                                     return
                                 }
                                 clearError()
                                 setStep('tipo')
                             }}
+                            disabled={!canContinueNegocio}
                         >
                             Siguiente →
                         </button>
@@ -968,15 +1005,41 @@ export default function RegistroForm() {
                             </div>
 
                             <div className="registro-success-item">
-                                <span className="registro-success-label">Tu QR para el local:</span>
+                                <span className="registro-success-label">Link público para tus clientes:</span>
                                 <a
-                                    href={result.qr_url}
+                                    href={qrUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="registro-success-link"
                                 >
-                                    {result.qr_url}
+                                    {qrUrl}
                                 </a>
+                                <p className="registro-field-hint" style={{ marginBottom: 0 }}>
+                                    Este link abre el registro del cliente y el flujo para sumar beneficios.
+                                </p>
+                            </div>
+
+                            <div className="registro-success-item">
+                                <span className="registro-success-label">QR listo para imprimir:</span>
+                                {qrPreviewUrl ? (
+                                    <>
+                                        <img
+                                            src={qrPreviewUrl}
+                                            alt={`QR público de ${result.tenant?.nombre || 'tu negocio'}`}
+                                            className="registro-success-qr-image"
+                                        />
+                                        <a
+                                            href={qrPreviewUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="registro-success-link"
+                                        >
+                                            Abrir/descargar QR en PNG
+                                        </a>
+                                    </>
+                                ) : (
+                                    <span className="registro-success-value">No disponible</span>
+                                )}
                             </div>
 
                             <div className="registro-success-item">
@@ -1010,16 +1073,16 @@ export default function RegistroForm() {
                         <div className="registro-success-next">
                             <h3>¿Qué sigue?</h3>
                             <ol>
-                                <li>📱 Abre el link del QR en tu celular para probarlo</li>
-                                <li>🖨️ Imprime el QR y pégalo en tu mostrador</li>
+                                <li>📱 Prueba el link público en tu celular (flujo cliente)</li>
+                                <li>🖨️ Imprime el QR de arriba y pégalo en tu mostrador</li>
                                 <li>📊 Entra a tu panel para ver las estadísticas</li>
                                 <li>📢 Envía tu primera notificación a los clientes</li>
                             </ol>
                         </div>
 
                         <div className="registro-btn-group">
-                            <a href={result.qr_url} target="_blank" rel="noopener noreferrer" className="registro-btn-next">
-                                Ver mi QR →
+                            <a href={qrUrl} target="_blank" rel="noopener noreferrer" className="registro-btn-next">
+                                Abrir página cliente →
                             </a>
                             <a href="/cliente" className="registro-btn-back" style={{ textAlign: 'center' }}>
                                 Ir a mi panel

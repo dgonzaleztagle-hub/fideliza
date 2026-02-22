@@ -607,6 +607,16 @@
     text-decoration: underline;
 }
 
+.registro-success-qr-image {
+    width: 220px;
+    max-width: 100%;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #0a0a0f;
+    padding: 0.5rem;
+    margin-top: 0.25rem;
+}
+
 /* Slug box */
 .registro-success-slug {
     background: rgba(99, 102, 241, 0.06);
