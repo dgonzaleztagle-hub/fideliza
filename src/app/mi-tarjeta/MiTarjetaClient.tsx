@@ -283,6 +283,18 @@ export default function MiTarjetaClient() {
         )
     }
 
+    function getReferralBonus(tarjeta: TarjetaData): number {
+        const referralsConfig = tarjeta.programa?.config?.referrals as { bonus_points?: unknown } | undefined
+        const bonus = Number(referralsConfig?.bonus_points)
+        return Number.isFinite(bonus) && bonus > 0 ? bonus : 1
+    }
+
+    function isReferralEnabled(tarjeta: TarjetaData): boolean {
+        const referralsConfig = tarjeta.programa?.config?.referrals as { enabled?: unknown } | undefined
+        if (typeof referralsConfig?.enabled === 'boolean') return referralsConfig.enabled
+        return true
+    }
+
     return (
         <div className="mt-page">
             <header className="mt-header">
@@ -331,9 +343,9 @@ export default function MiTarjetaClient() {
 
                 {tarjetas.length > 0 && (
                     <div className="mt-cards">
-                        {tarjetas.map((tarjeta, i) => (
+                        {tarjetas.map((tarjeta) => (
                             <div
-                                key={i}
+                                key={`${tarjeta.customer.id}-${tarjeta.negocio?.slug || 'negocio'}`}
                                 className="mt-card"
                                 style={{ '--card-color': tarjeta.negocio?.color_primario || '#6366f1' } as React.CSSProperties}
                             >
@@ -381,27 +393,31 @@ export default function MiTarjetaClient() {
                                     </div>
                                 )}
 
-                                {/* --- SISTEMA DE REFERIDOS --- */}
-                                <div className="mt-referral">
-                                    <div className="mt-referral-info">
-                                        <p><strong>¡Gana puntos invitando amigos!</strong></p>
-                                        <p>Por cada amigo que se registre y sume su primer punto, ¡tú ganas 1 punto de regalo! 🎁</p>
+                                {tarjeta.negocio?.slug && isReferralEnabled(tarjeta) && (
+                                    <div className="mt-referral">
+                                        <div className="mt-referral-info">
+                                            <p><strong>¡Gana puntos invitando amigos!</strong></p>
+                                            <p>
+                                                Por cada amigo que se registre y sume su primer punto,
+                                                ¡tú ganas {getReferralBonus(tarjeta)} punto{getReferralBonus(tarjeta) > 1 ? 's' : ''} de regalo! 🎁
+                                            </p>
+                                        </div>
+                                        <button
+                                            className="mt-referral-btn"
+                                            onClick={() => {
+                                                const refLink = `${window.location.origin}/qr/${tarjeta.negocio?.slug}?ref=${tarjeta.customer.id}`
+                                                const waMsg = `¡Hola! Te invito a sumarte al programa de lealtad de ${tarjeta.negocio?.nombre}. Regístrate aquí y empieza a ganar premios: ${refLink}`
+                                                window.open(`https://wa.me/?text=${encodeURIComponent(waMsg)}`, '_blank')
+                                            }}
+                                        >
+                                            🚀 Invitar amigos por WhatsApp
+                                        </button>
                                     </div>
-                                    <button
-                                        className="mt-referral-btn"
-                                        onClick={() => {
-                                            const refLink = `${window.location.origin}/qr/${tarjeta.negocio?.slug}?ref=${tarjeta.customer.id}`
-                                            const waMsg = `¡Hola! Te invito a sumarte al programa de lealtad de ${tarjeta.negocio?.nombre}. Regístrate aquí y empieza a ganar premios: ${refLink}`
-                                            window.open(`https://wa.me/?text=${encodeURIComponent(waMsg)}`, '_blank')
-                                        }}
-                                    >
-                                        🚀 Invitar amigos por WhatsApp
-                                    </button>
-                                </div>
+                                )}
 
                                 <div className="mt-card-footer">
                                     <span>Miembro desde {new Date(tarjeta.customer.miembro_desde).toLocaleDateString('es-CL')}</span>
-                                    <a href={`/qr/${tarjeta.negocio?.slug}`} className="mt-card-link">
+                                    <a href={tarjeta.negocio?.slug ? `/qr/${tarjeta.negocio.slug}` : '/'} className="mt-card-link">
                                         Ir al negocio →
                                     </a>
                                 </div>

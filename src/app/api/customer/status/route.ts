@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
                 customer: {
                     id: customer.id,
                     nombre: customer.nombre,
+                    whatsapp: customer.whatsapp,
                     puntos_actuales: customer.puntos_actuales,
                     total_puntos_historicos: customer.total_puntos_historicos,
                     total_premios_canjeados: customer.total_premios_canjeados,

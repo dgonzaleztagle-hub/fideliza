@@ -21,6 +21,7 @@ interface CustomerLookupCard {
     customer: {
         id: string
         nombre: string
+        whatsapp: string
         puntos_actuales: number
         total_puntos_historicos: number
     }
@@ -64,10 +65,13 @@ export default function CajeroPage() {
     useEffect(() => {
         // Recuperar sesión persistente si existe
         const saved = localStorage.getItem(`staff_session_${slug}`)
-        if (saved) {
+        if (!saved) return
+        try {
             const data = JSON.parse(saved)
             setSession(data.staff)
             setTenant(data.tenant)
+        } catch {
+            localStorage.removeItem(`staff_session_${slug}`)
         }
     }, [slug])
 
@@ -131,6 +135,7 @@ export default function CajeroPage() {
             }
 
             setFoundCard(card)
+            setPurchaseAmount('')
             return { card, normalizedWhatsapp: normalized }
         } catch {
             setError('Error de conexión al buscar cliente')
@@ -187,14 +192,17 @@ export default function CajeroPage() {
 
     async function handleSearchModeSubmit(e: React.FormEvent) {
         e.preventDefault()
+        setResult(null)
         await findCustomerByWhatsapp(lookupPhone)
     }
 
     async function handleScanModeSubmit(e: React.FormEvent) {
         e.preventDefault()
+        setResult(null)
         const lookup = await findCustomerByWhatsapp(scanWhatsapp)
         if (lookup) {
             await submitStamp(lookup.normalizedWhatsapp)
+            setScanWhatsapp('')
         }
     }
 
@@ -241,13 +249,21 @@ export default function CajeroPage() {
                 <div className="mode-selector">
                     <button
                         className={activeMode === 'scan' ? 'active' : ''}
-                        onClick={() => setActiveMode('scan')}
+                        onClick={() => {
+                            setActiveMode('scan')
+                            setError('')
+                            setResult(null)
+                        }}
                     >
                         <Camera size={20} /> Escáner
                     </button>
                     <button
                         className={activeMode === 'search' ? 'active' : ''}
-                        onClick={() => setActiveMode('search')}
+                        onClick={() => {
+                            setActiveMode('search')
+                            setError('')
+                            setResult(null)
+                        }}
                     >
                         <Search size={20} /> Buscar
                     </button>
@@ -309,7 +325,7 @@ export default function CajeroPage() {
 
                                 <button
                                     style={{ marginTop: '0.75rem', width: '100%' }}
-                                    onClick={() => submitStamp(lookupPhone)}
+                                    onClick={() => submitStamp(foundCard.customer.whatsapp)}
                                     disabled={submittingStamp}
                                 >
                                     {submittingStamp ? 'Registrando...' : 'Registrar ahora'}

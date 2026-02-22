@@ -30,37 +30,28 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
         }
 
-        // Construir query de clientes según segmento
-        let query = supabase
+        const { data: allCustomers } = await supabase
             .from('customers')
             .select('id, nombre, whatsapp, puntos_actuales, total_puntos_historicos')
             .eq('tenant_id', tenant_id)
 
-        if (segmento === 'activos') {
-            // Clientes que visitaron en los últimos 30 días
+        const customersBase = allCustomers || []
+        let customers = customersBase
+
+        if (segmento === 'activos' || segmento === 'inactivos') {
             const hace30Dias = new Date()
             hace30Dias.setDate(hace30Dias.getDate() - 30)
-            // Filtramos por los que tienen stamps recientes
             const { data: recentStamps } = await supabase
                 .from('stamps')
                 .select('customer_id')
                 .eq('tenant_id', tenant_id)
                 .gte('fecha', hace30Dias.toISOString().split('T')[0])
 
-            const activeIds = [...new Set(recentStamps?.map(s => s.customer_id) || [])]
-            if (activeIds.length > 0) {
-                query = query.in('id', activeIds)
-            } else {
-                return NextResponse.json({
-                    message: 'No hay clientes activos en los últimos 30 días',
-                    enviadas: 0
-                })
-            }
-        } else if (segmento === 'inactivos') {
-            // Clientes con 0 puntos y sin actividad reciente
-            query = query.eq('puntos_actuales', 0)
+            const activeIds = new Set((recentStamps || []).map(s => s.customer_id))
+            customers = segmento === 'activos'
+                ? customersBase.filter(c => activeIds.has(c.id))
+                : customersBase.filter(c => !activeIds.has(c.id))
         } else if (segmento === 'cercanos_premio') {
-            // Clientes que les falta 1-2 puntos para el premio
             const { data: program } = await supabase
                 .from('programs')
                 .select('puntos_meta')
@@ -68,13 +59,12 @@ export async function POST(req: NextRequest) {
                 .eq('activo', true)
                 .single()
 
-            if (program) {
-                query = query.gte('puntos_actuales', program.puntos_meta - 2)
+            if (program?.puntos_meta) {
+                customers = customersBase.filter(c => c.puntos_actuales >= program.puntos_meta - 2)
+            } else {
+                customers = []
             }
         }
-        // segmento === 'todos' o undefined -> sin filtro adicional
-
-        const { data: customers } = await query
 
         if (!customers || customers.length === 0) {
             return NextResponse.json({
