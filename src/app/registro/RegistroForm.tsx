@@ -151,6 +151,8 @@ export default function RegistroForm() {
 
     // Branding
     const [colorPrimario, setColorPrimario] = useState('#6366f1')
+    const [logoUrl, setLogoUrl] = useState('')
+    const [logoUploading, setLogoUploading] = useState(false)
 
     // Ubicación
     const [enLocal, setEnLocal] = useState<boolean | null>(null)
@@ -235,6 +237,30 @@ export default function RegistroForm() {
         }
     }
 
+    async function handleLogoUpload(file: File | null) {
+        if (!file) return
+        setLogoUploading(true)
+        clearError()
+        try {
+            const fd = new FormData()
+            fd.append('file', file)
+            const res = await fetch('/api/upload/logo', {
+                method: 'POST',
+                body: fd
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                setLocalError(data.error || 'No se pudo subir el logo')
+                return
+            }
+            setLogoUrl(data.logo_url || '')
+        } catch {
+            setLocalError('Error de conexión al subir el logo')
+        } finally {
+            setLogoUploading(false)
+        }
+    }
+
     async function handleSubmit() {
         setLoading(true)
         clearError()
@@ -265,6 +291,7 @@ export default function RegistroForm() {
                     tipo_programa: tipoPrograma,
                     config: buildProgramConfig(),
                     color_primario: colorPrimario,
+                    logo_url: logoUrl || undefined,
                     lat: lat ? parseFloat(lat) : null,
                     lng: lng ? parseFloat(lng) : null,
                     mensaje_geofencing: mensajeGeo,
@@ -847,11 +874,33 @@ export default function RegistroForm() {
                             </div>
                         </div>
 
+                        <div className="registro-field">
+                            <label>Logo del negocio</label>
+                            <label className="registro-upload-btn">
+                                {logoUploading ? 'Subiendo logo...' : 'Subir logo desde tu equipo'}
+                                <input
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp"
+                                    disabled={logoUploading}
+                                    onChange={(e) => handleLogoUpload(e.target.files?.[0] || null)}
+                                />
+                            </label>
+                            <input
+                                type="text"
+                                value={logoUrl}
+                                onChange={(e) => setLogoUrl(e.target.value)}
+                                placeholder="O pega una URL de logo (opcional)"
+                            />
+                            <p className="registro-field-hint">Formatos: PNG, JPG o WEBP (máximo 3 MB)</p>
+                        </div>
+
                         {/* Preview de la tarjeta */}
                         <div className="registro-card-preview" style={{ borderColor: colorPrimario }}>
                             <div className="registro-card-preview-header" style={{ background: colorPrimario }}>
                                 <div className="registro-card-preview-logo">
-                                    {nombre.charAt(0).toUpperCase()}
+                                    {logoUrl
+                                        ? <img src={logoUrl} alt="Logo negocio" className="registro-card-preview-logo-image" />
+                                        : nombre.charAt(0).toUpperCase()}
                                 </div>
                                 <span>{nombre || 'Tu Negocio'}</span>
                             </div>

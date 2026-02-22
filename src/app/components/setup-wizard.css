@@ -271,6 +271,26 @@
     margin-bottom: 8px;
 }
 
+.sw-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.sw-upload-btn input[type="file"] {
+    display: none;
+}
+
 /* STRATEGIES */
 .sw-strategies {
     display: flex;

@@ -164,6 +164,26 @@
     margin-top: 0.35rem;
 }
 
+.registro-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    padding: 0.65rem 0.9rem;
+    margin-bottom: 0.6rem;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary, #f0f0f0);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.registro-upload-btn input[type='file'] {
+    display: none;
+}
+
 /* ═══ Puntos Selector ═══ */
 .registro-puntos-selector,
 .registro-descuento-selector {
@@ -456,6 +476,12 @@
     justify-content: center;
     font-weight: 800;
     font-size: 1.2rem;
+}
+
+.registro-card-preview-logo-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .registro-card-preview-header span {

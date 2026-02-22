@@ -53,6 +53,7 @@ const STRATEGIES = [
 export default function SetupWizard({ tenant, program, onComplete }: SetupWizardProps) {
     const [step, setStep] = useState<WizardStep>('welcome')
     const [loading, setLoading] = useState(false)
+    const [logoUploading, setLogoUploading] = useState(false)
 
     // Form State
     const [formData, setFormData] = useState({
@@ -66,6 +67,29 @@ export default function SetupWizard({ tenant, program, onComplete }: SetupWizard
     const walletCardStyle = { '--accent': formData.color } as CSSProperties & Record<'--accent', string>
 
     const currentStepIndex = STEPS.findIndex(s => s.id === step)
+
+    const handleLogoUpload = async (file: File | null) => {
+        if (!file) return
+        setLogoUploading(true)
+        try {
+            const fd = new FormData()
+            fd.append('file', file)
+            const res = await fetch('/api/upload/logo', {
+                method: 'POST',
+                body: fd
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                alert(data.error || 'No se pudo subir el logo')
+                return
+            }
+            setFormData((prev) => ({ ...prev, logo_url: data.logo_url }))
+        } catch {
+            alert('Error de red al subir el logo')
+        } finally {
+            setLogoUploading(false)
+        }
+    }
 
     const handleNext = () => {
         if (step === 'identity' && !formData.nombre.trim()) {
@@ -222,10 +246,19 @@ export default function SetupWizard({ tenant, program, onComplete }: SetupWizard
                                     </div>
                                     <div className="sw-logo-info">
                                         <h3>Logo del Negocio</h3>
-                                        <p>Recomendamos fondo transparente (PNG), cuadrado, 500x500px.</p>
+                                        <p>Sube una imagen (PNG/JPG/WEBP, máximo 3 MB).</p>
+                                        <label className="sw-upload-btn">
+                                            {logoUploading ? 'Subiendo logo...' : 'Subir logo desde tu equipo'}
+                                            <input
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp"
+                                                disabled={logoUploading}
+                                                onChange={(e) => handleLogoUpload(e.target.files?.[0] || null)}
+                                            />
+                                        </label>
                                         <input
                                             type="text"
-                                            placeholder="URL de tu logo (opcional por ahora)"
+                                            placeholder="O pega una URL de logo (opcional)"
                                             value={formData.logo_url}
                                             onChange={e => setFormData({ ...formData, logo_url: e.target.value })}
                                         />
