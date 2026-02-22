@@ -994,9 +994,16 @@ export default function ClientePanel() {
         </div>
     )
 
+    const hasProgramConfigured = Boolean(
+        program?.tipo_programa &&
+        (program?.puntos_meta ?? 0) > 0 &&
+        program?.descripcion_premio
+    )
+    const shouldShowSetupWizard = Boolean(tenant) && !tenant?.onboarding_completado && !hasProgramConfigured
+
     return (
         <div className={`cliente-page ${isIframe ? 'iframe-mode' : ''}`}>
-            {tenant && !tenant.onboarding_completado && (
+            {shouldShowSetupWizard && tenant && (
                 <SetupWizard
                     tenant={tenant}
                     program={program}

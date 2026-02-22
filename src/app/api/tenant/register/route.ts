@@ -434,7 +434,8 @@ export async function POST(req: NextRequest) {
                 slug,
                 plan: 'trial',
                 trial_hasta: trialHasta.toISOString(),
-                estado: 'activo'
+                estado: 'activo',
+                onboarding_completado: true
             })
             .select()
             .single()
