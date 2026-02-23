@@ -123,6 +123,7 @@
     min-height: 100%;
     display: flex;
     flex-direction: column;
+    padding-bottom: 16px;
 }
 
 .sw-badge {
@@ -529,13 +530,15 @@
 
 /* FOOTER */
 .sw-footer {
-    position: sticky;
-    bottom: 0;
+    position: static;
     margin-top: auto;
     padding-top: 16px;
-    background: linear-gradient(to top, #ffffff 75%, rgba(255, 255, 255, 0));
+    border-top: 1px solid #e2e8f0;
+    background: #ffffff;
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
     z-index: 2;
 }
 
@@ -559,11 +562,19 @@
 }
 
 .sw-btn-ghost {
-    background: transparent;
-    border: none;
-    color: #64748b;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    padding: 11px 16px;
+    border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sw-btn-ghost:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
 }
 
 /* FINISH */

@@ -339,15 +339,23 @@ export async function PUT(
                 .eq('id', ownerTenant.id)
 
             if (error) {
-                const looksLikeMissingAssetCols = error.code === '42703'
+                const looksLikeMissingOptionalCols = error.code === '42703'
                     || `${error.message || ''} ${error.details || ''}`.includes('card_background_url')
                     || `${error.message || ''} ${error.details || ''}`.includes('card_background_overlay')
                     || `${error.message || ''} ${error.details || ''}`.includes('stamp_icon_url')
-                if (looksLikeMissingAssetCols) {
+                    || `${error.message || ''} ${error.details || ''}`.includes('selected_plan')
+                    || `${error.message || ''} ${error.details || ''}`.includes('selected_program_types')
+                    || `${error.message || ''} ${error.details || ''}`.includes('validation_pin')
+                    || `${error.message || ''} ${error.details || ''}`.includes('google_business_url')
+                if (looksLikeMissingOptionalCols) {
                     const fallbackUpdates = { ...tenantUpdates }
                     delete fallbackUpdates.card_background_url
                     delete fallbackUpdates.card_background_overlay
                     delete fallbackUpdates.stamp_icon_url
+                    delete fallbackUpdates.selected_plan
+                    delete fallbackUpdates.selected_program_types
+                    delete fallbackUpdates.validation_pin
+                    delete fallbackUpdates.google_business_url
                     const fallback = await supabase
                         .from('tenants')
                         .update(fallbackUpdates)
@@ -358,7 +366,13 @@ export async function PUT(
 
             if (error) {
                 console.error('Error actualizando tenant:', error)
-                return NextResponse.json({ error: 'Error al actualizar negocio' }, { status: 500 })
+                return NextResponse.json(
+                    {
+                        error: 'Error al actualizar negocio',
+                        error_detail: error.message || error.details || 'unknown'
+                    },
+                    { status: 500 }
+                )
             }
         }
 
