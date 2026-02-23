@@ -198,6 +198,7 @@ export default function ClientePanel() {
     const [authPassword, setAuthPassword] = useState('')
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState('')
+    const [pendingTenantSlug, setPendingTenantSlug] = useState('')
 
     const [tenant, setTenant] = useState<TenantData | null>(null)
     const [program, setProgram] = useState<ProgramData | null>(null)
@@ -388,8 +389,14 @@ export default function ClientePanel() {
                 headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
             })
             if (res.status === 404) {
-                // Evita loop por slug desfasado: re-cargar mis tenants y resolver automáticamente.
-                await loadMyTenants()
+                // Evita loop por slug desfasado.
+                const fallback = myTenants.find((t) => t.slug && t.slug !== slug) || myTenants[0]
+                if (fallback?.slug && fallback.slug !== slug) {
+                    setPendingTenantSlug(fallback.slug)
+                } else {
+                    setTenant(null)
+                    setNeedsSlug(myTenants.length > 1 ? false : true)
+                }
                 return
             }
             if (!res.ok) throw new Error('No encontrado')
@@ -418,6 +425,11 @@ export default function ClientePanel() {
             setStats(newStats)
             setInsights(generateAdvisorInsights(newStats, data.customers || []))
             setNeedsSlug(false)
+            if (typeof window !== 'undefined' && data?.tenant?.slug) {
+                const url = new URL(window.location.href)
+                url.searchParams.set('slug', data.tenant.slug)
+                window.history.replaceState({}, '', url.toString())
+            }
             setConfigForm({
                 nombre: data.tenant.nombre || '',
                 rubro: data.tenant.rubro || '',
@@ -918,13 +930,15 @@ export default function ClientePanel() {
             if (slugFromUrl) {
                 const targetTenant = tenants.find((t: TenantData) => t.slug.toLowerCase() === slugFromUrl)
                 if (targetTenant) {
-                    loadTenantData(targetTenant.slug)
+                    setPendingTenantSlug(targetTenant.slug)
                     return
                 }
             }
 
             if (tenants.length === 1) {
-                loadTenantData(tenants[0].slug)
+                setPendingTenantSlug(tenants[0].slug)
+            } else if (tenants.length > 1 && slugFromUrl) {
+                setPendingTenantSlug(tenants[0].slug)
             } else if (tenants.length > 1) {
                 setNeedsSlug(false)
             }
@@ -978,7 +992,7 @@ export default function ClientePanel() {
 
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            if (event === 'SIGNED_IN') {
                 void loadMyTenants()
             }
             if (event === 'SIGNED_OUT') {
@@ -992,6 +1006,12 @@ export default function ClientePanel() {
             subscription.unsubscribe()
         }
     }, [loadMyTenants, supabase])
+
+    useEffect(() => {
+        if (!pendingTenantSlug) return
+        void loadTenantData(pendingTenantSlug)
+        setPendingTenantSlug('')
+    }, [pendingTenantSlug])
 
     // Load analytics when tab changes
     // Dependencias acotadas intencionalmente para evitar bucles de recarga del panel.
