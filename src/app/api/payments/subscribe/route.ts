@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createCustomer, createSubscription, listCustomers } from '@/lib/flow';
+import { createCustomer, createSubscription, listCustomers, registerCustomerCard } from '@/lib/flow';
 import { getSupabase } from '@/lib/supabase/admin';
 import { requireTenantOwnerById } from '@/lib/authz';
 import { BillingPlan, getFlowPlanId, isBillingPlan } from '@/lib/plans'
@@ -165,6 +165,7 @@ export async function POST(req: Request) {
             code?: number | string;
             message?: string;
             subscriptionId?: string;
+            subscription_id?: string;
             url?: string;
             token?: string;
         };
@@ -181,11 +182,24 @@ export async function POST(req: Request) {
             );
         }
 
-        if (!flowData.url || !flowData.token) {
-            return NextResponse.json(
-                { error: flowData.message || 'Flow no devolvió URL de pago para continuar' },
-                { status: 502 }
-            );
+        const subscriptionId = flowData.subscriptionId || flowData.subscription_id || null
+
+        // Si Flow no entrega URL en esta etapa, intentamos iniciar registro de tarjeta.
+        // Esto ocurre cuando el cliente aún no tiene medio de pago inscrito.
+        let redirectUrl = flowData.url
+        let redirectToken = flowData.token
+        if (!redirectUrl || !redirectToken) {
+            const registerUrlReturn = `${appUrl}/cliente?slug=${encodeURIComponent(owner.tenant!.slug)}`
+            try {
+                const registerResult = await registerCustomerCard(flowCustomerId, registerUrlReturn)
+                if (registerResult.url && registerResult.token) {
+                    redirectUrl = registerResult.url
+                    redirectToken = registerResult.token
+                }
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error || '')
+                console.warn('FLOW_CUSTOMER_REGISTER_FAILED', { tenant_id: typedTenant.id, message })
+            }
         }
 
         // 3. Guardar el ID de suscripción temporal (o esperar al webhook)
@@ -193,15 +207,27 @@ export async function POST(req: Request) {
         await supabase
             .from('tenants')
             .update({
-                flow_subscription_id: flowData.subscriptionId ?? null,
+                flow_subscription_id: subscriptionId,
                 pending_plan: requestedPlan,
                 selected_plan: requestedPlan
             })
             .eq('id', typedTenant.id);
 
+        if (!redirectUrl || !redirectToken) {
+            return NextResponse.json({
+                ok: true,
+                requires_redirect: false,
+                message: flowData.message || 'Suscripción creada. Revisa el estado en tu panel de Flow.',
+                plan_code: requestedPlan,
+                subscription_id: subscriptionId
+            })
+        }
+
         return NextResponse.json({
-            url: flowData.url,
-            token: flowData.token,
+            ok: true,
+            requires_redirect: true,
+            url: redirectUrl,
+            token: redirectToken,
             plan_code: requestedPlan
         });
     } catch (error: unknown) {

@@ -601,8 +601,14 @@ export default function ClientePanel() {
                 body: JSON.stringify({ tenant_id: tenant.id, plan_code: selectedPlan })
             })
             const data = await res.json().catch(() => ({}))
-            if (data.url) {
-                window.location.href = data.url
+            if (data.url && data.token) {
+                const target = data.url.includes('?')
+                    ? `${data.url}&token=${encodeURIComponent(data.token)}`
+                    : `${data.url}?token=${encodeURIComponent(data.token)}`
+                window.location.href = target
+            } else if (data.ok && data.requires_redirect === false) {
+                alert(`✅ ${data.message || 'Suscripción creada correctamente'}`)
+                loadTenantData(tenant.slug)
             } else if (!res.ok) {
                 alert(`❌ Error: ${data.error || 'No se pudo iniciar la suscripción'}`)
             } else {

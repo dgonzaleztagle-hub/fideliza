@@ -143,3 +143,11 @@ export async function listCustomers(filter: string, start = 0, limit = 100): Pro
     const result = await flowRequest('customer/list', { start, limit, filter }, 'GET')
     return normalizeFlowCustomerList(result)
 }
+
+export async function registerCustomerCard(customerId: string, urlReturn: string): Promise<{ url?: string; token?: string }> {
+    const result = await flowRequest('customer/register', {
+        customerId,
+        url_return: urlReturn
+    })
+    return (typeof result === 'object' && result !== null ? result : {}) as { url?: string; token?: string }
+}
