@@ -158,11 +158,12 @@ export async function POST(req: NextRequest) {
             .single()
 
         const dbErrorDetail = createError ? buildDbErrorDetail(createError) : ''
-        const isReferralTriggerBug =
+        const hasOperatorTypeMismatch =
             !!createError &&
-            !!referido_por &&
             dbErrorDetail.toLowerCase().includes('operator does not exist: text >> unknown')
+        const isReferralTriggerBug = hasOperatorTypeMismatch && !!referido_por
         let referralFallbackApplied = false
+        let compatibilityFallbackApplied = false
 
         if (isReferralTriggerBug) {
             console.warn('Registro con referido falló por trigger SQL; reintentando sin referido:', dbErrorDetail)
@@ -177,6 +178,26 @@ export async function POST(req: NextRequest) {
             customer = retry.data
             createError = retry.error
             referralFallbackApplied = !retry.error
+        }
+
+        if (hasOperatorTypeMismatch && createError) {
+            console.warn('Registro falló por incompatibilidad SQL; reintentando con payload mínimo:', dbErrorDetail)
+            const retryMinimal = await supabase
+                .from('customers')
+                .insert({
+                    tenant_id,
+                    nombre: normalizedName,
+                    whatsapp: normalizedWhatsapp,
+                    puntos_actuales: 0,
+                    email: null,
+                    fecha_nacimiento: null,
+                    referido_por: null
+                })
+                .select()
+                .single()
+            customer = retryMinimal.data
+            createError = retryMinimal.error
+            compatibilityFallbackApplied = !retryMinimal.error
         }
 
         if (createError) {
@@ -227,6 +248,8 @@ export async function POST(req: NextRequest) {
             isNew: true,
             warning: referralFallbackApplied
                 ? 'Registro completado sin referido por una inconsistencia temporal en base de datos'
+                : compatibilityFallbackApplied
+                    ? 'Registro completado en modo compatible por una inconsistencia temporal en base de datos'
                 : undefined
         }, { status: 201 })
 
