@@ -54,11 +54,9 @@ export async function GET(
         const { slug } = await params
         const incomingSlug = slug.trim().toLowerCase()
 
-        const tenantSelectWithAssets = `
-            id, nombre, slug, rubro, direccion, email, telefono, estado, plan, selected_plan, selected_program_types, trial_hasta,
-            logo_url, card_background_url, card_background_overlay, stamp_icon_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
-            validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
-        `
+        // Usamos select('*') para evitar 500 por desalineaciones de columnas
+        // entre ambientes (ej: migración parcial). Luego mapeamos en la respuesta.
+        const tenantSelectWithAssets = '*'
         let authUserId: string | null = null
         const authHeader = req.headers.get('authorization') || ''
         const bearer = authHeader.toLowerCase().startsWith('bearer ')
