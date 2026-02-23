@@ -877,6 +877,19 @@ export default function ClientePanel() {
             setAuthRequired(false)
             setAuthError('')
 
+            let slugFromUrl = ''
+            if (typeof window !== 'undefined') {
+                slugFromUrl = new URLSearchParams(window.location.search).get('slug')?.trim().toLowerCase() || ''
+            }
+
+            if (slugFromUrl) {
+                const targetTenant = tenants.find((t: TenantData) => t.slug.toLowerCase() === slugFromUrl)
+                if (targetTenant) {
+                    loadTenantData(targetTenant.slug)
+                    return
+                }
+            }
+
             if (tenants.length === 1) {
                 loadTenantData(tenants[0].slug)
             } else if (tenants.length > 1) {

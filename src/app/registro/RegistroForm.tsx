@@ -123,7 +123,7 @@ export default function RegistroForm() {
     const [direccion, setDireccion] = useState('')
 
     // Tipo de programa
-    const [selectedPlan, setSelectedPlan] = useState<'pyme' | 'pro' | 'full'>('pro')
+    const [selectedPlan, setSelectedPlan] = useState<'pyme' | 'pro' | 'full'>('pyme')
     const [selectedProgramTypes, setSelectedProgramTypes] = useState<string[]>(['sellos'])
     const [tipoPrograma, setTipoPrograma] = useState('sellos')
 
@@ -396,6 +396,28 @@ export default function RegistroForm() {
             clearTimeout(timeoutId)
             setLoading(false)
         }
+    }
+
+    async function goToPanel() {
+        clearError()
+        const emailToUse = effectiveEmail
+        if (!emailToUse) {
+            setLocalError('No encontramos el correo de la sesión. Inicia sesión nuevamente.')
+            return
+        }
+        if (!hasSession && password) {
+            const { error: loginError } = await supabase.auth.signInWithPassword({
+                email: emailToUse,
+                password
+            })
+            if (loginError) {
+                setLocalError('No pudimos dejar tu sesión activa automáticamente. Inicia sesión con tu correo y clave.')
+                return
+            }
+            setHasSession(true)
+        }
+        const slug = result?.tenant?.slug
+        window.location.href = slug ? `/cliente?slug=${encodeURIComponent(slug)}` : '/cliente'
     }
 
     function validateNegocioStep(): boolean {
@@ -1172,31 +1194,15 @@ export default function RegistroForm() {
                 {step === 'listo' && result && (
                     <div className="registro-card registro-success">
                         <div className="registro-success-confetti">🎉🚀✨</div>
-                        <h2>¡Tu programa está listo!</h2>
-                        <p>Ya puedes empezar a fidelizar clientes con <strong>{tipoActual?.nombre}</strong></p>
+                        <h2>¡Tu cuenta está lista!</h2>
+                        <p>Ahora solo falta configurar el negocio desde tu panel (wizard guiado).</p>
 
                         <div className="registro-success-info">
-                            {/* SLUG - Prominente */}
-                            <div className="registro-success-item registro-success-slug">
-                                <span className="registro-success-label">🔑 Tu nombre de acceso al panel:</span>
-                                <div className="registro-slug-box">
-                                    <code className="registro-slug-value">{result.tenant?.slug || 'N/A'}</code>
-                                    <button
-                                        type="button"
-                                        className="registro-slug-copy"
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(result.tenant?.slug || '')
-                                            const btn = document.querySelector('.registro-slug-copy') as HTMLButtonElement
-                                            if (btn) { btn.textContent = '✅ Copiado!'; setTimeout(() => { btn.textContent = '📋 Copiar' }, 2000) }
-                                        }}
-                                    >
-                                        📋 Copiar
-                                    </button>
-                                </div>
-                                <p className="registro-slug-warning">
-                                    ⚠️ <strong>Guarda este nombre.</strong> Lo necesitas para entrar a tu panel.
-                                    También puedes entrar escribiendo el nombre de tu negocio.
-                                </p>
+                            <div className="registro-success-item">
+                                <span className="registro-success-label">Acceso al panel:</span>
+                                <span className="registro-success-value">
+                                    Ingresa con tu correo y contraseña.
+                                </span>
                             </div>
 
                             <div className="registro-success-item">
@@ -1210,7 +1216,7 @@ export default function RegistroForm() {
                                     {qrUrl}
                                 </a>
                                 <p className="registro-field-hint" style={{ marginBottom: 0 }}>
-                                    Este link abre el registro del cliente y el flujo para sumar beneficios.
+                                    Sí: este link es el mismo que codifica el QR. Eso es lo que verán tus clientes.
                                 </p>
                             </div>
 
@@ -1249,46 +1255,25 @@ export default function RegistroForm() {
                                         : 'No disponible'}
                                 </span>
                             </div>
-
-                            <div className="registro-success-item">
-                                <span className="registro-success-label">Plan seleccionado:</span>
-                                <span className="registro-success-value">
-                                    {PLAN_CATALOG[selectedPlan].label} · ${PLAN_CATALOG[selectedPlan].monthlyPrice.toLocaleString('es-CL')}/mes
-                                </span>
-                            </div>
-
-                            <div className="registro-success-item">
-                                <span className="registro-success-label">Tipo de programa:</span>
-                                <span className="registro-success-value">
-                                    {tipoActual?.icon} {tipoActual?.nombre}
-                                </span>
-                            </div>
-
-                            <div className="registro-success-item">
-                                <span className="registro-success-label">Detalle:</span>
-                                <span className="registro-success-value">
-                                    {buildDescripcionPremioAuto()}
-                                </span>
-                            </div>
                         </div>
 
                         <div className="registro-success-next">
                             <h3>¿Qué sigue?</h3>
                             <ol>
+                                <li>⚙️ Entra al panel y completa el wizard de configuración</li>
                                 <li>📱 Prueba el link público en tu celular (flujo cliente)</li>
                                 <li>🖨️ Imprime el QR de arriba y pégalo en tu mostrador</li>
-                                <li>📊 Entra a tu panel para ver las estadísticas</li>
                                 <li>📢 Envía tu primera notificación a los clientes</li>
                             </ol>
                         </div>
 
                         <div className="registro-btn-group">
                             <a href={qrUrl} target="_blank" rel="noopener noreferrer" className="registro-btn-next">
-                                Abrir página cliente →
+                                Abrir flujo cliente (link público) →
                             </a>
-                            <a href="/cliente" className="registro-btn-back" style={{ textAlign: 'center' }}>
-                                Ir a mi panel
-                            </a>
+                            <button type="button" onClick={goToPanel} className="registro-btn-back" style={{ textAlign: 'center' }}>
+                                Ir a configurar mi negocio
+                            </button>
                         </div>
                     </div>
                 )}
