@@ -378,9 +378,9 @@ export default function Home() {
             <span className="lock-icon">🔒</span> Pagos seguros verificados por Flow
           </div>
           <div className="payment-brands">
-            <img src="https://cdn.worldvectorlogo.com/logos/webpay-1.svg" alt="Webpay Plus" className="payment-logo" style={{ filter: 'brightness(1.5)' }} />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Mastercard_2019_logo.svg/1200px-Mastercard_2019_logo.svg.png" alt="Mastercard" className="payment-logo" />
-            <img src="https://cdn.worldvectorlogo.com/logos/visa.svg" alt="Visa" className="payment-logo" style={{ filter: 'brightness(1.5)' }} />
+            <span className="payment-chip">Webpay Plus</span>
+            <img src="/logos/mastercard.png" alt="Mastercard" className="payment-logo" />
+            <img src="/logos/visa.png" alt="Visa" className="payment-logo" />
           </div>
         </div>
       </section>

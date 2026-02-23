@@ -1286,6 +1286,19 @@ h3 {
     margin-top: 0.5rem;
 }
 
+.payment-chip {
+    height: 26px;
+    padding: 0 0.7rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+}
+
 .payment-logo {
     height: 26px;
     width: auto;
