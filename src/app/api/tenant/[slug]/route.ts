@@ -4,6 +4,7 @@ import { getOptionalAuthenticatedUser, requireTenantOwnerBySlug } from '@/lib/au
 import { isProgramType } from '@/lib/programTypes'
 import { normalizeBrandColor } from '@/lib/brandColor'
 import { getEffectiveBillingPlan, isBillingPlan, normalizeProgramChoices } from '@/lib/plans'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 type TenantRow = {
     id: string
@@ -137,9 +138,14 @@ export async function GET(
             : ''
 
         if (bearer) {
-            const { data, error } = await supabase.auth.getUser(bearer)
-            if (!error && data.user) {
-                authUserId = data.user.id
+            const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+            const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+            if (url && anonKey) {
+                const anonClient = createSupabaseClient(url, anonKey)
+                const { data, error } = await anonClient.auth.getUser(bearer)
+                if (!error && data?.user) {
+                    authUserId = data.user.id
+                }
             }
         }
 
