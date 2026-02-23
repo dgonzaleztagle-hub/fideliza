@@ -23,9 +23,13 @@ function isValidEmail(value: string): boolean {
 }
 
 function getSafeFlowEmail(tenantId: string, candidate?: string | null): string {
+    const fallback = `tenant-${tenantId}@vuelve.vip`
     const normalized = String(candidate || '').trim().toLowerCase()
+    // Flow está siendo estricto con algunos correos reales.
+    // Usamos siempre email técnico estable para evitar rechazos.
+    if (isValidEmail(fallback)) return fallback
     if (isValidEmail(normalized)) return normalized
-    return `tenant-${tenantId}@vuelve.vip`
+    return 'tenant-fallback@vuelve.vip'
 }
 
 function looksLikeFlowCustomerMissing(message: string): boolean {
