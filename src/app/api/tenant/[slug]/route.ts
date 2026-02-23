@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 import { getOptionalAuthenticatedUser, requireTenantOwnerBySlug } from '@/lib/authz'
 import { isProgramType } from '@/lib/programTypes'
 import { normalizeBrandColor } from '@/lib/brandColor'
@@ -47,7 +48,7 @@ export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ slug: string }> }
 ) {
-    const supabase = getSupabase()
+    const supabase = await createServerClient()
 
     try {
         const { slug } = await params

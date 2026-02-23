@@ -1013,6 +1013,15 @@ export default function ClientePanel() {
         setPendingTenantSlug('')
     }, [pendingTenantSlug])
 
+    useEffect(() => {
+        if (!needsSlug) return
+        if (tenant) return
+        if (loadingTenants) return
+        if (myTenants.length === 1 && myTenants[0]?.slug) {
+            setPendingTenantSlug(myTenants[0].slug)
+        }
+    }, [needsSlug, tenant, loadingTenants, myTenants])
+
     // Load analytics when tab changes
     // Dependencias acotadas intencionalmente para evitar bucles de recarga del panel.
     useEffect(() => {
@@ -1143,17 +1152,13 @@ export default function ClientePanel() {
             )
         }
 
-        if (myTenants.length > 0) {
+        if (myTenants.length > 1) {
             return (
                 <div className="cliente-page">
                     <div className="cliente-login multi-selector">
                         <div className="cliente-login-icon">🏢</div>
-                        <h1>{myTenants.length === 1 ? 'Tu Negocio' : 'Selecciona tu Local'}</h1>
-                        <p>
-                            {myTenants.length === 1
-                                ? 'Encontramos tu negocio. Continúa al panel.'
-                                : `Tienes ${myTenants.length} negocios registrados`}
-                        </p>
+                        <h1>Selecciona tu Local</h1>
+                        <p>{`Tienes ${myTenants.length} negocios registrados`}</p>
                         <div className="tenants-grid">
                             {myTenants.map(t => (
                                 <button
