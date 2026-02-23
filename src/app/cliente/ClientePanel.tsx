@@ -1104,7 +1104,7 @@ export default function ClientePanel() {
         )
     }
 
-    if (needsSlug && myTenants.length === 0) {
+    if (needsSlug) {
         if (authRequired) {
             return (
                 <div className="cliente-page">
@@ -1138,6 +1138,37 @@ export default function ClientePanel() {
                         <p style={{ marginTop: '1rem', opacity: 0.8 }}>
                             ¿Aún no tienes cuenta? <a href="/registro">Registra tu negocio</a>
                         </p>
+                    </div>
+                </div>
+            )
+        }
+
+        if (myTenants.length > 0) {
+            return (
+                <div className="cliente-page">
+                    <div className="cliente-login multi-selector">
+                        <div className="cliente-login-icon">🏢</div>
+                        <h1>{myTenants.length === 1 ? 'Tu Negocio' : 'Selecciona tu Local'}</h1>
+                        <p>
+                            {myTenants.length === 1
+                                ? 'Encontramos tu negocio. Continúa al panel.'
+                                : `Tienes ${myTenants.length} negocios registrados`}
+                        </p>
+                        <div className="tenants-grid">
+                            {myTenants.map(t => (
+                                <button
+                                    key={t.id}
+                                    className="tenant-select-card"
+                                    onClick={() => loadTenantData(t.slug)}
+                                    style={{ '--brand-color': t.color_primario } as React.CSSProperties & Record<'--brand-color', string>}
+                                >
+                                    <div className="tenant-logo-mini" style={{ background: t.color_primario }}>
+                                        {t.nombre.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span>{t.nombre}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             )

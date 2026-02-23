@@ -353,13 +353,17 @@ export default function RegistroForm() {
             }
 
             if (!res.ok) {
+                const errorCode = data.error_code || `HTTP_${res.status}`
+                const showTechnicalDetail =
+                    errorCode !== 'TENANT_REGISTER_EMAIL_ALREADY_EXISTS'
+
                 setError(data.error || 'Error al registrar')
                 setErrorMeta({
-                    code: data.error_code || `HTTP_${res.status}`,
+                    code: errorCode,
                     status: res.status,
                     requestId: data.request_id || requestId,
                     at: new Date().toLocaleString('es-CL'),
-                    detail: data.error_detail
+                    detail: showTechnicalDetail ? data.error_detail : undefined
                 })
                 return
             }

@@ -322,23 +322,25 @@ export async function POST(req: NextRequest) {
             .replace(/^-|-$/g, '')
             || `negocio-${Date.now()}`
 
-        // Verificar que el slug no exista
-        let slug = baseSlug
-        let attempt = 0
-        while (attempt < 50) {
-            const { data: existing } = await supabase
-                .from('tenants')
-                .select('id')
-                .eq('slug', slug)
-                .maybeSingle()
+        // Verificar slug en modo estricto (sin autogenerar -1, -2, etc.)
+        const { data: existingSlug, error: slugCheckError } = await supabase
+            .from('tenants')
+            .select('id')
+            .eq('slug', baseSlug)
+            .maybeSingle()
 
-            if (!existing) break
-            attempt++
-            slug = `${baseSlug}-${attempt}`
+        if (slugCheckError) {
+            return errorResponse(500, 'Error al validar el nombre del negocio', 'TENANT_REGISTER_SLUG_CHECK_FAILED')
         }
-        if (attempt >= 50) {
-            return errorResponse(500, 'No se pudo generar un slug único para tu negocio', 'TENANT_REGISTER_SLUG_EXHAUSTED')
+        if (existingSlug) {
+            return errorResponse(
+                409,
+                'Nombre de negocio ya registrado. Usa otro nombre para continuar.',
+                'TENANT_REGISTER_SLUG_ALREADY_EXISTS'
+            )
         }
+
+        const slug = baseSlug
 
         // Calcular fecha de trial (14 días)
         const trialHasta = new Date()
