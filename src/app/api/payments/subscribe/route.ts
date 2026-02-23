@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createSubscription } from '@/lib/flow';
+import { createCustomer, createSubscription, listCustomers } from '@/lib/flow';
 import { getSupabase } from '@/lib/supabase/admin';
 import { requireTenantOwnerById } from '@/lib/authz';
 import { BillingPlan, getFlowPlanId, isBillingPlan } from '@/lib/plans'
@@ -16,6 +16,42 @@ type TenantBillingRow = {
     nombre?: string | null
     selected_plan?: string | null
     plan?: string | null
+}
+
+function looksLikeFlowCustomerMissing(message: string): boolean {
+    const text = message.toLowerCase()
+    return text.includes('customer is not found')
+        || text.includes('customer not found')
+}
+
+function looksLikeFlowCustomerAlreadyExists(message: string): boolean {
+    const text = message.toLowerCase()
+    return text.includes('already exists')
+        || text.includes('already registered')
+        || text.includes('exists')
+}
+
+async function ensureFlowCustomerId(externalId: string, email: string, name: string): Promise<string> {
+    try {
+        const created = await createCustomer(name, email, externalId)
+        if (created.customerId) return created.customerId
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error || '')
+        if (!looksLikeFlowCustomerAlreadyExists(message)) {
+            throw error
+        }
+    }
+
+    const filters = [externalId, email]
+    for (const filter of filters) {
+        const customers = await listCustomers(filter)
+        const match = customers.find((customer) =>
+            customer.externalId === externalId || customer.email === email
+        )
+        if (match?.customerId) return match.customerId
+    }
+
+    throw new Error('No fue posible obtener customerId en Flow para este negocio')
 }
 
 export async function POST(req: Request) {
@@ -91,7 +127,20 @@ export async function POST(req: Request) {
             : `${appUrl}/api/payments/webhook`;
 
         const customerEmail = typedTenant.email || `tenant-${typedTenant.id}@vuelve.vip`
-        const flowResult = await createSubscription(typedTenant.id, customerEmail, planId, urlCallback);
+        const customerName = typedTenant.nombre || `Negocio ${typedTenant.id.slice(0, 8)}`
+        let flowCustomerId = await ensureFlowCustomerId(typedTenant.id, customerEmail, customerName)
+
+        let flowResult: unknown
+        try {
+            flowResult = await createSubscription(flowCustomerId, customerEmail, planId, urlCallback)
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error || '')
+            if (!looksLikeFlowCustomerMissing(message)) {
+                throw error
+            }
+            flowCustomerId = await ensureFlowCustomerId(typedTenant.id, customerEmail, customerName)
+            flowResult = await createSubscription(flowCustomerId, customerEmail, planId, urlCallback)
+        }
 
         if (typeof flowResult !== 'object' || flowResult === null) {
             return NextResponse.json({ error: 'Respuesta inválida de Flow' }, { status: 502 });

@@ -102,3 +102,44 @@ export async function createPlan(planId: string, name: string, amount: number) {
         interval: 1, // Mensual
     });
 }
+
+type FlowCustomer = {
+    customerId?: string
+    email?: string
+    name?: string
+    externalId?: string
+    status?: string | number
+}
+
+type FlowCustomerListResponse = {
+    data?: FlowCustomer[] | string
+}
+
+function normalizeFlowCustomerList(raw: unknown): FlowCustomer[] {
+    if (!raw || typeof raw !== 'object') return []
+    const data = (raw as FlowCustomerListResponse).data
+    if (Array.isArray(data)) return data
+    if (typeof data === 'string') {
+        try {
+            const parsed = JSON.parse(data)
+            return Array.isArray(parsed) ? parsed : []
+        } catch {
+            return []
+        }
+    }
+    return []
+}
+
+export async function createCustomer(name: string, email: string, externalId: string): Promise<FlowCustomer> {
+    const result = await flowRequest('customer/create', {
+        name,
+        email,
+        externalId
+    })
+    return (typeof result === 'object' && result !== null ? result : {}) as FlowCustomer
+}
+
+export async function listCustomers(filter: string, start = 0, limit = 100): Promise<FlowCustomer[]> {
+    const result = await flowRequest('customer/list', { start, limit, filter }, 'GET')
+    return normalizeFlowCustomerList(result)
+}
