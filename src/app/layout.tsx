@@ -6,6 +6,7 @@ import './landing.css'
 import { SignatureSEO } from '@/components/seo/SignatureSEO'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://vuelve.vip'),
   title: 'Vuelve+ — Fidelización en Google Wallet',
   description: 'Sistema de lealtad digital para negocios. Tus clientes suman puntos con su celular y tarjeta digital en Google Wallet. Sin apps, sin plástico.',
   keywords: 'fidelización, lealtad, google wallet, tarjeta digital, puntos, premios, marketing, retención',
@@ -59,4 +60,3 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     </html>
   )
 }
-

@@ -2,18 +2,17 @@ import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
     const baseUrl = 'https://vuelve.vip'
+    const now = new Date()
 
-    // Páginas estáticas principales
+    // Solo páginas canónicas e indexables.
     const routes = [
         '',
-        '/cliente',
-        '/login',
         '/registro',
     ].map((route) => ({
         url: `${baseUrl}${route}`,
-        lastModified: new Date(),
-        changeFrequency: 'daily' as const,
-        priority: route === '' ? 1 : 0.8,
+        lastModified: now,
+        changeFrequency: route === '' ? ('daily' as const) : ('weekly' as const),
+        priority: route === '' ? 1 : 0.9,
     }))
 
     return [...routes]

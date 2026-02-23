@@ -5,8 +5,9 @@ export default function robots(): MetadataRoute.Robots {
         rules: {
             userAgent: '*',
             allow: '/',
-            disallow: ['/api/', '/admin/'],
+            disallow: ['/api/', '/admin/', '/cliente', '/mi-tarjeta', '/cajero/'],
         },
         sitemap: 'https://vuelve.vip/sitemap.xml',
+        host: 'https://vuelve.vip',
     }
 }

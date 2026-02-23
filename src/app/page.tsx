@@ -40,7 +40,10 @@ const PinterestIcon = ({ size = 20 }) => (
 
 export const metadata: Metadata = {
   title: 'Vuelve+ — Tus clientes siempre vuelven',
-  description: 'Plataforma de fidelización para negocios: QR, Wallet, campañas, staff y analítica. 14 días de prueba y pago seguro por Flow.'
+  description: 'Plataforma de fidelización para negocios: QR, Wallet, campañas, staff y analítica. 14 días de prueba y pago seguro por Flow.',
+  alternates: {
+    canonical: '/'
+  }
 }
 
 const comparisonRows = [
