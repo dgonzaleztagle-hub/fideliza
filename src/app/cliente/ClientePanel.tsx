@@ -2207,7 +2207,9 @@ export default function ClientePanel() {
                                         </div>
                                         <div className="plan-body">
                                             <label style={{ display: 'block', marginBottom: '0.75rem' }}>
-                                                <span style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', opacity: 0.8 }}>Plan objetivo</span>
+                                                <span style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', opacity: 0.8 }}>
+                                                    {tenant.plan === 'trial' ? 'Plan definitivo del trial' : 'Plan objetivo'}
+                                                </span>
                                                 <select
                                                     value={selectedPlan}
                                                     onChange={(e) => setSelectedPlan((isBillingPlan(e.target.value) ? e.target.value : 'pro'))}
@@ -2222,7 +2224,12 @@ export default function ClientePanel() {
 
                                             {tenant.plan === 'trial' ? (
                                                 <>
-                                                    <p>Estás usando el trial técnico con objetivo {PLAN_CATALOG[selectedPlan].label}.</p>
+                                                    <p className="plan-trial-explain">
+                                                        Estás en prueba gratuita. El plan que elijas aquí será tu plan definitivo al momento de pagar.
+                                                    </p>
+                                                    <p className="plan-trial-charge">
+                                                        Plan elegido: <strong>{PLAN_CATALOG[selectedPlan].label}</strong> · ${PLAN_CATALOG[selectedPlan].monthlyPrice.toLocaleString('es-CL')}/mes
+                                                    </p>
                                                     {tenant.trial_hasta && (
                                                         <p className="trial-date">Vence: {new Date(tenant.trial_hasta).toLocaleDateString()}</p>
                                                     )}
@@ -2231,10 +2238,10 @@ export default function ClientePanel() {
                                                         onClick={handleUpgrade}
                                                         disabled={subscribing}
                                                     >
-                                                        {subscribing ? '🚀 Preparando...' : `Activar ${PLAN_CATALOG[selectedPlan].label} ($${PLAN_CATALOG[selectedPlan].monthlyPrice.toLocaleString('es-CL')})`}
+                                                        {subscribing ? '🚀 Preparando...' : `Confirmar plan y pagar con Flow`}
                                                     </button>
                                                     <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', opacity: 0.6, textAlign: 'center' }}>
-                                                        🔒 Pagos seguros vía Flow
+                                                        🔒 Pago seguro con Flow. El cobro se aplicará sobre el plan seleccionado arriba.
                                                     </div>
                                                 </>
                                             ) : (
