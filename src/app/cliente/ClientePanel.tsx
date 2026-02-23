@@ -387,6 +387,11 @@ export default function ClientePanel() {
             const res = await fetch(`/api/tenant/${slug}`, {
                 headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
             })
+            if (res.status === 404) {
+                // Evita loop por slug desfasado: re-cargar mis tenants y resolver automáticamente.
+                await loadMyTenants()
+                return
+            }
             if (!res.ok) throw new Error('No encontrado')
             const data = await res.json()
             if (!data.is_owner) {
@@ -450,7 +455,9 @@ export default function ClientePanel() {
                 regalo_valor_maximo: data.program?.config?.valor_maximo ?? 0
             })
         } catch {
-            alert('No se encontró el negocio. Verifica el slug.')
+            // Sin popup bloqueante: mostramos pantalla base y dejamos que el selector/login resuelva.
+            setTenant(null)
+            setNeedsSlug(true)
         } finally {
             setLoading(false)
         }
