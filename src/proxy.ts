@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     let response = NextResponse.next({
         request
     })
@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
         }
     )
 
-    // Fuerza sincronización de sesión/cookies antes de llegar a páginas o APIs.
+    // Sincroniza sesion/cookies antes de llegar a paginas o APIs.
     await supabase.auth.getUser()
 
     return response
@@ -36,4 +36,3 @@ export const config = {
         '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$).*)'
     ]
 }
-

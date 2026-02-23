@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useEffect, useCallback, type CSSProperties } from 'react'
 import { Star, MessageSquare, Send, CheckCircle } from 'lucide-react'

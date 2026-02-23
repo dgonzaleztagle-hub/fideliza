@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import AyudaPanel from './AyudaPanel'
@@ -1006,7 +1007,7 @@ export default function ClientePanel() {
         if (!pendingTenantSlug) return
         void loadTenantData(pendingTenantSlug)
         setPendingTenantSlug('')
-    }, [pendingTenantSlug])
+    }, [pendingTenantSlug]) // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (!needsSlug) return
@@ -1030,7 +1031,7 @@ export default function ClientePanel() {
         if (tab === 'clientes' && tenant && customers.length > 0 && program && ['membresia', 'multipase'].includes(program.tipo_programa)) {
             loadMembershipStatuses()
         }
-    }, [tab, tenant])
+    }, [tab, tenant]) // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const normalized = normalizeProgramChoices(selectedProgramTypes, selectedPlan)
@@ -1664,7 +1665,6 @@ export default function ClientePanel() {
                                     <h3>📱 Tu QR para el local</h3>
                                     <p>Imprime este QR y pégalo en tu mostrador</p>
                                     <div className="cliente-qr-visual">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                             src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/qr/${tenant.slug}`)}&bgcolor=0a0a0f&color=ffffff&format=png`}
                                             alt="QR de tu negocio"

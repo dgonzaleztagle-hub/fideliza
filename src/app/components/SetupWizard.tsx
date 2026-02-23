@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useMemo, useState, type CSSProperties } from 'react'
 import { Layout, Palette, Star, Award, Smartphone, CheckCircle2, ArrowRight, Check } from 'lucide-react'
