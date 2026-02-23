@@ -1,14 +1,33 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import HeroLogin from './components/HeroLogin'
-import { Store, LayoutDashboard, Wallet, Mail, Instagram, Youtube, Linkedin, Facebook, Twitter } from 'lucide-react'
+import {
+  Store,
+  LayoutDashboard,
+  Wallet,
+  Mail,
+  Instagram,
+  Youtube,
+  Linkedin,
+  Facebook,
+  Twitter,
+  QrCode,
+  Users,
+  BarChart3,
+  BellRing,
+  MapPin,
+  Palette,
+  ShieldCheck,
+  Check,
+  X
+} from 'lucide-react'
 import { PLAN_CATALOG } from '@/lib/plans'
 
 const TikTokIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
   </svg>
-);
+)
 
 const PinterestIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -16,17 +35,73 @@ const PinterestIcon = ({ size = 20 }) => (
     <path d="M12 22v-9" />
     <path d="M12 13a3 3 0 0 1 3-3c2 0 3 1.5 3 3.5 0 2.5-1.5 4.5-3.5 4.5-1.5 0-2.5-1-2.5-2.5" />
   </svg>
-);
+)
 
 export const metadata: Metadata = {
   title: 'Vuelve+ — Tus clientes siempre vuelven',
-  description: 'Tarjetas de lealtad digitales en Google Wallet. Tu negocio fideliza clientes sin apps, sin cartón, sin complicaciones. Prueba gratis 14 días.',
+  description: 'Plataforma de fidelización para negocios: QR, Wallet, campañas, staff y analítica. 14 días de prueba y pago seguro por Flow.'
 }
+
+const comparisonRows = [
+  {
+    name: 'Precio mensual',
+    pyme: `$${PLAN_CATALOG.pyme.monthlyPrice.toLocaleString('es-CL')}`,
+    pro: `$${PLAN_CATALOG.pro.monthlyPrice.toLocaleString('es-CL')}`,
+    full: `$${PLAN_CATALOG.full.monthlyPrice.toLocaleString('es-CL')}`
+  },
+  {
+    name: 'Motores de fidelización',
+    pyme: `${PLAN_CATALOG.pyme.limits.maxProgramChoices} motor`,
+    pro: `${PLAN_CATALOG.pro.limits.maxProgramChoices} motores`,
+    full: 'Todos (8)'
+  },
+  {
+    name: 'Staff',
+    pyme: `${PLAN_CATALOG.pyme.limits.maxStaff} usuarios`,
+    pro: `${PLAN_CATALOG.pro.limits.maxStaff} usuarios`,
+    full: 'Ilimitado'
+  },
+  {
+    name: 'Campañas programadas',
+    pyme: `${PLAN_CATALOG.pyme.limits.maxScheduledCampaigns}`,
+    pro: `${PLAN_CATALOG.pro.limits.maxScheduledCampaigns}`,
+    full: 'Ilimitadas'
+  },
+  {
+    name: 'Alcance de notificaciones/mes',
+    pyme: `${PLAN_CATALOG.pyme.limits.monthlyNotificationRecipients.toLocaleString('es-CL')}`,
+    pro: `${PLAN_CATALOG.pro.limits.monthlyNotificationRecipients.toLocaleString('es-CL')}`,
+    full: 'Sin tope práctico'
+  },
+  {
+    name: 'Exportación de clientes (CSV)',
+    pyme: false,
+    pro: true,
+    full: true
+  },
+  {
+    name: 'Analítica avanzada',
+    pyme: false,
+    pro: true,
+    full: true
+  },
+  {
+    name: 'QR + página pública + Wallet',
+    pyme: true,
+    pro: true,
+    full: true
+  },
+  {
+    name: 'Pago seguro por Flow',
+    pyme: true,
+    pro: true,
+    full: true
+  }
+] as const
 
 export default function Home() {
   return (
     <div className="landing">
-      {/* NAV */}
       <nav className="nav">
         <div className="nav-inner">
           <Link href="/" className="nav-brand">
@@ -35,15 +110,14 @@ export default function Home() {
           </Link>
           <div className="nav-links">
             <a href="#como-funciona">Cómo funciona</a>
-            <a href="#beneficios">Beneficios</a>
-            <a href="#precio">Precio</a>
+            <a href="#beneficios">Panel y módulos</a>
+            <a href="#precio">Planes</a>
             <Link href="/cliente" className="nav-link-panel">Panel de negocio</Link>
           </div>
           <Link href="/registro" className="nav-cta">Empezar gratis</Link>
         </div>
       </nav>
 
-      {/* HERO */}
       <section className="hero">
         <div className="hero-bg">
           <video
@@ -109,234 +183,196 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SOCIAL PROOF BAR */}
       <section className="proof-bar">
         <div className="proof-bar-inner">
           <div className="proof-item">
-            <span className="proof-number">2 min</span>
-            <span className="proof-label">Para crear tu programa</span>
+            <span className="proof-number">14 días</span>
+            <span className="proof-label">Prueba completa</span>
           </div>
           <div className="proof-divider" />
           <div className="proof-item">
-            <span className="proof-number">0$</span>
-            <span className="proof-label">Sin costo de setup</span>
+            <span className="proof-number">8</span>
+            <span className="proof-label">Motores disponibles</span>
           </div>
           <div className="proof-divider" />
           <div className="proof-item">
-            <span className="proof-number">3</span>
-            <span className="proof-label">Planes para escalar</span>
+            <span className="proof-number">Flow</span>
+            <span className="proof-label">Cobro seguro verificado</span>
           </div>
           <div className="proof-divider" />
           <div className="proof-item">
-            <span className="proof-number">24/7</span>
-            <span className="proof-label">Funciona siempre</span>
+            <span className="proof-number">1 panel</span>
+            <span className="proof-label">Operación diaria completa</span>
           </div>
         </div>
       </section>
 
-      {/* CÓMO FUNCIONA */}
       <section className="section section-gradient" id="como-funciona">
         <div className="section-header">
           <span className="section-tag">Cómo funciona</span>
           <h2 className="section-title">
-            Tan simple como<br /><span className="gradient-text">contar hasta 3</span>
+            Del registro a fidelizar,<br /><span className="gradient-text">sin pasos confusos</span>
           </h2>
         </div>
 
-        <div className="steps">
-          <div className="step">
-            <div className="step-visual">
-              <div className="step-icon-wrap step-icon-glow">
-                <span className="step-icon">📱</span>
-              </div>
-              <div className="step-number">01</div>
-            </div>
-            <h3>Crea tu programa</h3>
-            <p>Define cuántos puntos y qué premio. Elige tus colores. En 2 minutos tienes todo listo.</p>
-          </div>
-
-          <div className="step-connector">
-            <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="rgba(255,107,107,0.3)" strokeWidth="2" strokeDasharray="4 4" /></svg>
-          </div>
-
-          <div className="step">
-            <div className="step-visual">
-              <div className="step-icon-wrap step-icon-glow">
-                <span className="step-icon">🖨️</span>
-              </div>
-              <div className="step-number">02</div>
-            </div>
-            <h3>Pega tu QR</h3>
-            <p>Imprime el QR que te damos y pégalo en tu mostrador. Tus clientes lo escanean al pagar.</p>
-          </div>
-
-          <div className="step-connector">
-            <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="rgba(255,107,107,0.3)" strokeWidth="2" strokeDasharray="4 4" /></svg>
-          </div>
-
-          <div className="step">
-            <div className="step-visual">
-              <div className="step-icon-wrap step-icon-glow">
-                <span className="step-icon">🎁</span>
-              </div>
-              <div className="step-number">03</div>
-            </div>
-            <h3>Fideliza automático</h3>
-            <p>Los puntos se suman solos. Al llegar a la meta, el premio se genera con un QR único.</p>
-          </div>
+        <div className="journey-grid">
+          <article className="journey-card">
+            <span className="journey-step">Paso 1</span>
+            <h3>Crea tu cuenta del negocio</h3>
+            <p>Entras con correo y clave. Quedas con sesión activa y vas directo al panel.</p>
+          </article>
+          <article className="journey-card">
+            <span className="journey-step">Paso 2</span>
+            <h3>Define tu plan objetivo del trial</h3>
+            <p>Empiezas con prueba de 14 días y eliges desde ya Pyme, Pro o Full.</p>
+          </article>
+          <article className="journey-card">
+            <span className="journey-step">Paso 3</span>
+            <h3>Configura solo lo que contrataste</h3>
+            <p>Seleccionas motores y parámetros según tu plan, sin ruido ni bloques extraños.</p>
+          </article>
+          <article className="journey-card">
+            <span className="journey-step">Paso 4</span>
+            <h3>Opera desde tu dashboard</h3>
+            <p>Gestionas clientes, campañas, personal, QR y personalización visual en un mismo lugar.</p>
+          </article>
         </div>
       </section>
 
-      {/* BENEFICIOS */}
       <section className="section section-dark" id="beneficios">
         <div className="section-header">
-          <span className="section-tag">Beneficios</span>
+          <span className="section-tag">Panel y módulos</span>
           <h2 className="section-title">
-            Todo lo que necesitas,<br /><span className="gradient-text">nada que no</span>
+            Lo que realmente puedes hacer<br /><span className="gradient-text">hoy dentro de la app</span>
           </h2>
         </div>
 
-        <div className="features-grid">
-          <div className="feature-card feature-card-highlight">
-            <div className="feature-card-glow" />
-            <span className="feature-icon">📍</span>
-            <h3>Geofencing inteligente</h3>
-            <p>Tus clientes reciben una notificación cuando pasan cerca de tu local. &quot;¡Estás cerca! Te falta 1 punto para tu premio&quot;.</p>
-            <span className="feature-badge">Estrella</span>
-          </div>
-
-          <div className="feature-card">
-            <span className="feature-icon">💳</span>
-            <h3>Google Wallet</h3>
-            <p>La tarjeta vive en la billetera del celular. Sin descargar apps, sin crear cuentas.</p>
-          </div>
-
-          <div className="feature-card">
-            <span className="feature-icon">🔒</span>
-            <h3>Anti-trampas</h3>
-            <p>Máximo 1 punto por día por cliente. Nadie puede escanearte 10 veces seguidas.</p>
-          </div>
-
-          <div className="feature-card">
-            <span className="feature-icon">📊</span>
-            <h3>Panel con stats</h3>
-            <p>Ve cuántos clientes tienes, quién está cerca del premio, cuántas visitas hoy.</p>
-          </div>
-
-          <div className="feature-card">
-            <span className="feature-icon">🎯</span>
-            <h3>QR de premio único</h3>
-            <p>Cada premio genera un código irrepetible. Tú lo escaneas y validas al instante.</p>
-          </div>
-
-          <div className="feature-card">
-            <span className="feature-icon">⚡</span>
-            <h3>Cero fricción</h3>
-            <p>El cliente escanea, pone su WhatsApp y listo. Sin apps, sin emails, sin esperas.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* PARA QUIÉN */}
-      <section className="section">
-        <div className="section-header">
-          <span className="section-tag">Para quién</span>
-          <h2 className="section-title">
-            Si vendes algo y quieres que<br /><span className="gradient-text">vuelvan a comprarte</span>
-          </h2>
-        </div>
-
-        <div className="rubros-grid">
-          {[
-            { emoji: '💈', nombre: 'Barberías', ejemplo: '10 cortes = 1 gratis' },
-            { emoji: '☕', nombre: 'Cafeterías', ejemplo: '8 cafés = 1 gratis' },
-            { emoji: '🍕', nombre: 'Restaurants', ejemplo: '5 visitas = postre gratis' },
-            { emoji: '💅', nombre: 'Centros de belleza', ejemplo: '6 sesiones = 20% off' },
-            { emoji: '🧺', nombre: 'Lavanderías', ejemplo: '10 lavados = 1 gratis' },
-            { emoji: '🏋️', nombre: 'Gimnasios', ejemplo: '30 visitas = 1 semana free' },
-          ].map((rubro) => (
-            <div key={rubro.nombre} className="rubro-card">
-              <span className="rubro-emoji">{rubro.emoji}</span>
-              <h4>{rubro.nombre}</h4>
-              <p>{rubro.ejemplo}</p>
+        <div className="feature-stack">
+          <article className="feature-item">
+            <QrCode size={20} />
+            <div>
+              <h3>QR y página pública del cliente</h3>
+              <p>Compartes un QR único del negocio y el cliente entra al flujo de tarjeta sin fricción.</p>
             </div>
-          ))}
+          </article>
+          <article className="feature-item">
+            <Wallet size={20} />
+            <div>
+              <h3>Tarjeta en Google Wallet</h3>
+              <p>El cliente guarda su tarjeta en Wallet y revisa progreso, premio y estado en tiempo real.</p>
+            </div>
+          </article>
+          <article className="feature-item">
+            <Palette size={20} />
+            <div>
+              <h3>Personalización de tarjeta</h3>
+              <p>Configuras logo, fondo y sello (stamp) para que tu marca se vea consistente.</p>
+            </div>
+          </article>
+          <article className="feature-item">
+            <BellRing size={20} />
+            <div>
+              <h3>Campañas y notificaciones</h3>
+              <p>Envías campañas segmentadas y programadas según los límites de tu plan.</p>
+            </div>
+          </article>
+          <article className="feature-item">
+            <Users size={20} />
+            <div>
+              <h3>Gestión de personal</h3>
+              <p>Agregas y eliminas staff para operación diaria de caja, validación y atención.</p>
+            </div>
+          </article>
+          <article className="feature-item">
+            <BarChart3 size={20} />
+            <div>
+              <h3>Analítica de negocio</h3>
+              <p>Monitoreas clientes activos, avances a premio y uso real de tu programa.</p>
+            </div>
+          </article>
+          <article className="feature-item">
+            <MapPin size={20} />
+            <div>
+              <h3>Georreferencia y presencia local</h3>
+              <p>Si no marcas ubicación en onboarding, luego la puedes completar desde el panel.</p>
+            </div>
+          </article>
+          <article className="feature-item">
+            <ShieldCheck size={20} />
+            <div>
+              <h3>Seguridad operativa</h3>
+              <p>Control de acceso por cuenta, operación por tenant y cobro protegido vía Flow.</p>
+            </div>
+          </article>
         </div>
       </section>
 
-      {/* PRICING */}
-      <section className="section section-dark" id="precio">
+      <section className="section plan-compare" id="precio">
         <div className="section-header">
-          <span className="section-tag">Precio</span>
+          <span className="section-tag">Comparativa real</span>
           <h2 className="section-title">
-            Simple y transparente.<br /><span className="gradient-text">Como debe ser.</span>
+            Mismo producto, distinto alcance.<br /><span className="gradient-text">Aquí se ve claro.</span>
           </h2>
+        </div>
+
+        <div className="compare-wrap">
+          <table className="compare-table">
+            <thead>
+              <tr>
+                <th>Qué incluye</th>
+                <th>{PLAN_CATALOG.pyme.label}</th>
+                <th>{PLAN_CATALOG.pro.label}</th>
+                <th>{PLAN_CATALOG.full.label}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonRows.map((row) => (
+                <tr key={row.name}>
+                  <td>{row.name}</td>
+                  <td>{typeof row.pyme === 'boolean' ? (row.pyme ? <Check size={16} /> : <X size={16} />) : row.pyme}</td>
+                  <td>{typeof row.pro === 'boolean' ? (row.pro ? <Check size={16} /> : <X size={16} />) : row.pro}</td>
+                  <td>{typeof row.full === 'boolean' ? (row.full ? <Check size={16} /> : <X size={16} />) : row.full}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         <div className="pricing">
-          {([
-            {
-              code: 'pyme' as const,
-              ribbon: '🟢 Nuevo',
-              title: PLAN_CATALOG.pyme.label,
-              desc: 'Ideal para empezar con foco y bajo costo.',
-              features: [
-                'Elige 1 motor de fidelización',
-                'Geofencing incluido',
-                'Hasta 2 personas de staff',
-                'Hasta 5 campañas programadas'
-              ]
-            },
-            {
-              code: 'pro' as const,
-              ribbon: '🚀 Recomendado',
-              title: PLAN_CATALOG.pro.label,
-              desc: 'El plan medio, flexible y con más potencia.',
-              features: [
-                'Elige hasta 4 motores',
-                'Analytics avanzado',
-                'Exportación CSV',
-                'Hasta 8 personas de staff'
-              ]
-            },
-            {
-              code: 'full' as const,
-              ribbon: '👑 Full',
-              title: PLAN_CATALOG.full.label,
-              desc: 'Todas las funcionalidades desbloqueadas.',
-              features: [
-                'Todos los motores habilitados',
-                'Sin límites operativos relevantes',
-                'Automatización total y soporte prioritario',
-                'Escalamiento completo'
-              ]
-            }
-          ]).map((plan) => (
-            <div key={plan.code} className={`price-card ${plan.code === 'pro' ? 'price-card-featured' : ''}`}>
-              <div className="price-card-ribbon">{plan.ribbon}</div>
-              <div className="price-top">
-                <h3>{plan.title}</h3>
-                <p>{plan.desc}</p>
-              </div>
-              <div className="price-amount-wrapper">
-                <div className="price-amount">
-                  <span className="price-currency">$</span>
-                  <span className="price-number">{PLAN_CATALOG[plan.code].monthlyPrice.toLocaleString('es-CL')}</span>
-                  <span className="price-period">/mes</span>
+          {(['pyme', 'pro', 'full'] as const).map((planCode) => {
+            const plan = PLAN_CATALOG[planCode]
+            return (
+              <article key={planCode} className={`price-card ${planCode === 'pro' ? 'price-card-featured' : ''}`}>
+                <div className="price-card-ribbon">
+                  {planCode === 'pyme' ? 'Inicio' : planCode === 'pro' ? 'Recomendado' : 'Máximo alcance'}
                 </div>
-              </div>
-              <ul className="price-features">
-                {plan.features.map((feature) => (
-                  <li key={feature}><span className="check">✓</span> {feature}</li>
-                ))}
-              </ul>
-              <Link href={`/registro?plan=${plan.code}`} className="btn btn-primary btn-lg btn-full">
-                Empezar con {plan.title}
-              </Link>
-              <p className="price-note">14 días gratis · Sin tarjeta de crédito para comenzar</p>
-            </div>
-          ))}
+                <div className="price-top">
+                  <h3>{plan.label}</h3>
+                  <p>{plan.description}</p>
+                </div>
+                <div className="price-amount-wrapper">
+                  <div className="price-amount">
+                    <span className="price-currency">$</span>
+                    <span className="price-number">{plan.monthlyPrice.toLocaleString('es-CL')}</span>
+                    <span className="price-period">/mes</span>
+                  </div>
+                </div>
+                <ul className="price-features">
+                  <li><span className="check">✓</span> {planCode === 'full' ? 'Todos los motores habilitados' : `Hasta ${plan.limits.maxProgramChoices} motores`}</li>
+                  <li><span className="check">✓</span> {planCode === 'full' ? 'Staff ilimitado' : `Staff hasta ${plan.limits.maxStaff} usuarios`}</li>
+                  <li><span className="check">✓</span> Campañas: {planCode === 'full' ? 'Ilimitadas' : `${plan.limits.maxScheduledCampaigns}`}</li>
+                  <li><span className="check">✓</span> {plan.limits.exportCsv ? 'Incluye exportación CSV' : 'Sin exportación CSV'}</li>
+                  <li><span className="check">✓</span> {plan.limits.analyticsAdvanced ? 'Analítica avanzada' : 'Analítica base'}</li>
+                </ul>
+                <Link href={`/registro?plan=${planCode}`} className="btn btn-primary btn-lg btn-full">
+                  Empezar con {plan.label}
+                </Link>
+                <p className="price-note">14 días de prueba · Se cobra el plan que dejes seleccionado al finalizar trial</p>
+              </article>
+            )
+          })}
         </div>
+
         <div className="payment-methods" style={{ marginTop: '1rem' }}>
           <div className="payment-secure">
             <span className="lock-icon">🔒</span> Pagos seguros verificados por Flow
@@ -349,50 +385,71 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA FINAL */}
+      <section className="section faq-section">
+        <div className="section-header">
+          <span className="section-tag">Preguntas frecuentes</span>
+          <h2 className="section-title">
+            Dudas típicas antes de partir<br /><span className="gradient-text">resueltas en simple</span>
+          </h2>
+        </div>
+        <div className="faq-grid">
+          <article className="faq-card">
+            <h3>¿Tengo que configurar todo en el registro?</h3>
+            <p>No. Puedes crear la cuenta, entrar al panel y ajustar lo demás con calma dentro del dashboard.</p>
+          </article>
+          <article className="faq-card">
+            <h3>¿El plan queda fijo desde el día 1?</h3>
+            <p>No. Durante la prueba eliges o cambias tu plan objetivo, y ese es el que se cobrará después del trial.</p>
+          </article>
+          <article className="faq-card">
+            <h3>¿Puedo partir sin estar físicamente en mi local?</h3>
+            <p>Sí. Puedes saltar la georreferencia inicial y completarla cuando estés en tu local desde configuración.</p>
+          </article>
+          <article className="faq-card">
+            <h3>¿El cliente debe descargar una app?</h3>
+            <p>No. El flujo funciona con QR + página pública + tarjeta en Google Wallet.</p>
+          </article>
+        </div>
+      </section>
+
       <section className="cta-section">
         <div className="cta-content">
           <h2 className="cta-title">
-            ¿Listo para que tus clientes<br />siempre vuelvan?
+            Si hoy vendes, hoy puedes fidelizar
           </h2>
           <p className="cta-subtitle">
-            Crea tu programa de lealtad en 2 minutos.<br />
-            14 días gratis, sin compromiso.
+            Entras con correo y clave, configuras tu plan, y operas todo desde un solo panel.
           </p>
           <Link href="/registro" className="btn btn-white btn-lg">
-            Crear mi programa ahora
+            Crear mi cuenta y entrar al panel
             <span className="btn-arrow">→</span>
           </Link>
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="footer">
         <div className="footer-inner">
           <div className="footer-grid">
-            {/* Columna 1: Brand & Info (Izquierda) */}
             <div className="footer-brand-col">
               <div className="footer-brand">
                 <span className="nav-brand-text">Vuelve</span>
                 <span className="nav-brand-plus">+</span>
               </div>
               <p className="footer-text">
-                Tarjetas de lealtad digitales en Google Wallet.<br />
-                Tu negocio fideliza clientes sin apps, sin cartón,<br />
-                sin complicaciones.
+                Plataforma de fidelización para negocios en crecimiento.<br />
+                QR, Wallet, panel de operación y pagos seguros.<br />
+                Todo en una sola herramienta.
               </p>
             </div>
 
-            {/* Columna 2: Plataforma (Centro) */}
             <div className="footer-nav">
               <h4>Plataforma</h4>
               <Link href="/registro"><Store size={18} /> Registrar mi negocio</Link>
               <Link href="/cliente"><LayoutDashboard size={18} /> Panel de negocio</Link>
-              <Link href="/mi-tarjeta"><Wallet size={18} /> Mi Tarjeta</Link>
+              <Link href="/mi-tarjeta"><Wallet size={18} /> Mi tarjeta</Link>
               <a href="mailto:contacto@vuelve.vip"><Mail size={18} /> contacto@vuelve.vip</a>
             </div>
 
-            {/* Columna 3: Redes Sociales (Derecha) */}
             <div className="footer-socials">
               <h4>Síguenos</h4>
               <div className="socials-list">
@@ -408,7 +465,7 @@ export default function Home() {
           </div>
 
           <div className="footer-bottom">
-            <p>© 2025 Vuelve+ · Un producto de HojaCero</p>
+            <p>© 2026 Vuelve+ · Un producto de HojaCero</p>
           </div>
         </div>
       </footer>
