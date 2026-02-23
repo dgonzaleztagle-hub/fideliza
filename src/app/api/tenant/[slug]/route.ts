@@ -48,7 +48,30 @@ export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ slug: string }> }
 ) {
-    const supabase = await createServerClient()
+    const serverSupabase = await createServerClient()
+    const authHeader = req.headers.get('authorization') || ''
+    const bearer = authHeader.toLowerCase().startsWith('bearer ')
+        ? authHeader.slice(7).trim()
+        : ''
+
+    let readSupabase = serverSupabase
+    try {
+        // En producción puede existir desalineación de cookies post-registro.
+        // Si hay service role disponible, usamos lectura admin para resolver el slug
+        // y luego validamos ownership con auth del request.
+        readSupabase = getSupabase() as unknown as typeof serverSupabase
+    } catch {
+        // Fallback RLS por JWT explícito (si viene bearer), o server client por cookies.
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        if (bearer && url && anonKey) {
+            readSupabase = createSupabaseClient(url, anonKey, {
+                global: {
+                    headers: { Authorization: `Bearer ${bearer}` }
+                }
+            }) as unknown as typeof serverSupabase
+        }
+    }
 
     try {
         const { slug } = await params
@@ -68,7 +91,7 @@ export async function GET(
         `
 
         const findBySlug = async (value: string) => {
-            const withAssets = await supabase
+            const withAssets = await readSupabase
                 .from('tenants')
                 .select(tenantSelectWithAssets)
                 .eq('slug', value)
@@ -80,7 +103,7 @@ export async function GET(
                 || `${withAssets.error.message || ''} ${withAssets.error.details || ''}`.includes('stamp_icon_url')
             if (!looksMissingAssetCols) return withAssets
 
-            const legacy = await supabase
+            const legacy = await readSupabase
                 .from('tenants')
                 .select(tenantSelectLegacy)
                 .eq('slug', value)
@@ -100,7 +123,7 @@ export async function GET(
         }
 
         if (!tenant) {
-            const byNameWithAssets = await supabase
+            const byNameWithAssets = await readSupabase
                 .from('tenants')
                 .select(tenantSelectWithAssets)
                 .ilike('nombre', slug.trim())
@@ -109,7 +132,7 @@ export async function GET(
                 .maybeSingle()
             let byName = byNameWithAssets.data
             if (!byName && byNameWithAssets.error && byNameWithAssets.error.code === '42703') {
-                const byNameLegacy = await supabase
+                const byNameLegacy = await readSupabase
                     .from('tenants')
                     .select(tenantSelectLegacy)
                     .ilike('nombre', slug.trim())
@@ -146,7 +169,7 @@ export async function GET(
             }
 
             if (fallbackAuthUserId) {
-                const fallbackOwner = await supabase
+                const fallbackOwner = await readSupabase
                     .from('tenants')
                     .select(tenantSelectWithAssets)
                     .eq('auth_user_id', fallbackAuthUserId)
@@ -164,7 +187,7 @@ export async function GET(
             return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
         }
 
-        const { data: program } = await supabase
+        const { data: program } = await readSupabase
             .from('programs')
             .select('id, tenant_id, nombre, puntos_meta, descripcion_premio, tipo_premio, valor_premio, tipo_programa, config, activo')
             .eq('tenant_id', tenant.id)
@@ -172,10 +195,6 @@ export async function GET(
             .maybeSingle()
 
         let authUserId: string | null = null
-        const authHeader = req.headers.get('authorization') || ''
-        const bearer = authHeader.toLowerCase().startsWith('bearer ')
-            ? authHeader.slice(7).trim()
-            : ''
 
         if (bearer) {
             const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -220,14 +239,14 @@ export async function GET(
             })
         }
 
-        const { data: customers } = await supabase
+        const { data: customers } = await readSupabase
             .from('customers')
             .select('*')
             .eq('tenant_id', tenant.id)
             .order('created_at', { ascending: false })
 
         const today = new Date().toISOString().split('T')[0]
-        const { count: stampsHoy } = await supabase
+        const { count: stampsHoy } = await readSupabase
             .from('stamps')
             .select('*', { count: 'exact', head: true })
             .eq('tenant_id', tenant.id)
