@@ -7,10 +7,23 @@ const PRIVATE_KEY = (process.env.GOOGLE_WALLET_PRIVATE_KEY || '')
     .replace(/^["']|["']$/g, '')
     .replace(/\\n/g, '\n');
 
+function assertWalletCredentials() {
+    if (!PRIVATE_KEY || !ISSUER_ID || !SERVICE_ACCOUNT_EMAIL) {
+        throw new Error('WALLET_CREDENTIALS_MISSING');
+    }
+    const hasPemMarkers =
+        PRIVATE_KEY.includes('-----BEGIN PRIVATE KEY-----')
+        && PRIVATE_KEY.includes('-----END PRIVATE KEY-----')
+    if (!hasPemMarkers) {
+        throw new Error('WALLET_PRIVATE_KEY_INVALID_FORMAT');
+    }
+}
+
 /**
  * Obtiene el token de acceso de Google mediante la cuenta de servicio
  */
 async function getAccessToken(): Promise<string> {
+    assertWalletCredentials();
     const now = Math.floor(Date.now() / 1000);
     const payload = {
         iss: SERVICE_ACCOUNT_EMAIL,
@@ -60,9 +73,7 @@ export async function generateSaveLink(options: {
     customerWhatsapp?: string
     tenantSlug?: string
 }) {
-    if (!PRIVATE_KEY || !ISSUER_ID || !SERVICE_ACCOUNT_EMAIL) {
-        throw new Error('Faltan credenciales de Google Wallet en .env.local');
-    }
+    assertWalletCredentials();
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vuelveplus.cl';
 

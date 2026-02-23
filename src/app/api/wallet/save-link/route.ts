@@ -126,7 +126,16 @@ export async function POST(req: NextRequest) {
 
     } catch (error: unknown) {
         console.error('Error generando save link:', error)
-        const message = error instanceof Error ? error.message : 'Error generando link de Google Wallet'
+        const rawMessage = error instanceof Error ? error.message : 'Error generando link de Google Wallet'
+        const isPrivateKeyError =
+            rawMessage.includes('secretOrPrivateKey must be an asymmetric key when using RS256')
+            || rawMessage.includes('WALLET_PRIVATE_KEY_INVALID_FORMAT')
+        const isMissingCredentials = rawMessage.includes('WALLET_CREDENTIALS_MISSING')
+        const message = isPrivateKeyError
+            ? 'La clave privada de Google Wallet está mal formateada en el servidor.'
+            : isMissingCredentials
+                ? 'Faltan credenciales de Google Wallet en el servidor.'
+                : rawMessage
         return NextResponse.json(
             { error: message, configured: false },
             { status: 500 }
