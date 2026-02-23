@@ -1345,6 +1345,18 @@
     gap: 1.25rem;
 }
 
+.cliente-config-inline-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+}
+
 .cliente-config-card {
     padding: 1.5rem;
     background: #ffffff;
@@ -1361,6 +1373,25 @@
     padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border);
     color: var(--text-primary);
+}
+
+.cliente-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.cliente-card-header h3 {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+}
+
+.cliente-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
 }
 
 .cliente-config-item {

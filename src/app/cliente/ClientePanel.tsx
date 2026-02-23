@@ -131,6 +131,7 @@ interface StaffMember {
 }
 
 type Tab = 'dashboard' | 'clientes' | 'configuracion' | 'qr' | 'analytics' | 'notificaciones' | 'ayuda' | 'personal'
+type ConfigSection = 'plan' | 'business' | 'program' | 'geo' | 'marketing'
 
 const PROGRAM_TYPE_LABELS: Record<string, string> = {
     sellos: '⭐ Tarjeta de Sellos',
@@ -222,7 +223,7 @@ export default function ClientePanel() {
     const [redeeming, setRedeeming] = useState(false)
 
     // Config editable
-    const [editingConfig, setEditingConfig] = useState(false)
+    const [activeConfigSection, setActiveConfigSection] = useState<ConfigSection | null>(null)
     const [configForm, setConfigForm] = useState({
         nombre: '',
         rubro: '',
@@ -614,8 +615,8 @@ export default function ClientePanel() {
         }
     }
 
-    async function handleSaveConfig() {
-        if (!tenant) return
+    async function handleSaveConfig(): Promise<boolean> {
+        if (!tenant) return false
         setSaving(true)
         setSaveMessage('')
         try {
@@ -711,16 +712,29 @@ export default function ClientePanel() {
             const data = await res.json()
             if (res.ok) {
                 setSaveMessage('✅ Guardado correctamente')
-                setEditingConfig(false)
                 loadTenantData(tenant.slug)
+                return true
             } else {
                 setSaveMessage(`❌ ${data.error}`)
+                return false
             }
         } catch {
             setSaveMessage('❌ Error al guardar')
+            return false
         } finally {
             setSaving(false)
             setTimeout(() => setSaveMessage(''), 3000)
+        }
+    }
+
+    function isSectionEditing(section: ConfigSection) {
+        return activeConfigSection === section
+    }
+
+    async function handleSaveConfigSection(section: ConfigSection) {
+        const ok = await handleSaveConfig()
+        if (ok) {
+            setActiveConfigSection((current) => (current === section ? null : current))
         }
     }
 
@@ -2170,26 +2184,15 @@ export default function ClientePanel() {
                                 <div>
                                     <h1>Configuración</h1>
                                     <p className="cliente-content-subtitle">Ajustes de tu negocio y programa</p>
-                                    {!editingConfig && (
+                                    {!activeConfigSection && (
                                         <p className="cliente-edit-mode-hint">
-                                            Estás en modo lectura. Activa edición para cambiar datos, plan, geolocalización y mensajes.
+                                            Estás en modo lectura. Edita cada bloque por separado para guardar sin fricción.
                                         </p>
                                     )}
                                 </div>
-                                {!editingConfig ? (
-                                    <button className="cliente-edit-btn cliente-edit-main-btn" onClick={() => setEditingConfig(true)}>
-                                        ✏️ Editar toda la configuración
-                                    </button>
-                                ) : (
-                                    <div className="cliente-edit-actions">
-                                        <button className="cliente-save-btn" onClick={handleSaveConfig} disabled={saving}>
-                                            {saving ? '⏳ Guardando...' : '💾 Guardar'}
-                                        </button>
-                                        <button className="cliente-cancel-btn" onClick={() => setEditingConfig(false)}>
-                                            Cancelar
-                                        </button>
-                                    </div>
-                                )}
+                                <span className="cliente-config-inline-status">
+                                    {activeConfigSection ? `Editando: ${activeConfigSection}` : 'Sin edición activa'}
+                                </span>
                             </div>
                             <StatusAlert tenant={tenant} onUpgrade={handleUpgrade} supportLink={SUPPORT_WA_LINK} />
 
@@ -2204,26 +2207,56 @@ export default function ClientePanel() {
                                     <div className={`cliente-config-card plan-card ${tenant.plan}`}>
                                         <div className="plan-header">
                                             <h3>💳 Plan Vuelve+</h3>
-                                            <span className={`badge-plan ${effectivePlan}`}>
-                                                {tenant.plan === 'trial' ? '🎁 TRIAL' : formatPlanLabel(effectivePlan).toUpperCase()}
-                                            </span>
+                                            <div className="cliente-card-actions">
+                                                <span className={`badge-plan ${effectivePlan}`}>
+                                                    {tenant.plan === 'trial' ? '🎁 TRIAL' : formatPlanLabel(effectivePlan).toUpperCase()}
+                                                </span>
+                                                {!isSectionEditing('plan') ? (
+                                                    <button
+                                                        className="cliente-edit-btn"
+                                                        onClick={() => setActiveConfigSection('plan')}
+                                                        disabled={!!activeConfigSection}
+                                                    >
+                                                        ✏️ Editar
+                                                    </button>
+                                                ) : (
+                                                    <div className="cliente-edit-actions">
+                                                        <button
+                                                            className="cliente-save-btn"
+                                                            onClick={() => handleSaveConfigSection('plan')}
+                                                            disabled={saving}
+                                                        >
+                                                            {saving ? '⏳ Guardando...' : '💾 Guardar'}
+                                                        </button>
+                                                        <button className="cliente-cancel-btn" onClick={() => setActiveConfigSection(null)}>
+                                                            Cancelar
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="plan-body">
-                                            <label style={{ display: 'block', marginBottom: '0.75rem' }}>
-                                                <span style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                                                    {tenant.plan === 'trial' ? 'Plan definitivo del trial' : 'Plan objetivo'}
-                                                </span>
-                                                <select
-                                                    value={selectedPlan}
-                                                    onChange={(e) => setSelectedPlan((isBillingPlan(e.target.value) ? e.target.value : 'pro'))}
-                                                >
-                                                    {BILLING_PLAN_VALUES.map((planCode) => (
-                                                        <option key={planCode} value={planCode}>
-                                                            {PLAN_CATALOG[planCode].label} (${PLAN_CATALOG[planCode].monthlyPrice.toLocaleString('es-CL')}/mes)
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </label>
+                                            {isSectionEditing('plan') ? (
+                                                <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+                                                    <span style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                        {tenant.plan === 'trial' ? 'Plan definitivo del trial' : 'Plan objetivo'}
+                                                    </span>
+                                                    <select
+                                                        value={selectedPlan}
+                                                        onChange={(e) => setSelectedPlan((isBillingPlan(e.target.value) ? e.target.value : 'pro'))}
+                                                    >
+                                                        {BILLING_PLAN_VALUES.map((planCode) => (
+                                                            <option key={planCode} value={planCode}>
+                                                                {PLAN_CATALOG[planCode].label} (${PLAN_CATALOG[planCode].monthlyPrice.toLocaleString('es-CL')}/mes)
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </label>
+                                            ) : (
+                                                <p className="plan-trial-charge">
+                                                    Plan elegido: <strong>{PLAN_CATALOG[selectedPlan].label}</strong> · ${PLAN_CATALOG[selectedPlan].monthlyPrice.toLocaleString('es-CL')}/mes
+                                                </p>
+                                            )}
 
                                             {tenant.plan === 'trial' ? (
                                                 <>
@@ -2275,8 +2308,32 @@ export default function ClientePanel() {
                                 )}
 
                                 <div className="cliente-config-card">
-                                    <h3>🏪 Datos del negocio</h3>
-                                    {editingConfig ? (
+                                    <div className="cliente-card-header">
+                                        <h3>🏪 Datos del negocio</h3>
+                                        {!isSectionEditing('business') ? (
+                                            <button
+                                                className="cliente-edit-btn"
+                                                onClick={() => setActiveConfigSection('business')}
+                                                disabled={!!activeConfigSection}
+                                            >
+                                                ✏️ Editar
+                                            </button>
+                                        ) : (
+                                            <div className="cliente-edit-actions">
+                                                <button
+                                                    className="cliente-save-btn"
+                                                    onClick={() => handleSaveConfigSection('business')}
+                                                    disabled={saving}
+                                                >
+                                                    {saving ? '⏳ Guardando...' : '💾 Guardar'}
+                                                </button>
+                                                <button className="cliente-cancel-btn" onClick={() => setActiveConfigSection(null)}>
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {isSectionEditing('business') ? (
                                         <div className="cliente-config-form">
                                             <label>
                                                 <span>Nombre</span>
@@ -2489,8 +2546,32 @@ export default function ClientePanel() {
                                 </div>
 
                                 <div className="cliente-config-card">
-                                    <h3>🎯 Programa de lealtad</h3>
-                                    {editingConfig ? (
+                                    <div className="cliente-card-header">
+                                        <h3>🎯 Programa de lealtad</h3>
+                                        {!isSectionEditing('program') ? (
+                                            <button
+                                                className="cliente-edit-btn"
+                                                onClick={() => setActiveConfigSection('program')}
+                                                disabled={!!activeConfigSection}
+                                            >
+                                                ✏️ Editar
+                                            </button>
+                                        ) : (
+                                            <div className="cliente-edit-actions">
+                                                <button
+                                                    className="cliente-save-btn"
+                                                    onClick={() => handleSaveConfigSection('program')}
+                                                    disabled={saving}
+                                                >
+                                                    {saving ? '⏳ Guardando...' : '💾 Guardar'}
+                                                </button>
+                                                <button className="cliente-cancel-btn" onClick={() => setActiveConfigSection(null)}>
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {isSectionEditing('program') ? (
                                         <div className="cliente-config-form">
                                             <label>
                                                 <span>Puntos para el premio</span>
@@ -2684,8 +2765,32 @@ export default function ClientePanel() {
                                 </div>
 
                                 <div className="cliente-config-card">
-                                    <h3>📍 Geofencing & Google Wallet</h3>
-                                    {editingConfig ? (
+                                    <div className="cliente-card-header">
+                                        <h3>📍 Geofencing & Google Wallet</h3>
+                                        {!isSectionEditing('geo') ? (
+                                            <button
+                                                className="cliente-edit-btn"
+                                                onClick={() => setActiveConfigSection('geo')}
+                                                disabled={!!activeConfigSection}
+                                            >
+                                                ✏️ Editar
+                                            </button>
+                                        ) : (
+                                            <div className="cliente-edit-actions">
+                                                <button
+                                                    className="cliente-save-btn"
+                                                    onClick={() => handleSaveConfigSection('geo')}
+                                                    disabled={saving}
+                                                >
+                                                    {saving ? '⏳ Guardando...' : '💾 Guardar'}
+                                                </button>
+                                                <button className="cliente-cancel-btn" onClick={() => setActiveConfigSection(null)}>
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {isSectionEditing('geo') ? (
                                         <div className="cliente-config-form">
                                             <label>
                                                 <span>Latitud</span>
@@ -2770,7 +2875,8 @@ export default function ClientePanel() {
                                                 <button
                                                     type="button"
                                                     className="cliente-edit-btn"
-                                                    onClick={() => setEditingConfig(true)}
+                                                    onClick={() => setActiveConfigSection('geo')}
+                                                    disabled={!!activeConfigSection}
                                                 >
                                                     ✏️ Editar geolocalización
                                                 </button>
@@ -2778,9 +2884,10 @@ export default function ClientePanel() {
                                                     type="button"
                                                     className="cliente-gps-btn"
                                                     onClick={() => {
-                                                        setEditingConfig(true)
+                                                        setActiveConfigSection('geo')
                                                         setTimeout(() => detectarUbicacion(), 50)
                                                     }}
+                                                    disabled={!!activeConfigSection && !isSectionEditing('geo')}
                                                 >
                                                     📍 Capturar ubicación real ahora
                                                 </button>
@@ -2820,10 +2927,34 @@ export default function ClientePanel() {
 
                                 {/* --- MARKETING AUTO-PILOT SECTION --- */}
                                 <div className="cliente-config-card full-width">
-                                    <h3>🤖 Marketing Auto-Pilot (Personalización)</h3>
+                                    <div className="cliente-card-header">
+                                        <h3>🤖 Marketing Auto-Pilot (Personalización)</h3>
+                                        {!isSectionEditing('marketing') ? (
+                                            <button
+                                                className="cliente-edit-btn"
+                                                onClick={() => setActiveConfigSection('marketing')}
+                                                disabled={!!activeConfigSection}
+                                            >
+                                                ✏️ Editar
+                                            </button>
+                                        ) : (
+                                            <div className="cliente-edit-actions">
+                                                <button
+                                                    className="cliente-save-btn"
+                                                    onClick={() => handleSaveConfigSection('marketing')}
+                                                    disabled={saving}
+                                                >
+                                                    {saving ? '⏳ Guardando...' : '💾 Guardar'}
+                                                </button>
+                                                <button className="cliente-cancel-btn" onClick={() => setActiveConfigSection(null)}>
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                     <p className="cliente-config-desc">Configura los mensajes automáticos que tus clientes recibirán por Google Wallet.</p>
 
-                                    {editingConfig ? (
+                                    {isSectionEditing('marketing') ? (
                                         <div className="cliente-config-form marketing-form">
                                             <div className="marketing-row">
                                                 <label>
