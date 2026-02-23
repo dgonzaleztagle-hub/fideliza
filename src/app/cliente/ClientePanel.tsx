@@ -2205,7 +2205,7 @@ export default function ClientePanel() {
                                         </div>
                                         <div className="plan-body">
                                             <label style={{ display: 'block', marginBottom: '0.75rem' }}>
-                                                <span style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', opacity: 0.8 }}>
+                                                <span style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                                                     {tenant.plan === 'trial' ? 'Plan definitivo del trial' : 'Plan objetivo'}
                                                 </span>
                                                 <select
@@ -2238,7 +2238,7 @@ export default function ClientePanel() {
                                                     >
                                                         {subscribing ? '🚀 Preparando...' : `Confirmar plan y pagar con Flow`}
                                                     </button>
-                                                    <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', opacity: 0.6, textAlign: 'center' }}>
+                                                    <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
                                                         🔒 Pago seguro con Flow. El cobro se aplicará sobre el plan seleccionado arriba.
                                                     </div>
                                                 </>
@@ -2260,7 +2260,7 @@ export default function ClientePanel() {
                                                     )}
                                                 </>
                                             )}
-                                            <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', opacity: 0.8 }}>
+                                            <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                                                 <div>• Staff: hasta {planLimits.maxStaff >= 9999 ? 'ilimitado' : planLimits.maxStaff}</div>
                                                 <div>• Campañas programadas: {planLimits.maxScheduledCampaigns >= 9999 ? 'ilimitadas' : planLimits.maxScheduledCampaigns}</div>
                                                 <div>• Exportación CSV: {planLimits.exportCsv ? 'incluida' : 'no incluida'}</div>

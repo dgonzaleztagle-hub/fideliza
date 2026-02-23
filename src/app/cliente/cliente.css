@@ -1408,6 +1408,94 @@
     color: var(--text-primary);
 }
 
+.plan-card {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+}
+
+.plan-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+}
+
+.plan-header h3 {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+}
+
+.plan-body {
+    color: var(--text-primary);
+}
+
+.badge-plan {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.62rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+
+.badge-plan.pyme {
+    color: #0f766e;
+    background: #ccfbf1;
+    border-color: #99f6e4;
+}
+
+.badge-plan.pro {
+    color: #1d4ed8;
+    background: #dbeafe;
+    border-color: #bfdbfe;
+}
+
+.badge-plan.full {
+    color: #7c2d12;
+    background: #ffedd5;
+    border-color: #fed7aa;
+}
+
+.plan-stats {
+    margin-top: 0.6rem;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+}
+
+.trial-date {
+    margin-top: 0.35rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+}
+
+.upgrade-btn {
+    margin-top: 0.4rem;
+    padding: 0.62rem 0.9rem;
+    border: none;
+    border-radius: 10px;
+    background: #4f46e5;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.86rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.upgrade-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
+}
+
+.upgrade-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .cliente-color-picker {
     display: flex;
     align-items: center;
