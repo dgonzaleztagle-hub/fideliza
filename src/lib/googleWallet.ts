@@ -2,7 +2,10 @@ import jwt from 'jsonwebtoken';
 
 const ISSUER_ID = process.env.GOOGLE_WALLET_ISSUER_ID || '';
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL || '';
-const PRIVATE_KEY = process.env.GOOGLE_WALLET_PRIVATE_KEY?.replace(/\\n/g, '\n') || '';
+const PRIVATE_KEY = (process.env.GOOGLE_WALLET_PRIVATE_KEY || '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\n/g, '\n');
 
 /**
  * Obtiene el token de acceso de Google mediante la cuenta de servicio

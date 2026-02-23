@@ -72,6 +72,7 @@ export function isBillingPlan(value: unknown): value is BillingPlan {
 export function getEffectiveBillingPlan(tenantPlan: string | null | undefined, selectedPlan: string | null | undefined): BillingPlan {
     if (tenantPlan === 'full' || tenantPlan === 'pro' || tenantPlan === 'pyme') return tenantPlan
     if (selectedPlan === 'full' || selectedPlan === 'pro' || selectedPlan === 'pyme') return selectedPlan
+    if (tenantPlan === 'trial') return 'pyme'
     return 'pro'
 }
 

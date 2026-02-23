@@ -118,7 +118,7 @@ export default function Home() {
             <a href="#precio">Planes</a>
             <Link href="/cliente" className="nav-link-panel">Panel de negocio</Link>
           </div>
-          <Link href="/registro" className="nav-cta">Empezar gratis</Link>
+          <a href="#precio" className="nav-cta">Empezar gratis</a>
         </div>
       </nav>
 
@@ -159,10 +159,10 @@ export default function Home() {
             </p>
 
             <div className="hero-actions">
-              <Link href="/registro" className="btn btn-primary btn-lg">
+              <a href="#precio" className="btn btn-primary btn-lg">
                 Crear mi programa gratis
                 <span className="btn-arrow">→</span>
-              </Link>
+              </a>
               <a href="#como-funciona" className="btn btn-ghost">
                 Ver cómo funciona
               </a>
@@ -424,10 +424,10 @@ export default function Home() {
           <p className="cta-subtitle">
             Entras con correo y clave, configuras tu plan, y operas todo desde un solo panel.
           </p>
-          <Link href="/registro" className="btn btn-white btn-lg">
+          <a href="#precio" className="btn btn-white btn-lg">
             Crear mi cuenta y entrar al panel
             <span className="btn-arrow">→</span>
-          </Link>
+          </a>
         </div>
       </section>
 
@@ -448,7 +448,7 @@ export default function Home() {
 
             <div className="footer-nav">
               <h4>Plataforma</h4>
-              <Link href="/registro"><Store size={18} /> Registrar mi negocio</Link>
+              <a href="#precio"><Store size={18} /> Registrar mi negocio</a>
               <Link href="/cliente"><LayoutDashboard size={18} /> Panel de negocio</Link>
               <Link href="/mi-tarjeta"><Wallet size={18} /> Mi tarjeta</Link>
               <a href="mailto:contacto@vuelve.vip"><Mail size={18} /> contacto@vuelve.vip</a>

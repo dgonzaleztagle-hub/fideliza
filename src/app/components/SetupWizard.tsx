@@ -112,15 +112,28 @@ export default function SetupWizard({ tenant, program, selectedPlan, selectedPro
     try {
       const fd = new FormData()
       fd.append('file', file)
-      const res = await fetch('/api/upload/logo', { method: 'POST', body: fd })
-      const data = await res.json()
+      const res = await fetch('/api/upload/tenant-asset?type=logo', { method: 'POST', body: fd })
+      const raw = await res.text()
+      let data: { error?: string; logo_url?: string; asset_url?: string } = {}
+      if (raw) {
+        try {
+          data = JSON.parse(raw)
+        } catch {
+          data = {}
+        }
+      }
       if (!res.ok) {
-        alert(data.error || 'No se pudo subir el logo')
+        alert(data.error || `No se pudo subir el logo (HTTP ${res.status})`)
         return
       }
-      setFormData((prev) => ({ ...prev, logo_url: data.logo_url }))
+      const logoUrl = data.asset_url || data.logo_url || ''
+      if (!logoUrl) {
+        alert('La subida no devolvió URL pública del logo')
+        return
+      }
+      setFormData((prev) => ({ ...prev, logo_url: logoUrl }))
     } catch {
-      alert('Error de red al subir el logo')
+      alert('Error de conexión al subir el logo')
     } finally {
       setLogoUploading(false)
     }

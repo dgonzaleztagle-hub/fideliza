@@ -150,7 +150,7 @@ function formatProgramTypeLabel(tipo?: string | null) {
 }
 
 function formatPlanLabel(plan?: string | null) {
-    if (!plan) return 'Pro'
+    if (!plan) return PLAN_CATALOG.pyme.label
     if (plan === 'trial') return 'Trial'
     if (plan === 'pyme') return PLAN_CATALOG.pyme.label
     if (plan === 'full') return PLAN_CATALOG.full.label
@@ -258,7 +258,7 @@ export default function ClientePanel() {
         cupon_descuento_porcentaje: 15,
         regalo_valor_maximo: 0
     })
-    const [selectedPlan, setSelectedPlan] = useState<'pyme' | 'pro' | 'full'>('pro')
+    const [selectedPlan, setSelectedPlan] = useState<'pyme' | 'pro' | 'full'>('pyme')
     const [selectedProgramTypes, setSelectedProgramTypes] = useState<string[]>(['sellos'])
     const [saving, setSaving] = useState(false)
     const [assetUploading, setAssetUploading] = useState<'logo' | 'background' | 'stamp' | null>(null)
@@ -1324,7 +1324,7 @@ export default function ClientePanel() {
     )
 
     const shouldShowSetupWizard = Boolean(tenant) && !tenant?.onboarding_completado
-    const effectivePlan = tenant ? getEffectiveBillingPlan(tenant.plan, tenant.selected_plan) : 'pro'
+    const effectivePlan = tenant ? getEffectiveBillingPlan(tenant.plan, tenant.selected_plan) : 'pyme'
     const planLimits = PLAN_CATALOG[selectedPlan].limits
     const availableProgramTypes = normalizeProgramChoices(selectedProgramTypes, selectedPlan)
     const reachedProgramChoiceLimit = selectedPlan !== 'full' && availableProgramTypes.length >= planLimits.maxProgramChoices

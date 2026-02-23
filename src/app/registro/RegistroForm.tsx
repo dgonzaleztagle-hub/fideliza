@@ -275,16 +275,24 @@ export default function RegistroForm() {
         try {
             const fd = new FormData()
             fd.append('file', file)
-            const res = await fetch('/api/upload/logo', {
+            const res = await fetch('/api/upload/tenant-asset?type=logo', {
                 method: 'POST',
                 body: fd
             })
-            const data = await res.json()
+            const raw = await res.text()
+            let data: { error?: string; logo_url?: string; asset_url?: string } = {}
+            if (raw) {
+                try {
+                    data = JSON.parse(raw)
+                } catch {
+                    data = {}
+                }
+            }
             if (!res.ok) {
-                setLocalError(data.error || 'No se pudo subir el logo')
+                setLocalError(data.error || `No se pudo subir el logo (HTTP ${res.status})`)
                 return
             }
-            setLogoUrl(data.logo_url || '')
+            setLogoUrl(data.asset_url || data.logo_url || '')
         } catch {
             setLocalError('Error de conexión al subir el logo')
         } finally {

@@ -106,6 +106,8 @@ export default function QRPageClient({ tenant, program }: Props) {
     // Google Wallet
     const [walletLink, setWalletLink] = useState<string | null>(null)
     const [walletLoading, setWalletLoading] = useState(false)
+    const [walletError, setWalletError] = useState<string | null>(null)
+    const [walletTargetWhatsapp, setWalletTargetWhatsapp] = useState('')
 
     const primaryColor = tenant.color_primario || '#6366f1'
     const tipoPrograma = program?.tipo_programa || 'sellos'
@@ -232,8 +234,10 @@ export default function QRPageClient({ tenant, program }: Props) {
         await handleStamp(returningWhatsapp)
     }
 
-    async function fetchWalletLink(wsp: string) {
+    async function fetchWalletLink(wsp: string): Promise<string | null> {
         setWalletLoading(true)
+        setWalletError(null)
+        setWalletTargetWhatsapp(wsp)
         try {
             const res = await fetch('/api/wallet/save-link', {
                 method: 'POST',
@@ -243,11 +247,37 @@ export default function QRPageClient({ tenant, program }: Props) {
             const data = await res.json()
             if (res.ok && data.saveLink) {
                 setWalletLink(data.saveLink)
+                return data.saveLink
             }
+
+            const message = typeof data?.error === 'string'
+                ? data.error
+                : `No pudimos generar tu tarjeta de Google Wallet (HTTP ${res.status})`
+            setWalletError(message)
+            return null
         } catch {
-            // No bloquear UX si wallet falla
+            setWalletError('No pudimos conectar para generar tu tarjeta de Google Wallet. Reintenta.')
+            return null
         } finally {
             setWalletLoading(false)
+        }
+    }
+
+    async function handleWalletAction() {
+        const target = walletTargetWhatsapp || whatsapp || returningWhatsapp
+        if (!target) {
+            setWalletError('No encontramos el teléfono para generar la tarjeta.')
+            return
+        }
+
+        if (walletLink) {
+            window.open(walletLink, '_blank', 'noopener,noreferrer')
+            return
+        }
+
+        const link = await fetchWalletLink(target)
+        if (link) {
+            window.open(link, '_blank', 'noopener,noreferrer')
         }
     }
 
@@ -356,6 +386,8 @@ export default function QRPageClient({ tenant, program }: Props) {
         setReturningWhatsapp('')
         setMontoCompra('')
         setWalletLink(null)
+        setWalletError(null)
+        setWalletTargetWhatsapp('')
     }
 
     // ═══ RENDER RESULT ═══
@@ -811,27 +843,39 @@ export default function QRPageClient({ tenant, program }: Props) {
                     <div className="qr-result">
                         {renderResult()}
 
-                        {/* Botón Google Wallet */}
-                        {walletLink && (
-                            <a
-                                href={walletLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="qr-wallet-btn"
-                            >
-                                <img
-                                    src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Wallet_Icon_2022.svg"
-                                    width="24"
-                                    height="24"
-                                    alt="Google Wallet"
-                                />
-                                <span>Añadir a Google Wallet</span>
-                            </a>
-                        )}
+                        {/* Acción Google Wallet (siempre visible) */}
+                        <button
+                            type="button"
+                            className="qr-wallet-btn"
+                            onClick={handleWalletAction}
+                            disabled={walletLoading}
+                        >
+                            <img
+                                src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Wallet_Icon_2022.svg"
+                                width="24"
+                                height="24"
+                                alt="Google Wallet"
+                            />
+                            <span>{walletLoading ? 'Generando tarjeta...' : 'Añadir a Google Wallet'}</span>
+                        </button>
                         {walletLoading && (
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', textAlign: 'center' }}>
                                 Generando tarjeta digital...
                             </p>
+                        )}
+                        {!walletLoading && !walletLink && walletError && (
+                            <div style={{ marginTop: '0.75rem', textAlign: 'center' }}>
+                                <p style={{ fontSize: '0.8rem', color: '#ff8d8d' }}>
+                                    {walletError}
+                                </p>
+                                <button
+                                    type="button"
+                                    className="qr-btn qr-btn-secondary"
+                                    onClick={() => fetchWalletLink(walletTargetWhatsapp || whatsapp || returningWhatsapp)}
+                                >
+                                    Reintentar Google Wallet
+                                </button>
+                            </div>
                         )}
 
                         <button onClick={resetState} className="qr-btn qr-btn-secondary" style={{ marginTop: '1rem' }}>

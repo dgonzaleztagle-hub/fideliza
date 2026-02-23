@@ -34,10 +34,19 @@ export async function POST(req: NextRequest) {
             )
         }
 
-        // Verificar que Google Wallet está configurado
-        if (!process.env.GOOGLE_WALLET_ISSUER_ID || !process.env.GOOGLE_WALLET_PRIVATE_KEY) {
+        // Verificar configuración mínima de Google Wallet
+        const missing: string[] = []
+        if (!process.env.GOOGLE_WALLET_ISSUER_ID) missing.push('GOOGLE_WALLET_ISSUER_ID')
+        if (!process.env.GOOGLE_WALLET_PRIVATE_KEY) missing.push('GOOGLE_WALLET_PRIVATE_KEY')
+        if (!process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL) missing.push('GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL')
+
+        if (missing.length > 0) {
             return NextResponse.json(
-                { error: 'Google Wallet no está configurado en este servidor', configured: false },
+                {
+                    error: 'Google Wallet no está configurado en este servidor',
+                    configured: false,
+                    missing_env: missing
+                },
                 { status: 503 }
             )
         }
@@ -119,7 +128,7 @@ export async function POST(req: NextRequest) {
         console.error('Error generando save link:', error)
         const message = error instanceof Error ? error.message : 'Error generando link de Google Wallet'
         return NextResponse.json(
-            { error: message },
+            { error: message, configured: false },
             { status: 500 }
         )
     }

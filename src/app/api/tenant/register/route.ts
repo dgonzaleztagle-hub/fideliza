@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
             selected_program_types
         } = body
 
-        const normalizedSelectedPlan: BillingPlan = isBillingPlan(selected_plan) ? selected_plan : 'pro'
+        const normalizedSelectedPlan: BillingPlan = isBillingPlan(selected_plan) ? selected_plan : 'pyme'
         const normalizedSelectedProgramTypes = normalizeProgramChoices(selected_program_types, normalizedSelectedPlan)
 
         const incomingProgramType = typeof tipo_programa === 'string'
