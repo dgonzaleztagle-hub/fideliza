@@ -189,7 +189,6 @@ export default function ClientePanel() {
     const supabase = useMemo(() => createClient(), [])
     const [tab, setTab] = useState<Tab>('dashboard')
     const [loading, setLoading] = useState(false)
-    const [tenantSlug, setTenantSlug] = useState('')
     const [needsSlug, setNeedsSlug] = useState(true)
     const [myTenants, setMyTenants] = useState<TenantData[]>([])
     const [loadingTenants, setLoadingTenants] = useState(false)
@@ -389,13 +388,12 @@ export default function ClientePanel() {
                 headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
             })
             if (res.status === 404) {
-                // Evita loop por slug desfasado.
-                const fallback = myTenants.find((t) => t.slug && t.slug !== slug) || myTenants[0]
+                const fallback = myTenants[0]
                 if (fallback?.slug && fallback.slug !== slug) {
                     setPendingTenantSlug(fallback.slug)
                 } else {
                     setTenant(null)
-                    setNeedsSlug(myTenants.length > 1 ? false : true)
+                    setNeedsSlug(false)
                 }
                 return
             }
@@ -921,6 +919,7 @@ export default function ClientePanel() {
             setMyTenants(tenants)
             setAuthRequired(false)
             setAuthError('')
+            setNeedsSlug(false)
 
             let slugFromUrl = ''
             if (typeof window !== 'undefined') {
@@ -935,12 +934,8 @@ export default function ClientePanel() {
                 }
             }
 
-            if (tenants.length === 1) {
+            if (tenants.length > 0) {
                 setPendingTenantSlug(tenants[0].slug)
-            } else if (tenants.length > 1 && slugFromUrl) {
-                setPendingTenantSlug(tenants[0].slug)
-            } else if (tenants.length > 1) {
-                setNeedsSlug(false)
             }
         } catch (err) {
             console.error('Error fetching my-tenants:', err)
@@ -1113,176 +1108,69 @@ export default function ClientePanel() {
         )
     }
 
-    if (needsSlug) {
-        if (authRequired) {
-            return (
-                <div className="cliente-page">
-                    <div className="cliente-login">
-                        <div className="cliente-login-icon">🔐</div>
-                        <h1>Acceso Dueño</h1>
-                        <p>Ingresa con tu correo y contraseña para abrir tu panel</p>
-                        <form onSubmit={handleOwnerLogin}>
-                            <div className="cliente-login-field">
-                                <input
-                                    type="email"
-                                    value={authEmail}
-                                    onChange={(e) => setAuthEmail(e.target.value)}
-                                    placeholder="tu@email.com"
-                                    autoFocus
-                                />
-                            </div>
-                            <div className="cliente-login-field">
-                                <input
-                                    type="password"
-                                    value={authPassword}
-                                    onChange={(e) => setAuthPassword(e.target.value)}
-                                    placeholder="Contraseña"
-                                />
-                            </div>
-                            {authError && <p className="login-error" style={{ color: '#f87171', marginBottom: '0.75rem' }}>❌ {authError}</p>}
-                            <button type="submit" className="cliente-login-btn" disabled={authLoading || !authEmail || !authPassword}>
-                                {authLoading ? '⏳ Entrando...' : 'Ingresar al panel →'}
-                            </button>
-                        </form>
-                        <p style={{ marginTop: '1rem', opacity: 0.8 }}>
-                            ¿Aún no tienes cuenta? <a href="/registro">Registra tu negocio</a>
-                        </p>
-                    </div>
-                </div>
-            )
-        }
-
-        if (myTenants.length > 1) {
-            return (
-                <div className="cliente-page">
-                    <div className="cliente-login multi-selector">
-                        <div className="cliente-login-icon">🏢</div>
-                        <h1>Selecciona tu Local</h1>
-                        <p>{`Tienes ${myTenants.length} negocios registrados`}</p>
-                        <div className="tenants-grid">
-                            {myTenants.map(t => (
-                                <button
-                                    key={t.id}
-                                    className="tenant-select-card"
-                                    onClick={() => loadTenantData(t.slug)}
-                                    style={{ '--brand-color': t.color_primario } as React.CSSProperties & Record<'--brand-color', string>}
-                                >
-                                    <div className="tenant-logo-mini" style={{ background: t.color_primario }}>
-                                        {t.nombre.charAt(0).toUpperCase()}
-                                    </div>
-                                    <span>{t.nombre}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )
-        }
-
+    if (authRequired) {
         return (
             <div className="cliente-page">
                 <div className="cliente-login">
-                    <div className="cliente-login-icon">💎</div>
-                    <h1>Panel de Negocio</h1>
-                    <p>Ingresa el nombre de tu negocio para acceder</p>
-                    <form onSubmit={(e) => { e.preventDefault(); loadTenantData(tenantSlug) }}>
+                    <div className="cliente-login-icon">🔐</div>
+                    <h1>Acceso Dueño</h1>
+                    <p>Ingresa con tu correo y contraseña para abrir tu panel</p>
+                    <form onSubmit={handleOwnerLogin}>
                         <div className="cliente-login-field">
                             <input
-                                type="text"
-                                value={tenantSlug}
-                                onChange={(e) => setTenantSlug(e.target.value)}
-                                placeholder="Ej: Pizzeria El Benni"
+                                type="email"
+                                value={authEmail}
+                                onChange={(e) => setAuthEmail(e.target.value)}
+                                placeholder="tu@email.com"
                                 autoFocus
                             />
                         </div>
-                        <button type="submit" className="cliente-login-btn" disabled={!tenantSlug || loading}>
-                            {loading ? '⏳ Cargando...' : 'Entrar →'}
+                        <div className="cliente-login-field">
+                            <input
+                                type="password"
+                                value={authPassword}
+                                onChange={(e) => setAuthPassword(e.target.value)}
+                                placeholder="Contraseña"
+                            />
+                        </div>
+                        {authError && <p className="login-error" style={{ color: '#f87171', marginBottom: '0.75rem' }}>❌ {authError}</p>}
+                        <button type="submit" className="cliente-login-btn" disabled={authLoading || !authEmail || !authPassword}>
+                            {authLoading ? '⏳ Entrando...' : 'Ingresar al panel →'}
                         </button>
                     </form>
+                    <p style={{ marginTop: '1rem', opacity: 0.8 }}>
+                        ¿Aún no tienes cuenta? <a href="/registro">Registra tu negocio</a>
+                    </p>
                 </div>
             </div>
         )
     }
 
-    if (!tenant && myTenants.length > 1) {
+    if (!tenant && myTenants.length === 0) {
         return (
             <div className="cliente-page">
-                <div className="cliente-login multi-selector">
-                    <div className="cliente-login-icon">🏢</div>
-                    <h1>Selecciona tu Local</h1>
-                    <p>Tienes {myTenants.length} negocios registrados</p>
-                    <div className="tenants-grid">
-                        {myTenants.map(t => (
-                            <button
-                                key={t.id}
-                                className="tenant-select-card"
-                                onClick={() => loadTenantData(t.slug)}
-                                style={{ '--brand-color': t.color_primario } as React.CSSProperties & Record<'--brand-color', string>}
-                            >
-                                <div className="tenant-logo-mini" style={{ background: t.color_primario }}>
-                                    {t.nombre.charAt(0).toUpperCase()}
-                                </div>
-                                <span>{t.nombre}</span>
-                            </button>
-                        ))}
-                    </div>
-                    <button className="add-new-tenant-btn" onClick={() => setMyTenants([])}>
-                        + Registrar otro negocio
-                    </button>
+                <div className="cliente-login">
+                    <div className="cliente-login-icon">🏪</div>
+                    <h1>Aún no tienes negocio creado</h1>
+                    <p>Registra tu negocio para entrar al panel.</p>
+                    <a href="/registro" className="cliente-login-btn" style={{ textDecoration: 'none' }}>
+                        Ir a registro →
+                    </a>
                 </div>
-                <style jsx>{`
-                    .tenants-grid {
-                        display: grid;
-                        grid-template-columns: 1fr;
-                        gap: 1rem;
-                        width: 100%;
-                        max-width: 400px;
-                        margin: 2rem 0;
-                    }
-                    .tenant-select-card {
-                        background: rgba(255, 255, 255, 0.05);
-                        border: 1px solid rgba(255, 255, 255, 0.1);
-                        padding: 1.25rem;
-                        border-radius: 16px;
-                        display: flex;
-                        align-items: center;
-                        gap: 1rem;
-                        cursor: pointer;
-                        transition: all 0.2s ease;
-                        text-align: left;
-                        color: white;
-                    }
-                    .tenant-select-card:hover {
-                        background: rgba(255, 255, 255, 0.1);
-                        border-color: var(--brand-color);
-                        transform: translateY(-2px);
-                    }
-                    .tenant-logo-mini {
-                        width: 40px;
-                        height: 40px;
-                        border-radius: 10px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-weight: bold;
-                        font-size: 1.2rem;
-                    }
-                    .add-new-tenant-btn {
-                        background: none;
-                        border: none;
-                        color: #94a3b8;
-                        font-size: 0.9rem;
-                        cursor: pointer;
-                    }
-                    .add-new-tenant-btn:hover {
-                        color: white;
-                    }
-                `}</style>
             </div>
         )
     }
 
-    if (!tenant) return null
+    if (!tenant) {
+        return (
+            <div className="cliente-page">
+                <div className="cliente-login">
+                    <div className="animate-spin">⌛</div>
+                    <p>Abriendo tu panel...</p>
+                </div>
+            </div>
+        )
+    }
 
     const trialDaysLeft = tenant.trial_hasta
         ? Math.max(0, Math.ceil((new Date(tenant.trial_hasta).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
