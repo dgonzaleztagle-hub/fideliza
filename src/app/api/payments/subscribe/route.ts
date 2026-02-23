@@ -4,10 +4,12 @@ import { getSupabase } from '@/lib/supabase/admin';
 import { requireTenantOwnerById } from '@/lib/authz';
 import { BillingPlan, getFlowPlanId, isBillingPlan } from '@/lib/plans'
 
-function looksLikeMissingSelectedPlanColumn(error: { code?: string; message?: string; details?: string } | null): boolean {
+function looksLikeMissingOptionalTenantColumns(error: { code?: string; message?: string; details?: string } | null): boolean {
     if (!error) return false
     const details = `${error.message || ''} ${error.details || ''}`.toLowerCase()
-    return error.code === '42703' || details.includes('selected_plan')
+    return error.code === '42703'
+        || details.includes('selected_plan')
+        || details.includes('flow_customer_id')
 }
 
 type TenantBillingRow = {
@@ -16,6 +18,7 @@ type TenantBillingRow = {
     nombre?: string | null
     selected_plan?: string | null
     plan?: string | null
+    flow_customer_id?: string | null
 }
 
 function isValidEmail(value: string): boolean {
@@ -44,12 +47,36 @@ function looksLikeFlowCustomerAlreadyExists(message: string): boolean {
         || text.includes('already registered')
         || text.includes('exists')
         || text.includes('customer with this externalid')
+        || text.includes('there is a customer with this email')
 }
 
-async function ensureFlowCustomerId(externalId: string, email: string, name: string): Promise<string> {
+async function persistFlowCustomerId(tenantId: string, flowCustomerId: string) {
+    const supabase = getSupabase()
+    const { error } = await supabase
+        .from('tenants')
+        .update({ flow_customer_id: flowCustomerId })
+        .eq('id', tenantId)
+    if (error && !looksLikeMissingOptionalTenantColumns(error)) {
+        console.warn('FLOW_CUSTOMER_ID_PERSIST_FAILED', {
+            tenant_id: tenantId,
+            message: error.message,
+            details: error.details
+        })
+    }
+}
+
+async function ensureFlowCustomerId(tenant: TenantBillingRow, email: string, name: string): Promise<string> {
+    if (tenant.flow_customer_id && tenant.flow_customer_id.trim().length > 0) {
+        return tenant.flow_customer_id.trim()
+    }
+
+    const externalId = tenant.id
     try {
         const created = await createCustomer(name, email, externalId)
-        if (created.customerId) return created.customerId
+        if (created.customerId) {
+            await persistFlowCustomerId(tenant.id, created.customerId)
+            return created.customerId
+        }
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error || '')
         if (!looksLikeFlowCustomerAlreadyExists(message)) {
@@ -57,13 +84,27 @@ async function ensureFlowCustomerId(externalId: string, email: string, name: str
         }
     }
 
-    const filters = [externalId, email]
+    // Caso legacy: customer ya existe en Flow con ese externalId, intentamos recuperarlo.
+    const filters = [externalId, email, name]
     for (const filter of filters) {
         const customers = await listCustomers(filter)
         const match = customers.find((customer) =>
             customer.externalId === externalId || customer.email === email
         )
-        if (match?.customerId) return match.customerId
+        if (match?.customerId) {
+            await persistFlowCustomerId(tenant.id, match.customerId)
+            return match.customerId
+        }
+    }
+
+    // Si no pudimos recuperar el existente, creamos uno nuevo sin colisionar externalId/email.
+    const uniqueSuffix = Date.now().toString(36)
+    const uniqueExternalId = `${tenant.id}-${uniqueSuffix}`
+    const uniqueEmail = `tenant-${tenant.id.slice(0, 8)}+${uniqueSuffix}@vuelve.vip`
+    const createdFallback = await createCustomer(name, uniqueEmail, uniqueExternalId)
+    if (createdFallback.customerId) {
+        await persistFlowCustomerId(tenant.id, createdFallback.customerId)
+        return createdFallback.customerId
     }
 
     throw new Error('No fue posible obtener customerId en Flow para este negocio')
@@ -86,16 +127,16 @@ export async function POST(req: Request) {
         // 1. Obtener datos del tenant
         const primaryLookup = await supabase
             .from('tenants')
-            .select('email, nombre, id, selected_plan')
+            .select('email, nombre, id, selected_plan, plan, flow_customer_id')
             .eq('id', normalizedTenantId)
             .maybeSingle();
         let tenant: TenantBillingRow | null = primaryLookup.data as TenantBillingRow | null
         let tError = primaryLookup.error
 
-        if (tError && looksLikeMissingSelectedPlanColumn(tError)) {
+        if (tError && looksLikeMissingOptionalTenantColumns(tError)) {
             const fallback = await supabase
                 .from('tenants')
-                .select('email, nombre, id, plan')
+                .select('email, nombre, id, plan, selected_plan')
                 .eq('id', normalizedTenantId)
                 .maybeSingle()
 
@@ -143,7 +184,7 @@ export async function POST(req: Request) {
 
         const customerEmail = getSafeFlowEmail(typedTenant.id, typedTenant.email)
         const customerName = typedTenant.nombre || `Negocio ${typedTenant.id.slice(0, 8)}`
-        let flowCustomerId = await ensureFlowCustomerId(typedTenant.id, customerEmail, customerName)
+        let flowCustomerId = await ensureFlowCustomerId(typedTenant, customerEmail, customerName)
 
         let flowResult: unknown
         try {
@@ -153,7 +194,7 @@ export async function POST(req: Request) {
             if (!looksLikeFlowCustomerMissing(message)) {
                 throw error
             }
-            flowCustomerId = await ensureFlowCustomerId(typedTenant.id, customerEmail, customerName)
+            flowCustomerId = await ensureFlowCustomerId(typedTenant, customerEmail, customerName)
             flowResult = await createSubscription(flowCustomerId, customerEmail, planId, urlCallback)
         }
 
