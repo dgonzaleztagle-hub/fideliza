@@ -878,8 +878,9 @@ export default function ClientePanel() {
         setScannerActive(false)
     }, [])
 
-    const loadMyTenants = useCallback(async () => {
-        setLoadingTenants(true)
+    const loadMyTenants = useCallback(async (opts?: { silent?: boolean }) => {
+        const silent = Boolean(opts?.silent)
+        if (!silent) setLoadingTenants(true)
         try {
             const { data: { session } } = await supabase.auth.getSession()
             const accessToken = session?.access_token || ''
@@ -905,13 +906,16 @@ export default function ClientePanel() {
             }
 
             if (res.status === 401) {
-                setAuthRequired(true)
-                setMyTenants([])
-                setTenant(null)
+                // Si ya hay tenant cargado, no cortamos la UI por un refresh intermedio.
+                if (!tenant) {
+                    setAuthRequired(true)
+                    setMyTenants([])
+                    setTenant(null)
+                }
                 return
             }
             if (!res.ok) {
-                setAuthRequired(true)
+                if (!tenant) setAuthRequired(true)
                 return
             }
 
@@ -940,11 +944,11 @@ export default function ClientePanel() {
             }
         } catch (err) {
             console.error('Error fetching my-tenants:', err)
-            setAuthRequired(true)
+            if (!tenant) setAuthRequired(true)
         } finally {
-            setLoadingTenants(false)
+            if (!silent) setLoadingTenants(false)
         }
-    }, [supabase])
+    }, [supabase, tenant])
 
     const handleOwnerLogin = useCallback(async (e: React.FormEvent) => {
         e.preventDefault()
@@ -989,7 +993,7 @@ export default function ClientePanel() {
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
             if (event === 'SIGNED_IN') {
-                void loadMyTenants()
+                void loadMyTenants({ silent: true })
             }
             if (event === 'SIGNED_OUT') {
                 setAuthRequired(true)
@@ -1098,7 +1102,7 @@ export default function ClientePanel() {
         )
     }
 
-    if (loadingTenants) {
+    if (loadingTenants && !tenant) {
         return (
             <div className="cliente-page">
                 <div className="cliente-login">
