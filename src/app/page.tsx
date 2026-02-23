@@ -37,7 +37,7 @@ export default function Home() {
             <a href="#como-funciona">Cómo funciona</a>
             <a href="#beneficios">Beneficios</a>
             <a href="#precio">Precio</a>
-            <Link href="/cliente" className="nav-link-panel">Mi Panel</Link>
+            <Link href="/cliente" className="nav-link-panel">Panel de negocio</Link>
           </div>
           <Link href="/registro" className="nav-cta">Empezar gratis</Link>
         </div>
@@ -387,7 +387,7 @@ export default function Home() {
             <div className="footer-nav">
               <h4>Plataforma</h4>
               <Link href="/registro"><Store size={18} /> Registrar mi negocio</Link>
-              <Link href="/cliente"><LayoutDashboard size={18} /> Mi Panel</Link>
+              <Link href="/cliente"><LayoutDashboard size={18} /> Panel de negocio</Link>
               <Link href="/mi-tarjeta"><Wallet size={18} /> Mi Tarjeta</Link>
               <a href="mailto:contacto@vuelve.vip"><Mail size={18} /> contacto@vuelve.vip</a>
             </div>

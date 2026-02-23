@@ -87,7 +87,7 @@ export default function RegistroForm() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [errorMeta, setErrorMeta] = useState<RegistroErrorMeta | null>(null)
-    const [result, setResult] = useState<RegistroApiResult | null>(null)
+    const [result] = useState<RegistroApiResult | null>(null)
     const [hasSession, setHasSession] = useState(false)
     const [sessionEmail, setSessionEmail] = useState('')
     const supabase = useMemo(() => createClient(), [])
@@ -369,13 +369,22 @@ export default function RegistroForm() {
                     email: effectiveEmail,
                     password
                 })
-                if (!loginError) {
-                    setHasSession(true)
+                if (loginError) {
+                    setError('No pudimos dejar tu sesión activa automáticamente. Inicia sesión con tu correo y clave.')
+                    setErrorMeta({
+                        code: 'AUTH_AUTO_LOGIN_FAILED',
+                        requestId,
+                        at: new Date().toLocaleString('es-CL'),
+                        detail: loginError.message
+                    })
+                    return
                 }
+                setHasSession(true)
             }
 
-            setResult(data)
-            setStep('listo')
+            const slug = data.tenant?.slug
+            window.location.href = slug ? `/cliente?slug=${encodeURIComponent(slug)}` : '/cliente'
+            return
         } catch (err: unknown) {
             if (err instanceof Error && err.name === 'AbortError') {
                 setError('La creación está tardando demasiado. Reintenta en unos segundos.')
