@@ -396,14 +396,15 @@ export async function POST(req: NextRequest) {
                     normalizedMessage.includes('already registered') ||
                     normalizedMessage.includes('already exists') ||
                     normalizedMessage.includes('duplicate') ||
-                    normalizedMessage.includes('email exists')
+                    normalizedMessage.includes('email exists') ||
+                    normalizedMessage.includes('email') && normalizedMessage.includes('registered') ||
+                    authStatus === 422
 
                 if (looksLikeDuplicateEmail) {
                     return errorResponse(
                         409,
-                        'El email ya está registrado. Intenta iniciar sesión.',
-                        'TENANT_REGISTER_EMAIL_ALREADY_EXISTS',
-                        { error_detail: rawMessage }
+                        'Email ya registrado. Inicia sesión con ese correo.',
+                        'TENANT_REGISTER_EMAIL_ALREADY_EXISTS'
                     )
                 }
 
