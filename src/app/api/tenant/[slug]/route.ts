@@ -121,6 +121,45 @@ export async function GET(
         }
 
         if (!tenant) {
+            let fallbackAuthUserId: string | null = null
+            const authHeader = req.headers.get('authorization') || ''
+            const bearer = authHeader.toLowerCase().startsWith('bearer ')
+                ? authHeader.slice(7).trim()
+                : ''
+
+            if (bearer) {
+                const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+                const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+                if (url && anonKey) {
+                    const anonClient = createSupabaseClient(url, anonKey)
+                    const { data, error } = await anonClient.auth.getUser(bearer)
+                    if (!error && data?.user) {
+                        fallbackAuthUserId = data.user.id
+                    }
+                }
+            }
+
+            if (!fallbackAuthUserId) {
+                const user = await getOptionalAuthenticatedUser()
+                fallbackAuthUserId = user?.id || null
+            }
+
+            if (fallbackAuthUserId) {
+                const fallbackOwner = await supabase
+                    .from('tenants')
+                    .select(tenantSelectWithAssets)
+                    .eq('auth_user_id', fallbackAuthUserId)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+
+                if (fallbackOwner.data) {
+                    tenant = fallbackOwner.data as TenantRow
+                }
+            }
+        }
+
+        if (!tenant) {
             return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
         }
 
