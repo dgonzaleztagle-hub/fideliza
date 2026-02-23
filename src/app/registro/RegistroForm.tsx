@@ -388,8 +388,7 @@ export default function RegistroForm() {
                 setHasSession(true)
             }
 
-            const slug = data.tenant?.slug
-            window.location.href = slug ? `/cliente?slug=${encodeURIComponent(slug)}` : '/cliente'
+            window.location.href = '/cliente'
             return
         } catch (err: unknown) {
             if (err instanceof Error && err.name === 'AbortError') {
@@ -431,8 +430,7 @@ export default function RegistroForm() {
             }
             setHasSession(true)
         }
-        const slug = result?.tenant?.slug
-        window.location.href = slug ? `/cliente?slug=${encodeURIComponent(slug)}` : '/cliente'
+        window.location.href = '/cliente'
     }
 
     function validateNegocioStep(): boolean {

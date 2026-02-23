@@ -94,6 +94,22 @@ export async function GET(
             validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
         `
 
+        const looksLikeMissingOptionalTenantColumns = (error: {
+            code?: string
+            message?: string
+            details?: string
+            hint?: string
+        } | null | undefined) => {
+            if (!error) return false
+            const haystack = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+            return error.code === '42703'
+                || haystack.includes('selected_plan')
+                || haystack.includes('selected_program_types')
+                || haystack.includes('card_background_url')
+                || haystack.includes('card_background_overlay')
+                || haystack.includes('stamp_icon_url')
+        }
+
         const findBySlug = async (reader: typeof serverSupabase, value: string) => {
             const withAssets = await reader
                 .from('tenants')
@@ -101,11 +117,7 @@ export async function GET(
                 .eq('slug', value)
                 .maybeSingle()
             if (!withAssets.error) return withAssets
-            const looksMissingAssetCols = withAssets.error.code === '42703'
-                || `${withAssets.error.message || ''} ${withAssets.error.details || ''}`.includes('card_background_url')
-                || `${withAssets.error.message || ''} ${withAssets.error.details || ''}`.includes('card_background_overlay')
-                || `${withAssets.error.message || ''} ${withAssets.error.details || ''}`.includes('stamp_icon_url')
-            if (!looksMissingAssetCols) return withAssets
+            if (!looksLikeMissingOptionalTenantColumns(withAssets.error)) return withAssets
 
             const legacy = await reader
                 .from('tenants')
@@ -136,7 +148,7 @@ export async function GET(
                     .limit(1)
                     .maybeSingle()
                 let byName = byNameWithAssets.data
-                if (!byName && byNameWithAssets.error && byNameWithAssets.error.code === '42703') {
+                if (!byName && looksLikeMissingOptionalTenantColumns(byNameWithAssets.error)) {
                     const byNameLegacy = await reader
                         .from('tenants')
                         .select(tenantSelectLegacy)
@@ -165,7 +177,7 @@ export async function GET(
                 }
 
                 if (fallbackAuthUserId) {
-                    const fallbackOwner = await reader
+                    const fallbackOwnerWithAssets = await reader
                         .from('tenants')
                         .select(tenantSelectWithAssets)
                         .eq('auth_user_id', fallbackAuthUserId)
@@ -173,8 +185,22 @@ export async function GET(
                         .limit(1)
                         .maybeSingle()
 
-                    if (fallbackOwner.data) {
-                        found = fallbackOwner.data as TenantRow
+                    let fallbackOwner = fallbackOwnerWithAssets.data
+                    if (!fallbackOwner && looksLikeMissingOptionalTenantColumns(fallbackOwnerWithAssets.error)) {
+                        const fallbackOwnerLegacy = await reader
+                            .from('tenants')
+                            .select(tenantSelectLegacy)
+                            .eq('auth_user_id', fallbackAuthUserId)
+                            .order('created_at', { ascending: false })
+                            .limit(1)
+                            .maybeSingle()
+                        fallbackOwner = fallbackOwnerLegacy.data
+                            ? { ...fallbackOwnerLegacy.data, card_background_url: null, card_background_overlay: 0.22, stamp_icon_url: null }
+                            : null
+                    }
+
+                    if (fallbackOwner) {
+                        found = fallbackOwner as TenantRow
                     }
                 }
             }
