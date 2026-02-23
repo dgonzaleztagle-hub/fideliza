@@ -859,7 +859,16 @@ export default function ClientePanel() {
     const loadMyTenants = useCallback(async () => {
         setLoadingTenants(true)
         try {
-            const res = await fetch('/api/my-tenants')
+            let res = await fetch('/api/my-tenants', { cache: 'no-store' })
+            if (res.status === 401) {
+                const { data: { session } } = await supabase.auth.getSession()
+                if (session) {
+                    await supabase.auth.refreshSession()
+                    await new Promise(resolve => setTimeout(resolve, 350))
+                    res = await fetch('/api/my-tenants', { cache: 'no-store' })
+                }
+            }
+
             if (res.status === 401) {
                 setAuthRequired(true)
                 setMyTenants([])
@@ -901,7 +910,7 @@ export default function ClientePanel() {
         } finally {
             setLoadingTenants(false)
         }
-    }, [])
+    }, [supabase])
 
     const handleOwnerLogin = useCallback(async (e: React.FormEvent) => {
         e.preventDefault()
@@ -942,6 +951,23 @@ export default function ClientePanel() {
             }
         }
     }, [loadMyTenants])
+
+    useEffect(() => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                void loadMyTenants()
+            }
+            if (event === 'SIGNED_OUT') {
+                setAuthRequired(true)
+                setMyTenants([])
+                setTenant(null)
+            }
+        })
+
+        return () => {
+            subscription.unsubscribe()
+        }
+    }, [loadMyTenants, supabase])
 
     // Load analytics when tab changes
     // Dependencias acotadas intencionalmente para evitar bucles de recarga del panel.

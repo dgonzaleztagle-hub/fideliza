@@ -379,6 +379,8 @@ export default function RegistroForm() {
                     })
                     return
                 }
+                await supabase.auth.getSession()
+                await new Promise(resolve => setTimeout(resolve, 250))
                 setHasSession(true)
             }
 
