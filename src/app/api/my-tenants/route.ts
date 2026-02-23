@@ -31,19 +31,45 @@ export async function GET(req: NextRequest) {
             userId = user.id
         }
 
-        // 2. Buscar todos los tenants asociados a su ID
-        const { data: tenants, error: dbError } = await supabase
-            .from('tenants')
-            .select('id, nombre, slug, color_primario, estado, plan, selected_plan, selected_program_types, trial_hasta, logo_url')
-            .eq('auth_user_id', userId)
-            .order('nombre', { ascending: true });
+        const selectWithPlanCols = 'id, nombre, slug, color_primario, estado, plan, selected_plan, selected_program_types, trial_hasta, logo_url'
+        const selectLegacy = 'id, nombre, slug, color_primario, estado, plan, trial_hasta, logo_url'
 
-        if (dbError) throw dbError;
+        // 2. Buscar todos los tenants asociados a su ID
+        let { data: tenants, error: dbError } = await supabase
+            .from('tenants')
+            .select(selectWithPlanCols)
+            .eq('auth_user_id', userId)
+            .order('nombre', { ascending: true })
+
+        if (dbError) {
+            const details = `${dbError.message || ''} ${dbError.details || ''}`.toLowerCase()
+            const looksLikeMissingPlanCols =
+                dbError.code === '42703'
+                || details.includes('selected_plan')
+                || details.includes('selected_program_types')
+
+            if (looksLikeMissingPlanCols) {
+                const legacy = await supabase
+                    .from('tenants')
+                    .select(selectLegacy)
+                    .eq('auth_user_id', userId)
+                    .order('nombre', { ascending: true })
+
+                tenants = (legacy.data || []).map((t) => ({
+                    ...t,
+                    selected_plan: null,
+                    selected_program_types: null
+                }))
+                dbError = legacy.error
+            }
+        }
+
+        if (dbError) throw dbError
 
         return NextResponse.json({ tenants });
     } catch (error: unknown) {
         console.error('Error fetching my-tenants:', error);
         const message = error instanceof Error ? error.message : 'Error interno'
-        return NextResponse.json({ error: message }, { status: 500 });
+        return NextResponse.json({ error: message, code: 'MY_TENANTS_FAILED' }, { status: 500 });
     }
 }
