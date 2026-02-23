@@ -48,190 +48,28 @@ export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ slug: string }> }
 ) {
-    const serverSupabase = await createServerClient()
-    const authHeader = req.headers.get('authorization') || ''
-    const bearer = authHeader.toLowerCase().startsWith('bearer ')
-        ? authHeader.slice(7).trim()
-        : ''
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    const readClients: Array<typeof serverSupabase> = []
     try {
-        // 1) Admin si existe (sin depender de cookies).
-        readClients.push(getSupabase() as unknown as typeof serverSupabase)
-    } catch {
-        // noop: seguimos con alternativas.
-    }
-    if (bearer && url && anonKey) {
-        // 2) Cliente con JWT explícito (evita desalineación de cookies post-registro).
-        readClients.push(
-            createSupabaseClient(url, anonKey, {
-                global: {
-                    headers: { Authorization: `Bearer ${bearer}` }
-                }
-            }) as unknown as typeof serverSupabase
-        )
-    }
-    // 3) Último fallback: sesión por cookies del request.
-    readClients.push(serverSupabase)
-
-    try {
+        const serverSupabase = await createServerClient()
+        const adminSupabase = getSupabase()
         const { slug } = await params
-        const normalizedSlug = slug.trim().toLowerCase().replace(/\s+/g, '-')
-
-        let tenant: TenantRow | null = null
-        let tenantReader: typeof serverSupabase | null = null
+        const incomingSlug = slug.trim().toLowerCase()
 
         const tenantSelectWithAssets = `
             id, nombre, slug, rubro, direccion, email, telefono, estado, plan, selected_plan, selected_program_types, trial_hasta,
             logo_url, card_background_url, card_background_overlay, stamp_icon_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
             validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
         `
-        const tenantSelectLegacy = `
-            id, nombre, slug, rubro, direccion, email, telefono, estado, plan, selected_plan, selected_program_types, trial_hasta,
-            logo_url, color_primario, lat, lng, mensaje_geofencing, google_business_url,
-            validation_pin, onboarding_completado, auth_user_id, created_at, updated_at
-        `
-
-        const looksLikeMissingOptionalTenantColumns = (error: {
-            code?: string
-            message?: string
-            details?: string
-            hint?: string
-        } | null | undefined) => {
-            if (!error) return false
-            const haystack = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
-            return error.code === '42703'
-                || haystack.includes('selected_plan')
-                || haystack.includes('selected_program_types')
-                || haystack.includes('card_background_url')
-                || haystack.includes('card_background_overlay')
-                || haystack.includes('stamp_icon_url')
-        }
-
-        const findBySlug = async (reader: typeof serverSupabase, value: string) => {
-            const withAssets = await reader
-                .from('tenants')
-                .select(tenantSelectWithAssets)
-                .eq('slug', value)
-                .maybeSingle()
-            if (!withAssets.error) return withAssets
-            if (!looksLikeMissingOptionalTenantColumns(withAssets.error)) return withAssets
-
-            const legacy = await reader
-                .from('tenants')
-                .select(tenantSelectLegacy)
-                .eq('slug', value)
-                .maybeSingle()
-            if (legacy.data) {
-                return { ...legacy, data: { ...legacy.data, card_background_url: null, card_background_overlay: 0.22, stamp_icon_url: null } }
-            }
-            return legacy
-        }
-
-        const findTenant = async (reader: typeof serverSupabase) => {
-            const { data: byExact } = await findBySlug(reader, slug)
-            let found = (byExact as TenantRow | null) || null
-
-            if (!found) {
-                const { data: byNormalized } = await findBySlug(reader, normalizedSlug)
-                found = (byNormalized as TenantRow | null) || null
-            }
-
-            if (!found) {
-                const byNameWithAssets = await reader
-                    .from('tenants')
-                    .select(tenantSelectWithAssets)
-                    .ilike('nombre', slug.trim())
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle()
-                let byName = byNameWithAssets.data
-                if (!byName && looksLikeMissingOptionalTenantColumns(byNameWithAssets.error)) {
-                    const byNameLegacy = await reader
-                        .from('tenants')
-                        .select(tenantSelectLegacy)
-                        .ilike('nombre', slug.trim())
-                        .order('created_at', { ascending: false })
-                        .limit(1)
-                        .maybeSingle()
-                    byName = byNameLegacy.data ? { ...byNameLegacy.data, card_background_url: null, card_background_overlay: 0.22, stamp_icon_url: null } : null
-                }
-                found = (byName as TenantRow | null) || null
-            }
-
-            if (!found) {
-                let fallbackAuthUserId: string | null = null
-                if (bearer && url && anonKey) {
-                    const anonClient = createSupabaseClient(url, anonKey)
-                    const { data, error } = await anonClient.auth.getUser(bearer)
-                    if (!error && data?.user) {
-                        fallbackAuthUserId = data.user.id
-                    }
-                }
-
-                if (!fallbackAuthUserId) {
-                    const user = await getOptionalAuthenticatedUser()
-                    fallbackAuthUserId = user?.id || null
-                }
-
-                if (fallbackAuthUserId) {
-                    const fallbackOwnerWithAssets = await reader
-                        .from('tenants')
-                        .select(tenantSelectWithAssets)
-                        .eq('auth_user_id', fallbackAuthUserId)
-                        .order('created_at', { ascending: false })
-                        .limit(1)
-                        .maybeSingle()
-
-                    let fallbackOwner = fallbackOwnerWithAssets.data
-                    if (!fallbackOwner && looksLikeMissingOptionalTenantColumns(fallbackOwnerWithAssets.error)) {
-                        const fallbackOwnerLegacy = await reader
-                            .from('tenants')
-                            .select(tenantSelectLegacy)
-                            .eq('auth_user_id', fallbackAuthUserId)
-                            .order('created_at', { ascending: false })
-                            .limit(1)
-                            .maybeSingle()
-                        fallbackOwner = fallbackOwnerLegacy.data
-                            ? { ...fallbackOwnerLegacy.data, card_background_url: null, card_background_overlay: 0.22, stamp_icon_url: null }
-                            : null
-                    }
-
-                    if (fallbackOwner) {
-                        found = fallbackOwner as TenantRow
-                    }
-                }
-            }
-
-            return found
-        }
-
-        for (const reader of readClients) {
-            const found = await findTenant(reader)
-            if (found) {
-                tenant = found
-                tenantReader = reader
-                break
-            }
-        }
-
-        if (!tenant || !tenantReader) {
-            return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
-        }
-
-        const { data: program } = await tenantReader
-            .from('programs')
-            .select('id, tenant_id, nombre, puntos_meta, descripcion_premio, tipo_premio, valor_premio, tipo_programa, config, activo')
-            .eq('tenant_id', tenant.id)
-            .eq('activo', true)
-            .maybeSingle()
-
         let authUserId: string | null = null
+        const authHeader = req.headers.get('authorization') || ''
+        const bearer = authHeader.toLowerCase().startsWith('bearer ')
+            ? authHeader.slice(7).trim()
+            : ''
 
-        if (bearer && url && anonKey) {
-            const anonClient = createSupabaseClient(url, anonKey)
+        if (bearer && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+            const anonClient = createSupabaseClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+            )
             const { data, error } = await anonClient.auth.getUser(bearer)
             if (!error && data?.user) {
                 authUserId = data.user.id
@@ -239,9 +77,74 @@ export async function GET(
         }
 
         if (!authUserId) {
+            const { data: { user } } = await serverSupabase.auth.getUser()
+            authUserId = user?.id || null
+        }
+        if (!authUserId) {
             const user = await getOptionalAuthenticatedUser()
             authUserId = user?.id || null
         }
+
+        let tenant: TenantRow | null = null
+        let tenantQueryError: { code?: string; message?: string; details?: string } | null = null
+
+        if (authUserId) {
+            // Flujo dueño: mismo contexto de sesión que /api/my-tenants
+            const ownerBySlug = await serverSupabase
+                .from('tenants')
+                .select(tenantSelectWithAssets)
+                .eq('auth_user_id', authUserId)
+                .eq('slug', incomingSlug)
+                .maybeSingle()
+
+            tenant = (ownerBySlug.data as TenantRow | null) || null
+            tenantQueryError = ownerBySlug.error
+
+            if (!tenant && !tenantQueryError) {
+                const ownerFallback = await serverSupabase
+                    .from('tenants')
+                    .select(tenantSelectWithAssets)
+                    .eq('auth_user_id', authUserId)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+                tenant = (ownerFallback.data as TenantRow | null) || null
+                tenantQueryError = ownerFallback.error
+            }
+        } else {
+            // Flujo público (sin sesión): lookup directo por slug
+            const publicBySlug = await adminSupabase
+                .from('tenants')
+                .select(tenantSelectWithAssets)
+                .eq('slug', incomingSlug)
+                .maybeSingle()
+            tenant = (publicBySlug.data as TenantRow | null) || null
+            tenantQueryError = publicBySlug.error
+        }
+
+        if (tenantQueryError) {
+            console.error('TENANT_LOOKUP_FAILED', {
+                slug: incomingSlug,
+                code: tenantQueryError.code,
+                message: tenantQueryError.message,
+                details: tenantQueryError.details
+            })
+            return NextResponse.json(
+                { error: 'Error al buscar negocio', code: 'TENANT_LOOKUP_FAILED' },
+                { status: 500 }
+            )
+        }
+
+        if (!tenant) {
+            return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
+        }
+
+        const { data: program } = await adminSupabase
+            .from('programs')
+            .select('id, tenant_id, nombre, puntos_meta, descripcion_premio, tipo_premio, valor_premio, tipo_programa, config, activo')
+            .eq('tenant_id', tenant.id)
+            .eq('activo', true)
+            .maybeSingle()
 
         const isOwner = !!authUserId && authUserId === tenant.auth_user_id
 
@@ -269,14 +172,14 @@ export async function GET(
             })
         }
 
-        const { data: customers } = await tenantReader
+        const { data: customers } = await adminSupabase
             .from('customers')
             .select('*')
             .eq('tenant_id', tenant.id)
             .order('created_at', { ascending: false })
 
         const today = new Date().toISOString().split('T')[0]
-        const { count: stampsHoy } = await tenantReader
+        const { count: stampsHoy } = await adminSupabase
             .from('stamps')
             .select('*', { count: 'exact', head: true })
             .eq('tenant_id', tenant.id)
