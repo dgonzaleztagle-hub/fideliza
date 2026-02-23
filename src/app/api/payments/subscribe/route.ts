@@ -4,34 +4,78 @@ import { getSupabase } from '@/lib/supabase/admin';
 import { requireTenantOwnerById } from '@/lib/authz';
 import { BillingPlan, getFlowPlanId, isBillingPlan } from '@/lib/plans'
 
+function looksLikeMissingSelectedPlanColumn(error: { code?: string; message?: string; details?: string } | null): boolean {
+    if (!error) return false
+    const details = `${error.message || ''} ${error.details || ''}`.toLowerCase()
+    return error.code === '42703' || details.includes('selected_plan')
+}
+
+type TenantBillingRow = {
+    id: string
+    email?: string | null
+    nombre?: string | null
+    selected_plan?: string | null
+    plan?: string | null
+}
+
 export async function POST(req: Request) {
     try {
         const { tenant_id, plan_code } = await req.json();
 
-        if (!tenant_id) {
+        const normalizedTenantId = typeof tenant_id === 'string' ? tenant_id.trim() : ''
+        if (!normalizedTenantId) {
             return NextResponse.json({ error: 'Falta tenant_id' }, { status: 400 });
         }
 
-        const owner = await requireTenantOwnerById(tenant_id);
+        const owner = await requireTenantOwnerById(normalizedTenantId);
         if (!owner.ok) return owner.response;
 
         const supabase = getSupabase();
 
         // 1. Obtener datos del tenant
-        const { data: tenant, error: tError } = await supabase
+        const primaryLookup = await supabase
             .from('tenants')
             .select('email, nombre, id, selected_plan')
-            .eq('id', tenant_id)
-            .single();
+            .eq('id', normalizedTenantId)
+            .maybeSingle();
+        let tenant: TenantBillingRow | null = primaryLookup.data as TenantBillingRow | null
+        let tError = primaryLookup.error
 
-        if (tError || !tenant) {
+        if (tError && looksLikeMissingSelectedPlanColumn(tError)) {
+            const fallback = await supabase
+                .from('tenants')
+                .select('email, nombre, id, plan')
+                .eq('id', normalizedTenantId)
+                .maybeSingle()
+
+            tenant = fallback.data as TenantBillingRow | null
+            tError = fallback.error
+        }
+
+        if (tError) {
+            console.error('PAYMENT_SUBSCRIBE_TENANT_LOOKUP_FAILED', {
+                tenant_id: normalizedTenantId,
+                code: tError.code,
+                message: tError.message,
+                details: tError.details
+            })
+            return NextResponse.json({ error: 'Error consultando negocio para pago' }, { status: 500 });
+        }
+
+        if (!tenant) {
             return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 });
         }
 
+        const typedTenant = tenant as TenantBillingRow
+        const tenantSelectedPlan = typedTenant.selected_plan
+        const tenantLegacyPlan = typedTenant.plan
+
         const requestedPlan: BillingPlan = isBillingPlan(plan_code)
             ? plan_code
-            : isBillingPlan(tenant.selected_plan)
-                ? tenant.selected_plan
+            : isBillingPlan(tenantSelectedPlan)
+                ? tenantSelectedPlan
+                : isBillingPlan(tenantLegacyPlan)
+                    ? tenantLegacyPlan
                 : 'pro'
 
         // 2. Crear suscripción en Flow
@@ -46,8 +90,8 @@ export async function POST(req: Request) {
             ? `${appUrl}/api/payments/webhook?secret=${encodeURIComponent(webhookSecret)}`
             : `${appUrl}/api/payments/webhook`;
 
-        const customerEmail = tenant.email || `tenant-${tenant.id}@vuelve.vip`
-        const flowResult = await createSubscription(tenant.id, customerEmail, planId, urlCallback);
+        const customerEmail = typedTenant.email || `tenant-${typedTenant.id}@vuelve.vip`
+        const flowResult = await createSubscription(typedTenant.id, customerEmail, planId, urlCallback);
 
         if (typeof flowResult !== 'object' || flowResult === null) {
             return NextResponse.json({ error: 'Respuesta inválida de Flow' }, { status: 502 });
@@ -90,7 +134,7 @@ export async function POST(req: Request) {
                 pending_plan: requestedPlan,
                 selected_plan: requestedPlan
             })
-            .eq('id', tenant.id);
+            .eq('id', typedTenant.id);
 
         return NextResponse.json({
             url: flowData.url,
