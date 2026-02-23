@@ -2,14 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
-    const host = request.headers.get('host') || ''
-    if (host === 'www.vuelve.vip') {
-        const redirectUrl = request.nextUrl.clone()
-        redirectUrl.host = 'vuelve.vip'
-        redirectUrl.protocol = 'https'
-        return NextResponse.redirect(redirectUrl, 308)
-    }
-
     let response = NextResponse.next({
         request
     })
