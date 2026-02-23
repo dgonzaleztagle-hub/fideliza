@@ -18,6 +18,16 @@ type TenantBillingRow = {
     plan?: string | null
 }
 
+function isValidEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function getSafeFlowEmail(tenantId: string, candidate?: string | null): string {
+    const normalized = String(candidate || '').trim().toLowerCase()
+    if (isValidEmail(normalized)) return normalized
+    return `tenant-${tenantId}@vuelve.vip`
+}
+
 function looksLikeFlowCustomerMissing(message: string): boolean {
     const text = message.toLowerCase()
     return text.includes('customer is not found')
@@ -126,7 +136,7 @@ export async function POST(req: Request) {
             ? `${appUrl}/api/payments/webhook?secret=${encodeURIComponent(webhookSecret)}`
             : `${appUrl}/api/payments/webhook`;
 
-        const customerEmail = typedTenant.email || `tenant-${typedTenant.id}@vuelve.vip`
+        const customerEmail = getSafeFlowEmail(typedTenant.id, typedTenant.email)
         const customerName = typedTenant.nombre || `Negocio ${typedTenant.id.slice(0, 8)}`
         let flowCustomerId = await ensureFlowCustomerId(typedTenant.id, customerEmail, customerName)
 
