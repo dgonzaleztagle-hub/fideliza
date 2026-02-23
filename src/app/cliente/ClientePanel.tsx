@@ -382,7 +382,11 @@ export default function ClientePanel() {
     async function loadTenantData(slug: string) {
         setLoading(true)
         try {
-            const res = await fetch(`/api/tenant/${slug}`)
+            const { data: { session } } = await supabase.auth.getSession()
+            const accessToken = session?.access_token || ''
+            const res = await fetch(`/api/tenant/${slug}`, {
+                headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+            })
             if (!res.ok) throw new Error('No encontrado')
             const data = await res.json()
             if (!data.is_owner) {
@@ -859,13 +863,26 @@ export default function ClientePanel() {
     const loadMyTenants = useCallback(async () => {
         setLoadingTenants(true)
         try {
-            let res = await fetch('/api/my-tenants', { cache: 'no-store' })
+            const { data: { session } } = await supabase.auth.getSession()
+            const accessToken = session?.access_token || ''
+            const authHeaders = accessToken
+                ? { Authorization: `Bearer ${accessToken}` }
+                : undefined
+
+            let res = await fetch('/api/my-tenants', {
+                cache: 'no-store',
+                headers: authHeaders
+            })
             if (res.status === 401) {
-                const { data: { session } } = await supabase.auth.getSession()
                 if (session) {
                     await supabase.auth.refreshSession()
                     await new Promise(resolve => setTimeout(resolve, 350))
-                    res = await fetch('/api/my-tenants', { cache: 'no-store' })
+                    const { data: { session: refreshedSession } } = await supabase.auth.getSession()
+                    const refreshedToken = refreshedSession?.access_token || ''
+                    res = await fetch('/api/my-tenants', {
+                        cache: 'no-store',
+                        headers: refreshedToken ? { Authorization: `Bearer ${refreshedToken}` } : undefined
+                    })
                 }
             }
 

@@ -43,7 +43,7 @@ type CustomerStatsRow = {
 // Público: solo datos de vitrina
 // Dueño autenticado: datos completos de panel + clientes
 export async function GET(
-    _req: NextRequest,
+    req: NextRequest,
     { params }: { params: Promise<{ slug: string }> }
 ) {
     const supabase = getSupabase()
@@ -130,8 +130,25 @@ export async function GET(
             .eq('activo', true)
             .maybeSingle()
 
-        const user = await getOptionalAuthenticatedUser()
-        const isOwner = !!user && user.id === tenant.auth_user_id
+        let authUserId: string | null = null
+        const authHeader = req.headers.get('authorization') || ''
+        const bearer = authHeader.toLowerCase().startsWith('bearer ')
+            ? authHeader.slice(7).trim()
+            : ''
+
+        if (bearer) {
+            const { data, error } = await supabase.auth.getUser(bearer)
+            if (!error && data.user) {
+                authUserId = data.user.id
+            }
+        }
+
+        if (!authUserId) {
+            const user = await getOptionalAuthenticatedUser()
+            authUserId = user?.id || null
+        }
+
+        const isOwner = !!authUserId && authUserId === tenant.auth_user_id
 
         if (!isOwner) {
             return NextResponse.json({

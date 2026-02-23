@@ -1,22 +1,40 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getSupabase } from '@/lib/supabase/admin';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
-        const supabase = await createClient();
+        let userId: string | null = null
 
-        // 1. Obtener el usuario actual
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const authHeader = req.headers.get('authorization') || ''
+        const bearer = authHeader.toLowerCase().startsWith('bearer ')
+            ? authHeader.slice(7).trim()
+            : ''
 
-        if (authError || !user) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        if (bearer) {
+            const admin = getSupabase()
+            const { data, error } = await admin.auth.getUser(bearer)
+            if (!error && data.user) {
+                userId = data.user.id
+            }
         }
+
+        if (!userId) {
+            const supabase = await createClient()
+            const { data: { user }, error: authError } = await supabase.auth.getUser()
+            if (authError || !user) {
+                return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+            }
+            userId = user.id
+        }
+
+        const supabase = getSupabase()
 
         // 2. Buscar todos los tenants asociados a su ID
         const { data: tenants, error: dbError } = await supabase
             .from('tenants')
             .select('id, nombre, slug, color_primario, estado, plan, selected_plan, selected_program_types, trial_hasta, logo_url')
-            .eq('auth_user_id', user.id)
+            .eq('auth_user_id', userId)
             .order('nombre', { ascending: true });
 
         if (dbError) throw dbError;
