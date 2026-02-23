@@ -43,6 +43,7 @@ function looksLikeFlowCustomerAlreadyExists(message: string): boolean {
     return text.includes('already exists')
         || text.includes('already registered')
         || text.includes('exists')
+        || text.includes('customer with this externalid')
 }
 
 async function ensureFlowCustomerId(externalId: string, email: string, name: string): Promise<string> {
