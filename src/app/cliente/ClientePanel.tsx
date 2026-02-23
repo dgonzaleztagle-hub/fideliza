@@ -2170,10 +2170,15 @@ export default function ClientePanel() {
                                 <div>
                                     <h1>Configuración</h1>
                                     <p className="cliente-content-subtitle">Ajustes de tu negocio y programa</p>
+                                    {!editingConfig && (
+                                        <p className="cliente-edit-mode-hint">
+                                            Estás en modo lectura. Activa edición para cambiar datos, plan, geolocalización y mensajes.
+                                        </p>
+                                    )}
                                 </div>
                                 {!editingConfig ? (
-                                    <button className="cliente-edit-btn" onClick={() => setEditingConfig(true)}>
-                                        ✏️ Editar
+                                    <button className="cliente-edit-btn cliente-edit-main-btn" onClick={() => setEditingConfig(true)}>
+                                        ✏️ Editar toda la configuración
                                     </button>
                                 ) : (
                                     <div className="cliente-edit-actions">

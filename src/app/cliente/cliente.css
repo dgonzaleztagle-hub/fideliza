@@ -264,6 +264,7 @@
     font-size: 1.75rem;
     font-weight: 800;
     margin-bottom: 0.25rem;
+    color: var(--text-primary);
 }
 
 .cliente-content-subtitle {
@@ -1253,6 +1254,27 @@
     color: var(--brand-coral);
 }
 
+.cliente-edit-main-btn {
+    background: var(--brand-gradient);
+    color: #ffffff;
+    border-color: transparent;
+    font-weight: 700;
+    box-shadow: 0 10px 22px rgba(99, 102, 241, 0.22);
+}
+
+.cliente-edit-main-btn:hover {
+    color: #ffffff;
+    border-color: transparent;
+    filter: brightness(1.03);
+    transform: translateY(-1px);
+}
+
+.cliente-edit-mode-hint {
+    margin: 0.35rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
 .cliente-edit-actions {
     display: flex;
     gap: 0.5rem;
@@ -1325,9 +1347,11 @@
 
 .cliente-config-card {
     padding: 1.5rem;
-    background: var(--bg-card);
+    background: #ffffff;
     border: 1px solid var(--border);
     border-radius: var(--radius);
+    color: var(--text-primary);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
 }
 
 .cliente-config-card h3 {
@@ -1336,6 +1360,7 @@
     margin-bottom: 1rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
 }
 
 .cliente-config-item {
@@ -1343,10 +1368,17 @@
     justify-content: space-between;
     padding: 0.5rem 0;
     font-size: 0.9rem;
+    gap: 1rem;
 }
 
 .cliente-config-item span {
     color: var(--text-secondary);
+}
+
+.cliente-config-item strong {
+    color: var(--text-primary);
+    font-weight: 700;
+    text-align: right;
 }
 
 .cliente-config-form {
@@ -1394,6 +1426,11 @@
 .cliente-config-form textarea {
     resize: vertical;
     min-height: 60px;
+}
+
+.cliente-config-desc {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
 }
 
 .plan-trial-explain {
@@ -1680,6 +1717,10 @@
     .cliente-config-item {
         flex-direction: column;
         gap: 0.25rem;
+    }
+
+    .cliente-config-item strong {
+        text-align: left;
     }
 }
 
