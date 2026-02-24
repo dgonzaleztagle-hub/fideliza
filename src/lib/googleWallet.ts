@@ -190,6 +190,22 @@ export async function createLoyaltyClass(options: {
 }) {
     const accessToken = await getAccessToken();
     const fullClassId = `${ISSUER_ID}.${options.classId}`;
+    const classUrl = `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyClass/${encodeURIComponent(fullClassId)}`
+
+    // 1) Si la clase ya existe, no hacemos POST.
+    const getRes = await fetch(classUrl, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`
+        }
+    })
+    if (getRes.ok) {
+        return { id: fullClassId, status: 'exists' as const }
+    }
+    if (getRes.status !== 404) {
+        const raw = await getRes.text()
+        throw new Error(`WALLET_CLASS_LOOKUP_FAILED: HTTP ${getRes.status} ${raw}`)
+    }
 
     const loyaltyClass: Record<string, unknown> = {
         id: fullClassId,
@@ -239,7 +255,19 @@ export async function createLoyaltyClass(options: {
         body: JSON.stringify(loyaltyClass)
     });
 
-    return await response.json();
+    const raw = await response.text()
+    let payload: unknown = null
+    try {
+        payload = raw ? JSON.parse(raw) : null
+    } catch {
+        payload = raw
+    }
+
+    if (!response.ok) {
+        throw new Error(`WALLET_CLASS_CREATE_FAILED: HTTP ${response.status} ${typeof payload === 'string' ? payload : JSON.stringify(payload)}`)
+    }
+
+    return payload;
 }
 
 export { getAccessToken, ISSUER_ID };

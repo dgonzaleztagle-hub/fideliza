@@ -86,21 +86,16 @@ export async function POST(req: NextRequest) {
         const classId = `vuelve-${tenant.slug}`
         const objectId = `vuelve-${tenant.slug}-${customer.id}`
 
-        // Intentar crear la clase (si ya existe, Google la ignora)
-        try {
-            await createLoyaltyClass({
-                classId,
-                programName: `${tenant.nombre} - Vuelve+`,
-                logoUrl: tenant.logo_url || undefined,
-                hexBackgroundColor: tenant.color_primario || '#6366f1',
-                lat: tenant.lat || undefined,
-                lng: tenant.lng || undefined,
-                geoMessage: tenant.mensaje_geofencing || undefined
-            })
-        } catch (classError) {
-            // Si falla la creación de clase, puede que ya exista — no es crítico
-            console.warn('Clase de lealtad ya existe o error:', classError)
-        }
+        // Crear/verificar clase antes de firmar el save link.
+        await createLoyaltyClass({
+            classId,
+            programName: `${tenant.nombre} - Vuelve+`,
+            logoUrl: tenant.logo_url || undefined,
+            hexBackgroundColor: tenant.color_primario || '#6366f1',
+            lat: tenant.lat || undefined,
+            lng: tenant.lng || undefined,
+            geoMessage: tenant.mensaje_geofencing || undefined
+        })
 
         // Generar el save link
         const saveLink = await generateSaveLink({
@@ -131,13 +126,16 @@ export async function POST(req: NextRequest) {
             rawMessage.includes('secretOrPrivateKey must be an asymmetric key when using RS256')
             || rawMessage.includes('WALLET_PRIVATE_KEY_INVALID_FORMAT')
         const isMissingCredentials = rawMessage.includes('WALLET_CREDENTIALS_MISSING')
+        const isClassError = rawMessage.includes('WALLET_CLASS_')
         const message = isPrivateKeyError
             ? 'La clave privada de Google Wallet está mal formateada en el servidor.'
             : isMissingCredentials
                 ? 'Faltan credenciales de Google Wallet en el servidor.'
-                : rawMessage
+                : isClassError
+                    ? 'No fue posible preparar la tarjeta en Google Wallet para este negocio.'
+                    : rawMessage
         return NextResponse.json(
-            { error: message, configured: false },
+            { error: message, configured: false, detail: rawMessage },
             { status: 500 }
         )
     }
