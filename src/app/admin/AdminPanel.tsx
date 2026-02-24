@@ -93,7 +93,7 @@ export default function AdminPanel() {
             const data = await res.json()
             if (!res.ok) {
                 setTenants([])
-                if (!errorMsg) setErrorMsg(data?.error || 'No autorizado para listar negocios')
+                setErrorMsg((prev) => prev || data?.error || 'No autorizado para listar negocios')
                 return
             }
             setTenants(Array.isArray(data?.tenants) ? data.tenants : [])
@@ -101,7 +101,7 @@ export default function AdminPanel() {
             console.error('Error loading admin tenants:', err)
             setTenants([])
         }
-    }, [errorMsg])
+    }, [])
 
     const loadAll = useCallback(async () => {
         setErrorMsg('')
