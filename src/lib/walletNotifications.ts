@@ -64,9 +64,40 @@ export async function sendWalletNotification(
 ): Promise<{ success: boolean; error?: string }> {
     try {
         const accessToken = await getAccessToken()
+        const messagePayload = {
+            message: {
+                header: titulo,
+                body: mensaje,
+                id: `msg-${objectId.split('.').pop() || 'wallet'}-${Date.now()}`,
+            }
+        }
 
-        // Actualizar el objeto del pase con un nuevo mensaje
-        const response = await fetch(
+        // Camino principal: endpoint dedicado de mensaje (más confiable para notificación visible).
+        const addMessageResponse = await fetch(
+            `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}/addMessage?notifyPreference=NOTIFY`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(messagePayload),
+            }
+        )
+        if (addMessageResponse.ok) {
+            return { success: true }
+        }
+
+        let addMessageError = 'Error desconocido en addMessage'
+        try {
+            const errorData = await addMessageResponse.json()
+            addMessageError = errorData?.error?.message || addMessageError
+        } catch {
+            // no-op
+        }
+
+        // Fallback: PATCH directo del objeto (compatibilidad).
+        const patchResponse = await fetch(
             `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}?notifyPreference=NOTIFY`,
             {
                 method: 'PATCH',
@@ -86,14 +117,20 @@ export async function sendWalletNotification(
                 }),
             }
         )
-
-        if (!response.ok) {
-            const errorData = await response.json()
-            console.error('Error actualizando pase de Google Wallet:', errorData)
-            return { success: false, error: errorData.error?.message || 'Error desconocido' }
+        if (patchResponse.ok) {
+            return { success: true }
         }
 
-        return { success: true }
+        let patchError = 'Error desconocido en PATCH'
+        try {
+            const patchErrorData = await patchResponse.json()
+            patchError = patchErrorData?.error?.message || patchError
+        } catch {
+            // no-op
+        }
+
+        console.error('Error enviando notificación Wallet:', { addMessageError, patchError, objectId })
+        return { success: false, error: `${addMessageError} | fallback: ${patchError}` }
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Error enviando notificación Wallet'
         console.error('Error enviando notificación Wallet:', message)
