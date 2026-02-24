@@ -61,13 +61,36 @@ export async function POST(req: NextRequest) {
         }
 
         // Buscar tenant
-        const { data: tenant, error: tenantError } = await supabase
+        let tenant: {
+            id: string
+            nombre: string
+            slug: string
+            logo_url: string | null
+            color_primario: string | null
+            lat: number | null
+            lng: number | null
+            mensaje_geofencing: string | null
+            selected_program_types?: string[] | null
+        } | null = null
+
+        const withPlan = await supabase
             .from('tenants')
             .select('id, nombre, slug, logo_url, color_primario, lat, lng, mensaje_geofencing, selected_program_types')
             .eq('id', tenant_id)
             .single()
 
-        if (tenantError || !tenant) {
+        if (withPlan.error && withPlan.error.code === '42703') {
+            const legacy = await supabase
+                .from('tenants')
+                .select('id, nombre, slug, logo_url, color_primario, lat, lng, mensaje_geofencing')
+                .eq('id', tenant_id)
+                .single()
+            tenant = legacy.data ? { ...legacy.data, selected_program_types: null } : null
+        } else {
+            tenant = withPlan.data
+        }
+
+        if (!tenant) {
             return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
         }
 
