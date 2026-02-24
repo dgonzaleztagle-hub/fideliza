@@ -394,199 +394,122 @@ export default function QRPageClient({ tenant, program }: Props) {
         setWalletTargetWhatsapp('')
     }
 
+    function formatMoney(value: number | undefined): string {
+        return `$${(value || 0).toLocaleString('es-CL')}`
+    }
+
+    function renderUxSummary() {
+        if (!result) return null
+        const rewardLabel = program?.descripcion_premio || 'Beneficio activo'
+
+        if (result.tipo_programa === 'sellos') {
+            const actual = result.puntos_actuales || 0
+            const meta = result.puntos_meta || program?.puntos_meta || 0
+            const faltan = Math.max(meta - actual, 0)
+            return (
+                <div className="qr-ux-summary">
+                    <div className="qr-ux-row"><span>Progreso</span><strong>{actual} / {meta} sellos</strong></div>
+                    <div className="qr-ux-row"><span>Te falta</span><strong>{faltan} sellos</strong></div>
+                    <div className="qr-ux-row"><span>Premio</span><strong>{rewardLabel}</strong></div>
+                </div>
+            )
+        }
+        if (result.tipo_programa === 'cashback') {
+            return (
+                <div className="qr-ux-summary">
+                    <div className="qr-ux-row"><span>Ganado hoy</span><strong>{formatMoney(result.cashback_ganado)}</strong></div>
+                    <div className="qr-ux-row"><span>Saldo</span><strong>{formatMoney(result.saldo_total)}</strong></div>
+                    <div className="qr-ux-row"><span>Regla</span><strong>{cashbackPorcentaje}% por compra</strong></div>
+                </div>
+            )
+        }
+        if (result.tipo_programa === 'multipase') {
+            return (
+                <div className="qr-ux-summary">
+                    <div className="qr-ux-row"><span>Usos restantes</span><strong>{result.usos_restantes || 0}</strong></div>
+                    <div className="qr-ux-row"><span>Total del pack</span><strong>{cantidadUsosPrograma}</strong></div>
+                    <div className="qr-ux-row"><span>Beneficio</span><strong>{rewardLabel}</strong></div>
+                </div>
+            )
+        }
+        if (result.tipo_programa === 'descuento') {
+            return (
+                <div className="qr-ux-summary">
+                    <div className="qr-ux-row"><span>Descuento actual</span><strong>{result.descuento_actual || 0}%</strong></div>
+                    <div className="qr-ux-row"><span>Visitas</span><strong>{result.visitas_totales || 0}</strong></div>
+                    <div className="qr-ux-row"><span>Siguiente nivel</span><strong>{result.siguiente_nivel ? `${result.siguiente_nivel.faltan} visitas` : 'Nivel máximo'}</strong></div>
+                </div>
+            )
+        }
+        if (result.tipo_programa === 'membresia') {
+            return (
+                <div className="qr-ux-summary">
+                    <div className="qr-ux-row"><span>Estado</span><strong>{result.tiene_membresia ? 'Activa' : 'Inactiva'}</strong></div>
+                    <div className="qr-ux-row"><span>Acceso</span><strong>{result.tiene_membresia ? 'Beneficios VIP habilitados' : 'Solicita activación en caja'}</strong></div>
+                    <div className="qr-ux-row"><span>Beneficio</span><strong>{rewardLabel}</strong></div>
+                </div>
+            )
+        }
+        if (result.tipo_programa === 'cupon') {
+            return (
+                <div className="qr-ux-summary">
+                    <div className="qr-ux-row"><span>Estado</span><strong>{result.ya_usado ? 'Usado' : result.expirado ? 'Vencido' : 'Disponible'}</strong></div>
+                    <div className="qr-ux-row"><span>Descuento</span><strong>{result.descuento || cuponPorcentaje}%</strong></div>
+                    <div className="qr-ux-row"><span>Beneficio</span><strong>{rewardLabel}</strong></div>
+                </div>
+            )
+        }
+        if (result.tipo_programa === 'regalo') {
+            return (
+                <div className="qr-ux-summary">
+                    <div className="qr-ux-row"><span>Estado</span><strong>{result.tiene_giftcard ? 'Gift card activa' : 'Sin gift card'}</strong></div>
+                    <div className="qr-ux-row"><span>Saldo</span><strong>{formatMoney(result.saldo)}</strong></div>
+                    <div className="qr-ux-row"><span>Beneficio</span><strong>{rewardLabel}</strong></div>
+                </div>
+            )
+        }
+        return (
+            <div className="qr-ux-summary">
+                <div className="qr-ux-row"><span>Estado</span><strong>Visita registrada</strong></div>
+                <div className="qr-ux-row"><span>Actividad</span><strong>{result.visitas_totales || result.puntos_actuales || 0}</strong></div>
+                <div className="qr-ux-row"><span>Beneficio</span><strong>{rewardLabel}</strong></div>
+            </div>
+        )
+    }
+
     // ═══ RENDER RESULT ═══
     function renderResult() {
         if (!result) return null
 
-        // SELLOS
-        if (result.tipo_programa === 'sellos') {
-            if (result.llegoAMeta) {
-                return (
-                    <div className="qr-prize">
-                        <div className="qr-prize-confetti">🎉🎊🥳</div>
-                        <h2>¡FELICIDADES!</h2>
-                        <p className="qr-prize-desc">{result.message}</p>
-                        {result.reward && (
-                            <div className="qr-reward-card">
-                                <p className="qr-reward-label">Tu código de premio:</p>
-                                <div className="qr-reward-code">{result.reward.qr_code}</div>
-                                <p className="qr-reward-instructions">
-                                    📱 Guarda este código. Muéstralo en tu próxima visita para canjear tu premio.
-                                </p>
-                                <a
-                                    href={`https://wa.me/?text=${encodeURIComponent(`¡Mira! Acabo de ganar un premio en ${tenant.nombre}: ${result.reward.descripcion}. Mi código es: ${result.reward.qr_code}`)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="qr-wa-share-btn"
-                                >
-                                    <span>📩 Guardar en mi WhatsApp</span>
-                                </a>
-                            </div>
-                        )}
-                    </div>
-                )
-            }
-            if (result.alreadyStamped) {
-                return (
-                    <div className="qr-already">
-                        <div className="qr-already-icon">😊</div>
-                        <h2>{result.message}</h2>
-                        {renderProgressBar()}
-                    </div>
-                )
-            }
+        if (result.tipo_programa === 'sellos' && result.llegoAMeta) {
             return (
-                <div className="qr-stamped">
-                    <div className="qr-stamped-icon">✅</div>
-                    <h2>{result.message}</h2>
-                    {renderProgressBar()}
-                    {program && result.puntos_actuales !== undefined && (
-                        <p className="qr-next-prize">
-                            Te faltan <strong>{(result.puntos_meta || program.puntos_meta) - result.puntos_actuales}</strong> puntos para: {program.descripcion_premio}
-                        </p>
-                    )}
-                </div>
-            )
-        }
-
-        // CASHBACK
-        if (result.tipo_programa === 'cashback') {
-            return (
-                <div className="qr-stamped">
-                    <div className="qr-stamped-icon">💰</div>
-                    <h2>{result.message}</h2>
-                    <div className="qr-type-info-card">
-                        <div className="qr-type-info-row">
-                            <span>Cashback ganado</span>
-                            <strong>${result.cashback_ganado?.toLocaleString()}</strong>
-                        </div>
-                        <div className="qr-type-info-row">
-                            <span>Saldo total acumulado</span>
-                            <strong className="qr-highlight">${result.saldo_total?.toLocaleString()}</strong>
-                        </div>
-                    </div>
-                </div>
-            )
-        }
-
-        // MULTIPASE
-        if (result.tipo_programa === 'multipase') {
-            if (result.necesita_compra) {
-                return (
-                    <div className="qr-already">
-                        <div className="qr-already-icon">🎟️</div>
-                        <h2>{result.message}</h2>
-                        <p className="qr-next-prize">Consulta en caja para comprar un nuevo pack de usos.</p>
-                    </div>
-                )
-            }
-            return (
-                <div className="qr-stamped">
-                    <div className="qr-stamped-icon">{result.pack_completado ? '🎉' : '🎟️'}</div>
-                    <h2>{result.message}</h2>
-                    {!result.pack_completado && (
-                        <div className="qr-progress">
-                            <div className="qr-progress-bar">
-                                <div
-                                    className="qr-progress-fill"
-                                    style={{
-                                        width: `${Math.max(10, ((result.usos_restantes || 0) / cantidadUsosPrograma) * 100)}%`,
-                                        background: primaryColor
-                                    }}
-                                />
-                            </div>
-                            <p className="qr-progress-text">
-                                {result.usos_restantes} usos restantes
+                <div className="qr-prize">
+                    <div className="qr-prize-confetti">🎉🎊🥳</div>
+                    <h2>¡FELICIDADES!</h2>
+                    <p className="qr-prize-desc">{result.message}</p>
+                    {result.reward && (
+                        <div className="qr-reward-card">
+                            <p className="qr-reward-label">Tu código de premio:</p>
+                            <div className="qr-reward-code">{result.reward.qr_code}</div>
+                            <p className="qr-reward-instructions">
+                                📱 Guarda este código. Muéstralo en tu próxima visita para canjear tu premio.
                             </p>
+                            <a
+                                href={`https://wa.me/?text=${encodeURIComponent(`¡Mira! Acabo de ganar un premio en ${tenant.nombre}: ${result.reward.descripcion}. Mi código es: ${result.reward.qr_code}`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="qr-wa-share-btn"
+                            >
+                                <span>📩 Guardar en mi WhatsApp</span>
+                            </a>
                         </div>
                     )}
+                    {renderUxSummary()}
                 </div>
             )
         }
 
-        // DESCUENTO POR NIVELES
-        if (result.tipo_programa === 'descuento') {
-            return (
-                <div className="qr-stamped">
-                    <div className="qr-stamped-icon">{result.subio_de_nivel ? '🎉' : '📊'}</div>
-                    <h2>{result.message}</h2>
-                    <div className="qr-type-info-card">
-                        <div className="qr-type-info-row">
-                            <span>Tu descuento actual</span>
-                            <strong className="qr-highlight">{result.descuento_actual}%</strong>
-                        </div>
-                        <div className="qr-type-info-row">
-                            <span>Visitas totales</span>
-                            <strong>{result.visitas_totales}</strong>
-                        </div>
-                        {result.siguiente_nivel && result.siguiente_nivel.faltan > 0 && (
-                            <div className="qr-type-info-row">
-                                <span>Siguiente nivel</span>
-                                <strong>{result.siguiente_nivel.faltan} visitas más → {result.siguiente_nivel.descuento}%</strong>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )
-        }
-
-        // MEMBRESÍA VIP
-        if (result.tipo_programa === 'membresia') {
-            if (!result.tiene_membresia) {
-                return (
-                    <div className="qr-already">
-                        <div className="qr-already-icon">👑</div>
-                        <h2>{result.message}</h2>
-                        <p className="qr-next-prize">Consulta en caja para activar tu membresía VIP.</p>
-                    </div>
-                )
-            }
-            return (
-                <div className="qr-stamped">
-                    <div className="qr-stamped-icon">👑</div>
-                    <h2>{result.message}</h2>
-                    {result.beneficios && result.beneficios.length > 0 && (
-                        <div className="qr-type-info-card">
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                                Tus beneficios VIP:
-                            </p>
-                            {result.beneficios.map((b, i) => (
-                                <div key={i} className="qr-type-info-row">
-                                    <span>✨ {b}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )
-        }
-
-        // AFILIACIÓN
-        if (result.tipo_programa === 'afiliacion') {
-            return (
-                <div className="qr-stamped">
-                    <div className="qr-stamped-icon">📱</div>
-                    <h2>{result.message}</h2>
-                    <div className="qr-type-info-card">
-                        <div className="qr-type-info-row">
-                            <span>Visitas registradas</span>
-                            <strong>{result.visitas_totales}</strong>
-                        </div>
-                    </div>
-                </div>
-            )
-        }
-
-        // CUPÓN
-        if (result.tipo_programa === 'cupon') {
-            if (result.ya_usado || result.expirado) {
-                return (
-                    <div className="qr-already">
-                        <div className="qr-already-icon">🎫</div>
-                        <h2>{result.message}</h2>
-                    </div>
-                )
-            }
+        if (result.tipo_programa === 'cupon' && !result.ya_usado && !result.expirado) {
             return (
                 <div className="qr-prize">
                     <div className="qr-prize-confetti">🎫✨</div>
@@ -601,40 +524,109 @@ export default function QRPageClient({ tenant, program }: Props) {
                             </p>
                         </div>
                     )}
+                    {renderUxSummary()}
                 </div>
             )
         }
 
-        // REGALO / GIFT CARD
-        if (result.tipo_programa === 'regalo') {
-            if (!result.tiene_giftcard) {
-                return (
-                    <div className="qr-already">
-                        <div className="qr-already-icon">🎁</div>
-                        <h2>{result.message}</h2>
-                        <p className="qr-next-prize">Puedes comprar una gift card en caja.</p>
-                    </div>
-                )
+        const infoRows: Array<{ label: string; value: string; highlight?: boolean }> = []
+        if (result.tipo_programa === 'cashback') {
+            infoRows.push(
+                { label: 'Cashback ganado', value: formatMoney(result.cashback_ganado) },
+                { label: 'Saldo total acumulado', value: formatMoney(result.saldo_total), highlight: true }
+            )
+        }
+        if (result.tipo_programa === 'descuento') {
+            infoRows.push(
+                { label: 'Tu descuento actual', value: `${result.descuento_actual || 0}%`, highlight: true },
+                { label: 'Visitas totales', value: `${result.visitas_totales || 0}` }
+            )
+            if (result.siguiente_nivel && result.siguiente_nivel.faltan > 0) {
+                infoRows.push({ label: 'Siguiente nivel', value: `${result.siguiente_nivel.faltan} visitas más → ${result.siguiente_nivel.descuento}%` })
             }
-            return (
-                <div className="qr-stamped">
-                    <div className="qr-stamped-icon">🎁</div>
-                    <h2>{result.message}</h2>
-                    <div className="qr-type-info-card">
-                        <div className="qr-type-info-row">
-                            <span>Saldo disponible</span>
-                            <strong className="qr-highlight">${result.saldo?.toLocaleString()}</strong>
-                        </div>
-                    </div>
-                </div>
-            )
+        }
+        if (result.tipo_programa === 'afiliacion') {
+            infoRows.push({ label: 'Visitas registradas', value: `${result.visitas_totales || 0}` })
+        }
+        if (result.tipo_programa === 'regalo' && result.tiene_giftcard) {
+            infoRows.push({ label: 'Saldo disponible', value: formatMoney(result.saldo), highlight: true })
         }
 
-        // Fallback genérico
+        const iconByType: Record<string, string> = {
+            sellos: result.alreadyStamped ? '😊' : '✅',
+            cashback: '💰',
+            multipase: result.pack_completado ? '🎉' : '🎟️',
+            descuento: result.subio_de_nivel ? '🎉' : '📊',
+            membresia: '👑',
+            afiliacion: '📱',
+            cupon: '🎫',
+            regalo: '🎁'
+        }
+
+        const isPassiveState =
+            Boolean(result.alreadyStamped)
+            || (result.tipo_programa === 'multipase' && Boolean(result.necesita_compra))
+            || (result.tipo_programa === 'membresia' && result.tiene_membresia === false)
+            || (result.tipo_programa === 'cupon' && (Boolean(result.ya_usado) || Boolean(result.expirado)))
+            || (result.tipo_programa === 'regalo' && result.tiene_giftcard === false)
+
         return (
-            <div className="qr-stamped">
-                <div className="qr-stamped-icon">✅</div>
+            <div className={isPassiveState ? 'qr-already' : 'qr-stamped'}>
+                <div className="qr-stamped-icon">{iconByType[result.tipo_programa] || '✅'}</div>
                 <h2>{result.message}</h2>
+
+                {result.tipo_programa === 'sellos' && renderProgressBar()}
+                {result.tipo_programa === 'sellos' && program && result.puntos_actuales !== undefined && (
+                    <p className="qr-next-prize">
+                        Te faltan <strong>{(result.puntos_meta || program.puntos_meta) - result.puntos_actuales}</strong> puntos para: {program.descripcion_premio}
+                    </p>
+                )}
+                {result.tipo_programa === 'multipase' && !result.pack_completado && (
+                    <div className="qr-progress">
+                        <div className="qr-progress-bar">
+                            <div
+                                className="qr-progress-fill"
+                                style={{
+                                    width: `${Math.max(10, ((result.usos_restantes || 0) / cantidadUsosPrograma) * 100)}%`,
+                                    background: primaryColor
+                                }}
+                            />
+                        </div>
+                        <p className="qr-progress-text">{result.usos_restantes} usos restantes</p>
+                    </div>
+                )}
+                {result.tipo_programa === 'multipase' && result.necesita_compra && (
+                    <p className="qr-next-prize">Consulta en caja para comprar un nuevo pack de usos.</p>
+                )}
+                {result.tipo_programa === 'membresia' && !result.tiene_membresia && (
+                    <p className="qr-next-prize">Consulta en caja para activar tu membresía VIP.</p>
+                )}
+                {result.tipo_programa === 'regalo' && !result.tiene_giftcard && (
+                    <p className="qr-next-prize">Puedes comprar una gift card en caja.</p>
+                )}
+                {result.tipo_programa === 'membresia' && result.beneficios && result.beneficios.length > 0 && (
+                    <div className="qr-type-info-card">
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                            Tus beneficios VIP:
+                        </p>
+                        {result.beneficios.map((b, i) => (
+                            <div key={i} className="qr-type-info-row">
+                                <span>✨ {b}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {infoRows.length > 0 && (
+                    <div className="qr-type-info-card">
+                        {infoRows.map((row, idx) => (
+                            <div key={`${row.label}-${idx}`} className="qr-type-info-row">
+                                <span>{row.label}</span>
+                                <strong className={row.highlight ? 'qr-highlight' : undefined}>{row.value}</strong>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {renderUxSummary()}
             </div>
         )
     }

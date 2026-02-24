@@ -158,6 +158,82 @@ export default function MiTarjetaClient() {
         return labels[tipo] || tipo
     }
 
+    function renderCardUxSummary(tarjeta: TarjetaData) {
+        const tipo = tarjeta.programa?.tipo_programa || 'sellos'
+        const premio = tarjeta.programa?.descripcion_premio || 'Beneficio del programa'
+        const puntosMeta = tarjeta.programa?.puntos_meta || 0
+        const puntosActuales = tarjeta.customer.puntos_actuales || 0
+
+        if (tipo === 'sellos') {
+            return (
+                <div className="mt-ux-summary">
+                    <div className="mt-ux-row"><span>Progreso</span><strong>{puntosActuales} / {puntosMeta} sellos</strong></div>
+                    <div className="mt-ux-row"><span>Te falta</span><strong>{Math.max(puntosMeta - puntosActuales, 0)} sellos</strong></div>
+                    <div className="mt-ux-row"><span>Premio</span><strong>{premio}</strong></div>
+                </div>
+            )
+        }
+
+        if (tipo === 'cashback') {
+            return (
+                <div className="mt-ux-summary">
+                    <div className="mt-ux-row"><span>Saldo</span><strong>${(tarjeta.membership?.saldo_cashback || 0).toLocaleString('es-CL')}</strong></div>
+                    <div className="mt-ux-row"><span>Estado</span><strong>Acumulando cashback</strong></div>
+                    <div className="mt-ux-row"><span>Beneficio</span><strong>{premio}</strong></div>
+                </div>
+            )
+        }
+
+        if (tipo === 'multipase') {
+            return (
+                <div className="mt-ux-summary">
+                    <div className="mt-ux-row"><span>Usos restantes</span><strong>{tarjeta.membership?.usos_restantes || 0}</strong></div>
+                    <div className="mt-ux-row"><span>Pack</span><strong>{(tarjeta.programa?.config?.cantidad_usos as number) || 0} usos</strong></div>
+                    <div className="mt-ux-row"><span>Beneficio</span><strong>{premio}</strong></div>
+                </div>
+            )
+        }
+
+        if (tipo === 'descuento') {
+            return (
+                <div className="mt-ux-summary">
+                    <div className="mt-ux-row"><span>Visitas acumuladas</span><strong>{tarjeta.customer.total_puntos_historicos}</strong></div>
+                    <div className="mt-ux-row"><span>Estado</span><strong>Descuento progresivo activo</strong></div>
+                    <div className="mt-ux-row"><span>Beneficio</span><strong>{premio}</strong></div>
+                </div>
+            )
+        }
+
+        if (tipo === 'membresia') {
+            const activa = tarjeta.membership?.estado === 'activo'
+            return (
+                <div className="mt-ux-summary">
+                    <div className="mt-ux-row"><span>Membresía</span><strong>{activa ? 'Activa' : 'Inactiva'}</strong></div>
+                    <div className="mt-ux-row"><span>Visitas VIP</span><strong>{tarjeta.customer.total_puntos_historicos}</strong></div>
+                    <div className="mt-ux-row"><span>Beneficio</span><strong>{premio}</strong></div>
+                </div>
+            )
+        }
+
+        if (tipo === 'regalo') {
+            return (
+                <div className="mt-ux-summary">
+                    <div className="mt-ux-row"><span>Saldo disponible</span><strong>${(tarjeta.membership?.saldo_cashback || 0).toLocaleString('es-CL')}</strong></div>
+                    <div className="mt-ux-row"><span>Estado</span><strong>Gift card lista para usar</strong></div>
+                    <div className="mt-ux-row"><span>Beneficio</span><strong>{premio}</strong></div>
+                </div>
+            )
+        }
+
+        return (
+            <div className="mt-ux-summary">
+                <div className="mt-ux-row"><span>Actividad</span><strong>{tarjeta.customer.total_puntos_historicos} visitas</strong></div>
+                <div className="mt-ux-row"><span>Estado</span><strong>Programa activo</strong></div>
+                <div className="mt-ux-row"><span>Beneficio</span><strong>{premio}</strong></div>
+            </div>
+        )
+    }
+
     function renderCardContent(tarjeta: TarjetaData) {
         const tipo = tarjeta.programa?.tipo_programa || 'sellos'
         const config = tarjeta.programa?.config || {}
@@ -405,6 +481,7 @@ export default function MiTarjetaClient() {
 
                                 <div className="mt-card-body">
                                     {renderCardContent(tarjeta)}
+                                    {renderCardUxSummary(tarjeta)}
                                 </div>
 
                                 {tarjeta.premios_pendientes.length > 0 && (

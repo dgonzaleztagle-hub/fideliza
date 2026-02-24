@@ -345,6 +345,36 @@ body {
     margin-top: 0.2rem;
 }
 
+.mt-ux-summary {
+    margin-top: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+}
+
+.mt-ux-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.82rem;
+}
+
+.mt-ux-row:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+}
+
+.mt-ux-row span {
+    color: var(--text-secondary);
+}
+
+.mt-ux-row strong {
+    color: var(--text-primary);
+    text-align: right;
+}
+
 /* ===================== */
 /* PREMIOS SECTION       */
 /* ===================== */

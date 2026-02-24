@@ -569,6 +569,36 @@ body {
   color: var(--text-primary);
 }
 
+.qr-ux-summary {
+  margin-top: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.qr-ux-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.86rem;
+}
+
+.qr-ux-row:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.qr-ux-row span {
+  color: var(--text-secondary);
+}
+
+.qr-ux-row strong {
+  color: var(--text-primary);
+  text-align: right;
+}
+
 .qr-highlight {
   color: var(--primary, #6366f1) !important;
   font-size: 1.2rem;
