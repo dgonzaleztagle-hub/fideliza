@@ -134,6 +134,9 @@ export async function POST(req: NextRequest) {
             enviadas: customers.length,
             wallet_push: walletResult.enviadas,
             wallet_errores: walletResult.errores,
+            wallet_hint: walletResult.errores > 0
+                ? 'Si no llegó a algunos, normalmente es porque ese cliente aún no agregó su tarjeta en Google Wallet o tiene notificaciones desactivadas.'
+                : 'Entrega en Wallet completada para todos los destinatarios.',
             segmento: segmento || 'todos',
             notification_id: notification?.id || null,
             destinatarios: customers.map(c => ({

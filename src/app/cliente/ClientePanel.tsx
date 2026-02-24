@@ -105,6 +105,9 @@ interface RedemptionResult {
 interface NotificationResult {
     message: string
     enviadas: number
+    wallet_push?: number
+    wallet_errores?: number
+    wallet_hint?: string
 }
 
 interface NotificationHistoryItem {
@@ -2191,7 +2194,18 @@ export default function ClientePanel() {
 
                                     {notifResult && (
                                         <div className={`cliente-toast ${notifResult.enviadas > 0 ? 'toast-ok' : 'toast-err'}`} style={{ marginTop: '1rem' }}>
-                                            {notifResult.message}
+                                            <div>{notifResult.message}</div>
+                                            {typeof notifResult.wallet_push === 'number' && typeof notifResult.wallet_errores === 'number' && (
+                                                <div style={{ marginTop: '0.35rem', fontSize: '0.85rem', opacity: 0.9 }}>
+                                                    Wallet entregadas: <strong>{notifResult.wallet_push}</strong> ·
+                                                    No entregadas: <strong>{notifResult.wallet_errores}</strong>
+                                                </div>
+                                            )}
+                                            {notifResult.wallet_hint && (
+                                                <div style={{ marginTop: '0.35rem', fontSize: '0.82rem', opacity: 0.9 }}>
+                                                    💡 {notifResult.wallet_hint}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
