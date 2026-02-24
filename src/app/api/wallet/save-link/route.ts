@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { generateSaveLink, createLoyaltyClass } from '@/lib/googleWallet'
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
+import { isProgramType } from '@/lib/programTypes'
 
 function normalizeWhatsapp(value: string): string {
     return value.replace(/[^\d+]/g, '')
@@ -12,7 +13,12 @@ function normalizeWhatsapp(value: string): string {
 export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     try {
-        const { tenant_id, whatsapp } = await req.json()
+        const body = await req.json()
+        const tenant_id = body?.tenant_id
+        const whatsapp = body?.whatsapp
+        const requestedProgramType = typeof body?.tipo_programa === 'string'
+            ? body.tipo_programa.trim().toLowerCase()
+            : ''
         const ip = getClientIp(req.headers)
 
         if (!tenant_id || !whatsapp) {
@@ -20,6 +26,9 @@ export async function POST(req: NextRequest) {
                 { error: 'Faltan campos: tenant_id, whatsapp' },
                 { status: 400 }
             )
+        }
+        if (requestedProgramType && !isProgramType(requestedProgramType)) {
+            return NextResponse.json({ error: 'tipo_programa inválido' }, { status: 400 })
         }
 
         const normalizedWhatsapp = normalizeWhatsapp(String(whatsapp))
@@ -54,7 +63,7 @@ export async function POST(req: NextRequest) {
         // Buscar tenant
         const { data: tenant, error: tenantError } = await supabase
             .from('tenants')
-            .select('id, nombre, slug, logo_url, color_primario, lat, lng, mensaje_geofencing')
+            .select('id, nombre, slug, logo_url, color_primario, lat, lng, mensaje_geofencing, selected_program_types')
             .eq('id', tenant_id)
             .single()
 
@@ -82,6 +91,31 @@ export async function POST(req: NextRequest) {
             .eq('activo', true)
             .single()
 
+        const safeProgramType = requestedProgramType
+            && Array.isArray(tenant.selected_program_types)
+            && tenant.selected_program_types.includes(requestedProgramType)
+            ? requestedProgramType
+            : (program?.tipo_programa || 'sellos')
+
+        let walletBalance = Number(customer.puntos_actuales || 0)
+        if (program?.id && (safeProgramType === 'cashback' || safeProgramType === 'regalo' || safeProgramType === 'multipase')) {
+            const { data: membership } = await supabase
+                .from('memberships')
+                .select('saldo_cashback, usos_restantes')
+                .eq('tenant_id', tenant_id)
+                .eq('customer_id', customer.id)
+                .eq('program_id', program.id)
+                .eq('estado', 'activo')
+                .maybeSingle()
+            if (membership) {
+                if (safeProgramType === 'multipase') {
+                    walletBalance = Number(membership.usos_restantes || 0)
+                } else {
+                    walletBalance = Number(membership.saldo_cashback || 0)
+                }
+            }
+        }
+
         // IDs para Google Wallet
         const classId = `vuelve-${tenant.slug}`
         const objectId = `vuelve-${tenant.slug}-${customer.id}`
@@ -103,13 +137,13 @@ export async function POST(req: NextRequest) {
             objectId,
             merchantName: tenant.nombre,
             userName: customer.nombre,
-            points: customer.puntos_actuales || 0,
+            points: walletBalance,
             logoUrl: tenant.logo_url || undefined,
             hexBackgroundColor: tenant.color_primario || '#6366f1',
             lat: tenant.lat || undefined,
             lng: tenant.lng || undefined,
             geoMessage: tenant.mensaje_geofencing || undefined,
-            tipoPrograma: program?.tipo_programa || 'sellos',
+            tipoPrograma: safeProgramType,
             customerWhatsapp: customer.whatsapp,
             tenantSlug: tenant.slug
         })

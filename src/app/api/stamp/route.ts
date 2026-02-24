@@ -3,6 +3,7 @@ import { getSupabase } from '@/lib/supabase/admin'
 import { v4 as uuidv4 } from 'uuid'
 import { calculateTier, processStreak } from '@/lib/gamification'
 import { triggerWalletPush } from '@/lib/wallet/push'
+import { getMotorConfig } from '@/lib/motorConfig'
 
 type SupabaseAdminClient = ReturnType<typeof getSupabase>
 
@@ -159,7 +160,7 @@ export async function POST(req: NextRequest) {
         const typedProgram = program as ProgramRow
 
         const tipoPrograma = typedProgram.tipo_programa || 'sellos'
-        const config = typedProgram.config || {}
+        const config = getMotorConfig(typedProgram.config, tipoPrograma) as ProgramConfig
 
         // ═══════════════════════════════════════════════════
         // TIPO: SELLOS (comportamiento original)
@@ -199,7 +200,7 @@ export async function POST(req: NextRequest) {
         // TIPO: MEMBRESÍA / VIP (solo registra visita)
         // ═══════════════════════════════════════════════════
         if (tipoPrograma === 'membresia') {
-            return await handleMembresia(supabase, typedCustomer, typedProgram, tenant_id)
+            return await handleMembresia(supabase, typedCustomer, typedProgram, tenant_id, config)
         }
 
         // ═══════════════════════════════════════════════════
@@ -593,7 +594,13 @@ async function handleDescuentoNiveles(supabase: SupabaseAdminClient, customer: C
     })
 }
 
-async function handleMembresia(supabase: SupabaseAdminClient, customer: CustomerRow, program: ProgramRow, tenant_id: string) {
+async function handleMembresia(
+    supabase: SupabaseAdminClient,
+    customer: CustomerRow,
+    program: ProgramRow,
+    tenant_id: string,
+    config: ProgramConfig
+) {
     // Verificar que tiene membresía activa
     const { data: membership } = await supabase
         .from('memberships')
@@ -658,7 +665,7 @@ async function handleMembresia(supabase: SupabaseAdminClient, customer: Customer
         mensaje: `Tu visita ha sido registrada. ¡Disfruta tus beneficios!`
     })
 
-    const beneficios = program.config?.beneficios || []
+    const beneficios = config.beneficios || []
 
     return NextResponse.json({
         message: `👑 ¡Bienvenido VIP! Visita registrada. Disfruta tus beneficios exclusivos`,

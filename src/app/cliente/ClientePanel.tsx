@@ -7,7 +7,8 @@ import StatusAlert from '@/components/cliente/StatusAlert'
 import { generateAdvisorInsights, Insight } from '@/lib/advisor'
 import { createClient } from '@/lib/supabase/client'
 import { BILLING_PLAN_VALUES, PLAN_CATALOG, getEffectiveBillingPlan, isBillingPlan, normalizeProgramChoices } from '@/lib/plans'
-import { ProgramType, PROGRAM_TYPE_VALUES } from '@/lib/programTypes'
+import { ProgramType, PROGRAM_TYPE_VALUES, isProgramType } from '@/lib/programTypes'
+import { getAllMotorConfigs, getMotorConfig, mergeMotorConfig } from '@/lib/motorConfig'
 import './cliente.css'
 import './ayuda.css'
 import SetupWizard from '@/app/components/SetupWizard'
@@ -187,6 +188,99 @@ function textToNiveles(value: string): Array<{ visitas: number; descuento: numbe
         .filter((n) => Number.isFinite(n.visitas) && Number.isFinite(n.descuento) && n.visitas > 0 && n.descuento >= 0)
 }
 
+function buildMotorSnapshotFromForm(type: ProgramType, form: {
+    puntos_meta: number
+    descripcion_premio: string
+    tipo_premio: string
+    valor_premio: string
+    cashback_porcentaje: number
+    cashback_tope_mensual: number
+    multipase_cantidad_usos: number
+    multipase_precio_pack: number
+    membresia_duracion_dias: number
+    descuento_niveles: string
+    cupon_descuento_porcentaje: number
+    regalo_valor_maximo: number
+}) {
+    const base: Record<string, unknown> = {
+        puntos_meta: Math.max(1, Number(form.puntos_meta) || 10),
+        descripcion_premio: form.descripcion_premio || '',
+        tipo_premio: form.tipo_premio || 'descuento',
+        valor_premio: form.valor_premio || ''
+    }
+    if (type === 'cashback') {
+        return {
+            ...base,
+            porcentaje: Math.max(1, Number(form.cashback_porcentaje) || 5),
+            tope_mensual: Math.max(0, Number(form.cashback_tope_mensual) || 0)
+        }
+    }
+    if (type === 'multipase') {
+        return {
+            ...base,
+            cantidad_usos: Math.max(1, Number(form.multipase_cantidad_usos) || 10),
+            precio_pack: Math.max(0, Number(form.multipase_precio_pack) || 0)
+        }
+    }
+    if (type === 'membresia') {
+        return {
+            ...base,
+            duracion_dias: Math.max(1, Number(form.membresia_duracion_dias) || 30)
+        }
+    }
+    if (type === 'descuento') {
+        return {
+            ...base,
+            niveles: textToNiveles(form.descuento_niveles)
+        }
+    }
+    if (type === 'cupon') {
+        return {
+            ...base,
+            descuento_porcentaje: Math.max(1, Number(form.cupon_descuento_porcentaje) || 15)
+        }
+    }
+    if (type === 'regalo') {
+        return {
+            ...base,
+            valor_maximo: Math.max(0, Number(form.regalo_valor_maximo) || 0)
+        }
+    }
+    return base
+}
+
+function applyMotorSnapshotToForm<T extends {
+    puntos_meta: number
+    descripcion_premio: string
+    tipo_premio: string
+    valor_premio: string
+    cashback_porcentaje: number
+    cashback_tope_mensual: number
+    multipase_cantidad_usos: number
+    multipase_precio_pack: number
+    membresia_duracion_dias: number
+    descuento_niveles: string
+    cupon_descuento_porcentaje: number
+    regalo_valor_maximo: number
+}>(form: T, type: ProgramType, snapshot: Record<string, unknown>) {
+    const next = { ...form }
+    next.puntos_meta = Number(snapshot.puntos_meta ?? form.puntos_meta ?? 10)
+    next.descripcion_premio = String(snapshot.descripcion_premio ?? form.descripcion_premio ?? '')
+    next.tipo_premio = String(snapshot.tipo_premio ?? form.tipo_premio ?? 'descuento')
+    next.valor_premio = String(snapshot.valor_premio ?? form.valor_premio ?? '')
+    next.cashback_porcentaje = Number(snapshot.porcentaje ?? form.cashback_porcentaje ?? 5)
+    next.cashback_tope_mensual = Number(snapshot.tope_mensual ?? form.cashback_tope_mensual ?? 10000)
+    next.multipase_cantidad_usos = Number(snapshot.cantidad_usos ?? form.multipase_cantidad_usos ?? 10)
+    next.multipase_precio_pack = Number(snapshot.precio_pack ?? form.multipase_precio_pack ?? 0)
+    next.membresia_duracion_dias = Number(snapshot.duracion_dias ?? form.membresia_duracion_dias ?? 30)
+    next.descuento_niveles = type === 'descuento'
+        ? nivelesToText(snapshot.niveles)
+        : (typeof snapshot.niveles === 'string' ? String(snapshot.niveles) : form.descuento_niveles)
+    next.cupon_descuento_porcentaje = Number(snapshot.descuento_porcentaje ?? form.cupon_descuento_porcentaje ?? 15)
+    next.regalo_valor_maximo = Number(snapshot.valor_maximo ?? form.regalo_valor_maximo ?? 0)
+    return next
+}
+
 export default function ClientePanel() {
     const supabase = useMemo(() => createClient(), [])
     const [tab, setTab] = useState<Tab>('dashboard')
@@ -260,6 +354,8 @@ export default function ClientePanel() {
     })
     const [selectedPlan, setSelectedPlan] = useState<'pyme' | 'pro' | 'full'>('pyme')
     const [selectedProgramTypes, setSelectedProgramTypes] = useState<string[]>(['sellos'])
+    const [programEditorType, setProgramEditorType] = useState<ProgramType>('sellos')
+    const [programConfigsByType, setProgramConfigsByType] = useState<Record<string, Record<string, unknown>>>({})
     const [saving, setSaving] = useState(false)
     const [assetUploading, setAssetUploading] = useState<'logo' | 'background' | 'stamp' | null>(null)
     const [saveMessage, setSaveMessage] = useState('')
@@ -381,6 +477,21 @@ export default function ClientePanel() {
         }
     }
 
+    function switchProgramEditorType(nextTypeRaw: string) {
+        if (!isProgramType(nextTypeRaw)) return
+        const nextType = nextTypeRaw as ProgramType
+        setProgramConfigsByType((prev) => {
+            const withCurrent = {
+                ...prev,
+                [programEditorType]: buildMotorSnapshotFromForm(programEditorType, configForm)
+            }
+            const nextSnapshot = withCurrent[nextType] || {}
+            setConfigForm((prevForm) => applyMotorSnapshotToForm(prevForm, nextType, nextSnapshot))
+            return withCurrent
+        })
+        setProgramEditorType(nextType)
+    }
+
     async function loadTenantData(slug: string) {
         setLoading(true)
         try {
@@ -410,8 +521,27 @@ export default function ClientePanel() {
             setTenant(data.tenant)
             setProgram(data.program)
             const configuredPlan = getEffectiveBillingPlan(data.tenant?.plan, data.tenant?.selected_plan)
+            const normalizedTypes = normalizeProgramChoices(data.tenant?.selected_program_types, configuredPlan)
+            const incomingProgramType = isProgramType(data.program?.tipo_programa) ? data.program.tipo_programa : 'sellos'
+            const activeProgramType = normalizedTypes.includes(incomingProgramType)
+                ? incomingProgramType
+                : (normalizedTypes[0] as ProgramType)
+            const incomingMotorConfigs = getAllMotorConfigs(data.program?.config || {})
+            const activeMotorConfig: Record<string, unknown> = {
+                ...getMotorConfig(data.program?.config || {}, activeProgramType),
+                puntos_meta: data.program?.puntos_meta ?? 10,
+                descripcion_premio: data.program?.descripcion_premio ?? '',
+                tipo_premio: data.program?.tipo_premio ?? 'descuento',
+                valor_premio: data.program?.valor_premio ?? ''
+            }
+            const nextMotorConfigs = {
+                ...incomingMotorConfigs,
+                [activeProgramType]: activeMotorConfig
+            }
             setSelectedPlan(configuredPlan)
-            setSelectedProgramTypes(normalizeProgramChoices(data.tenant?.selected_program_types, configuredPlan))
+            setSelectedProgramTypes(normalizedTypes)
+            setProgramEditorType(activeProgramType)
+            setProgramConfigsByType(nextMotorConfigs)
             setCustomers(data.customers || [])
             const newStats = {
                 totalClientes: data.customers?.length || 0,
@@ -441,14 +571,14 @@ export default function ClientePanel() {
                     : 0.22,
                 stamp_icon_url: data.tenant.stamp_icon_url || '',
                 color_primario: data.tenant.color_primario || '#ff6b6b',
-                tipo_programa: data.program?.tipo_programa || 'sellos',
+                tipo_programa: activeProgramType,
                 mensaje_geofencing: data.tenant.mensaje_geofencing || '',
                 lat: data.tenant.lat?.toString() || '',
                 lng: data.tenant.lng?.toString() || '',
-                puntos_meta: data.program?.puntos_meta || 10,
-                descripcion_premio: data.program?.descripcion_premio || '',
-                tipo_premio: data.program?.tipo_premio || 'descuento',
-                valor_premio: data.program?.valor_premio || '',
+                puntos_meta: Number(activeMotorConfig.puntos_meta ?? 10),
+                descripcion_premio: String(activeMotorConfig.descripcion_premio ?? ''),
+                tipo_premio: String(activeMotorConfig.tipo_premio ?? 'descuento'),
+                valor_premio: String(activeMotorConfig.valor_premio ?? ''),
                 google_business_url: data.tenant.google_business_url || '',
                 validation_pin: data.tenant.validation_pin || '',
                 marketing_welcome: data.program?.config?.marketing?.welcome_msg || '',
@@ -457,14 +587,14 @@ export default function ClientePanel() {
                 marketing_review: data.program?.config?.marketing?.review_msg || '',
                 referrals_enabled: data.program?.config?.referrals?.enabled ?? true,
                 referrals_bonus_points: data.program?.config?.referrals?.bonus_points ?? 1,
-                cashback_porcentaje: data.program?.config?.porcentaje ?? 5,
-                cashback_tope_mensual: data.program?.config?.tope_mensual ?? 10000,
-                multipase_cantidad_usos: data.program?.config?.cantidad_usos ?? 10,
-                multipase_precio_pack: data.program?.config?.precio_pack ?? 0,
-                membresia_duracion_dias: data.program?.config?.duracion_dias ?? 30,
-                descuento_niveles: nivelesToText(data.program?.config?.niveles),
-                cupon_descuento_porcentaje: data.program?.config?.descuento_porcentaje ?? 15,
-                regalo_valor_maximo: data.program?.config?.valor_maximo ?? 0
+                cashback_porcentaje: Number(activeMotorConfig.porcentaje ?? 5),
+                cashback_tope_mensual: Number(activeMotorConfig.tope_mensual ?? 10000),
+                multipase_cantidad_usos: Number(activeMotorConfig.cantidad_usos ?? 10),
+                multipase_precio_pack: Number(activeMotorConfig.precio_pack ?? 0),
+                membresia_duracion_dias: Number(activeMotorConfig.duracion_dias ?? 30),
+                descuento_niveles: nivelesToText(activeMotorConfig.niveles),
+                cupon_descuento_porcentaje: Number(activeMotorConfig.descuento_porcentaje ?? 15),
+                regalo_valor_maximo: Number(activeMotorConfig.valor_maximo ?? 0)
             })
         } catch {
             // Sin popup bloqueante: mostramos pantalla base y dejamos que el selector/login resuelva.
@@ -621,7 +751,7 @@ export default function ClientePanel() {
         }
     }
 
-    async function handleSaveConfig(): Promise<boolean> {
+    async function handleSaveConfig(section?: ConfigSection): Promise<boolean> {
         if (!tenant) return false
         setSaving(true)
         setSaveMessage('')
@@ -630,6 +760,34 @@ export default function ClientePanel() {
             const safeProgramType = normalizedSelectedTypes.includes(configForm.tipo_programa as ProgramType)
                 ? (configForm.tipo_programa as ProgramType)
                 : normalizedSelectedTypes[0]
+            const safeEditorType = normalizedSelectedTypes.includes(programEditorType)
+                ? programEditorType
+                : safeProgramType
+            const mergedMotorConfigs = {
+                ...programConfigsByType,
+                [safeEditorType]: buildMotorSnapshotFromForm(safeEditorType, configForm)
+            }
+            if (section === 'program') {
+                for (const type of normalizedSelectedTypes) {
+                    const snapshot = mergedMotorConfigs[type]
+                    if (!snapshot) {
+                        setSaveMessage(`❌ Falta configurar el motor ${formatProgramTypeLabel(type)}.`)
+                        return false
+                    }
+                    const reward = String(snapshot.descripcion_premio ?? '').trim()
+                    if (type !== 'afiliacion' && !reward) {
+                        setSaveMessage(`❌ Debes definir premio en ${formatProgramTypeLabel(type)}.`)
+                        return false
+                    }
+                    const points = Number(snapshot.puntos_meta ?? 0)
+                    if (type !== 'cashback' && type !== 'multipase' && type !== 'cupon' && type !== 'regalo' && type !== 'afiliacion' && points <= 0) {
+                        setSaveMessage(`❌ Debes definir meta válida en ${formatProgramTypeLabel(type)}.`)
+                        return false
+                    }
+                }
+            }
+            const activeMotorSnapshot = mergedMotorConfigs[safeProgramType]
+                || buildMotorSnapshotFromForm(safeProgramType, configForm)
             const baseProgramConfig = {
                 ...(program?.config || {}),
                 marketing: {
@@ -643,48 +801,16 @@ export default function ClientePanel() {
                     bonus_points: Math.max(1, Number(configForm.referrals_bonus_points) || 1)
                 }
             } as Record<string, unknown>
-
-            const typedProgramConfig = (() => {
-                if (safeProgramType === 'cashback') {
-                    return {
-                        ...baseProgramConfig,
-                        porcentaje: Math.max(1, Number(configForm.cashback_porcentaje) || 5),
-                        tope_mensual: Math.max(0, Number(configForm.cashback_tope_mensual) || 0)
-                    }
-                }
-                if (safeProgramType === 'multipase') {
-                    return {
-                        ...baseProgramConfig,
-                        cantidad_usos: Math.max(1, Number(configForm.multipase_cantidad_usos) || 10),
-                        precio_pack: Math.max(0, Number(configForm.multipase_precio_pack) || 0)
-                    }
-                }
-                if (safeProgramType === 'membresia') {
-                    return {
-                        ...baseProgramConfig,
-                        duracion_dias: Math.max(1, Number(configForm.membresia_duracion_dias) || 30)
-                    }
-                }
-                if (safeProgramType === 'descuento') {
-                    return {
-                        ...baseProgramConfig,
-                        niveles: textToNiveles(configForm.descuento_niveles)
-                    }
-                }
-                if (safeProgramType === 'cupon') {
-                    return {
-                        ...baseProgramConfig,
-                        descuento_porcentaje: Math.max(1, Number(configForm.cupon_descuento_porcentaje) || 15)
-                    }
-                }
-                if (safeProgramType === 'regalo') {
-                    return {
-                        ...baseProgramConfig,
-                        valor_maximo: Math.max(0, Number(configForm.regalo_valor_maximo) || 0)
-                    }
-                }
-                return baseProgramConfig
-            })()
+            const activeMotorTypedConfig: Record<string, unknown> = { ...activeMotorSnapshot }
+            delete activeMotorTypedConfig.puntos_meta
+            delete activeMotorTypedConfig.descripcion_premio
+            delete activeMotorTypedConfig.tipo_premio
+            delete activeMotorTypedConfig.valor_premio
+            const typedProgramConfig = {
+                ...mergeMotorConfig(baseProgramConfig, mergedMotorConfigs),
+                ...activeMotorTypedConfig
+            }
+            setProgramConfigsByType(mergedMotorConfigs)
 
             const res = await fetch(`/api/tenant/${tenant.slug}`, {
                 method: 'PUT',
@@ -706,11 +832,11 @@ export default function ClientePanel() {
                     selected_plan: selectedPlan,
                     selected_program_types: normalizedSelectedTypes,
                     program: {
-                        puntos_meta: Number(configForm.puntos_meta),
-                        descripcion_premio: configForm.descripcion_premio,
-                        tipo_premio: configForm.tipo_premio,
+                        puntos_meta: Number(activeMotorSnapshot.puntos_meta ?? configForm.puntos_meta),
+                        descripcion_premio: String(activeMotorSnapshot.descripcion_premio ?? configForm.descripcion_premio),
+                        tipo_premio: String(activeMotorSnapshot.tipo_premio ?? configForm.tipo_premio),
                         tipo_programa: safeProgramType,
-                        valor_premio: configForm.valor_premio,
+                        valor_premio: String(activeMotorSnapshot.valor_premio ?? configForm.valor_premio),
                         config: typedProgramConfig
                     }
                 })
@@ -738,7 +864,7 @@ export default function ClientePanel() {
     }
 
     async function handleSaveConfigSection(section: ConfigSection) {
-        const ok = await handleSaveConfig()
+        const ok = await handleSaveConfig(section)
         if (ok) {
             setActiveConfigSection((current) => (current === section ? null : current))
         }
@@ -1065,7 +1191,13 @@ export default function ClientePanel() {
         if (!normalized.includes(configForm.tipo_programa as ProgramType)) {
             setConfigForm((prev) => ({ ...prev, tipo_programa: normalized[0] }))
         }
-    }, [selectedPlan, selectedProgramTypes, configForm.tipo_programa])
+        if (!normalized.includes(programEditorType)) {
+            const fallbackType = normalized[0] as ProgramType
+            setProgramEditorType(fallbackType)
+            const fallbackSnapshot = programConfigsByType[fallbackType] || {}
+            setConfigForm((prev) => applyMotorSnapshotToForm(prev, fallbackType, fallbackSnapshot))
+        }
+    }, [selectedPlan, selectedProgramTypes, configForm.tipo_programa, programEditorType, programConfigsByType])
 
     // Filtered customers
     const filteredCustomers = customers.filter(c => {
@@ -2639,14 +2771,22 @@ export default function ClientePanel() {
                                                 )}
                                             </label>
                                             <label>
-                                                <span>Motor de programa</span>
+                                                <span>Motor que quieres configurar ahora</span>
+                                                <select value={programEditorType} onChange={e => switchProgramEditorType(e.target.value)}>
+                                                    {availableProgramTypes.map((type) => (
+                                                        <option key={type} value={type}>{PROGRAM_TYPE_LABELS[type]}</option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                            <label>
+                                                <span>Motor activo en el QR (operación en caja)</span>
                                                 <select value={configForm.tipo_programa} onChange={e => setConfigForm({ ...configForm, tipo_programa: e.target.value })}>
                                                     {availableProgramTypes.map((type) => (
                                                         <option key={type} value={type}>{PROGRAM_TYPE_LABELS[type]}</option>
                                                     ))}
                                                 </select>
                                             </label>
-                                            {configForm.tipo_programa === 'cashback' && (
+                                            {programEditorType === 'cashback' && (
                                                 <>
                                                     <label>
                                                         <span>Porcentaje cashback</span>
@@ -2658,7 +2798,7 @@ export default function ClientePanel() {
                                                     </label>
                                                 </>
                                             )}
-                                            {configForm.tipo_programa === 'multipase' && (
+                                            {programEditorType === 'multipase' && (
                                                 <>
                                                     <label>
                                                         <span>Cantidad de usos</span>
@@ -2670,25 +2810,25 @@ export default function ClientePanel() {
                                                     </label>
                                                 </>
                                             )}
-                                            {configForm.tipo_programa === 'membresia' && (
+                                            {programEditorType === 'membresia' && (
                                                 <label>
                                                     <span>Duración membresía (días)</span>
                                                     <input type="number" min="1" value={configForm.membresia_duracion_dias} onChange={e => setConfigForm({ ...configForm, membresia_duracion_dias: Number(e.target.value) })} />
                                                 </label>
                                             )}
-                                            {configForm.tipo_programa === 'descuento' && (
+                                            {programEditorType === 'descuento' && (
                                                 <label>
                                                     <span>Niveles (visitas:descuento)</span>
                                                     <input type="text" value={configForm.descuento_niveles} onChange={e => setConfigForm({ ...configForm, descuento_niveles: e.target.value })} placeholder="5:5,15:10,30:15" />
                                                 </label>
                                             )}
-                                            {configForm.tipo_programa === 'cupon' && (
+                                            {programEditorType === 'cupon' && (
                                                 <label>
                                                     <span>Descuento cupón (%)</span>
                                                     <input type="number" min="1" max="100" value={configForm.cupon_descuento_porcentaje} onChange={e => setConfigForm({ ...configForm, cupon_descuento_porcentaje: Number(e.target.value) })} />
                                                 </label>
                                             )}
-                                            {configForm.tipo_programa === 'regalo' && (
+                                            {programEditorType === 'regalo' && (
                                                 <label>
                                                     <span>Valor máximo gift card (CLP)</span>
                                                     <input type="number" min="0" value={configForm.regalo_valor_maximo} onChange={e => setConfigForm({ ...configForm, regalo_valor_maximo: Number(e.target.value) })} />
@@ -2709,59 +2849,37 @@ export default function ClientePanel() {
                                         program && (
                                             <>
                                                 <div className="cliente-config-item">
-                                                    <span>Puntos meta:</span> <strong>{program.puntos_meta}</strong>
+                                                    <span>Motor activo:</span> <strong>{formatProgramTypeLabel(configForm.tipo_programa)}</strong>
                                                 </div>
                                                 <div className="cliente-config-item">
-                                                    <span>Premio:</span> <strong>{program.descripcion_premio}</strong>
+                                                    <span>Puntos meta motor activo:</span> <strong>{program.puntos_meta}</strong>
                                                 </div>
                                                 <div className="cliente-config-item">
-                                                    <span>Tipo:</span> <strong>{program.tipo_premio}</strong>
+                                                    <span>Premio activo:</span> <strong>{program.descripcion_premio}</strong>
                                                 </div>
-                                                {program.tipo_programa && (
-                                                    <div className="cliente-config-item">
-                                                        <span>Tipo de programa:</span> <strong>{formatProgramTypeLabel(program.tipo_programa)}</strong>
+                                                <div className="cliente-config-item">
+                                                    <span>Tipo de premio:</span> <strong>{program.tipo_premio}</strong>
+                                                </div>
+                                                <div style={{ marginTop: '0.75rem' }}>
+                                                    <strong style={{ display: 'block', marginBottom: '0.35rem' }}>Motores configurados</strong>
+                                                    <div style={{ display: 'grid', gap: '0.35rem' }}>
+                                                        {availableProgramTypes.map((type) => {
+                                                            const rawSnapshot = programConfigsByType[type]
+                                                                || getMotorConfig(program.config, type)
+                                                            const points = Number(rawSnapshot?.puntos_meta ?? (type === configForm.tipo_programa ? program.puntos_meta : 0))
+                                                            const reward = String(rawSnapshot?.descripcion_premio ?? (type === configForm.tipo_programa ? program.descripcion_premio : 'Sin premio definido'))
+                                                            return (
+                                                                <div key={type} className="cliente-config-item" style={{ marginBottom: 0 }}>
+                                                                    <span>
+                                                                        {formatProgramTypeLabel(type)}
+                                                                        {type === configForm.tipo_programa ? ' · Activo' : ''}
+                                                                    </span>
+                                                                    <strong>{points > 0 ? `${points} pts · ${reward}` : reward}</strong>
+                                                                </div>
+                                                            )
+                                                        })}
                                                     </div>
-                                                )}
-                                                {program.tipo_programa === 'cashback' && (
-                                                    <>
-                                                        <div className="cliente-config-item">
-                                                            <span>% cashback:</span> <strong>{configForm.cashback_porcentaje}%</strong>
-                                                        </div>
-                                                        <div className="cliente-config-item">
-                                                            <span>Tope mensual:</span> <strong>${Number(configForm.cashback_tope_mensual || 0).toLocaleString('es-CL')}</strong>
-                                                        </div>
-                                                    </>
-                                                )}
-                                                {program.tipo_programa === 'multipase' && (
-                                                    <>
-                                                        <div className="cliente-config-item">
-                                                            <span>Usos por pack:</span> <strong>{configForm.multipase_cantidad_usos}</strong>
-                                                        </div>
-                                                        <div className="cliente-config-item">
-                                                            <span>Precio pack:</span> <strong>${Number(configForm.multipase_precio_pack || 0).toLocaleString('es-CL')}</strong>
-                                                        </div>
-                                                    </>
-                                                )}
-                                                {program.tipo_programa === 'membresia' && (
-                                                    <div className="cliente-config-item">
-                                                        <span>Duración membresía:</span> <strong>{configForm.membresia_duracion_dias} días</strong>
-                                                    </div>
-                                                )}
-                                                {program.tipo_programa === 'descuento' && (
-                                                    <div className="cliente-config-item">
-                                                        <span>Niveles:</span> <strong>{configForm.descuento_niveles}</strong>
-                                                    </div>
-                                                )}
-                                                {program.tipo_programa === 'cupon' && (
-                                                    <div className="cliente-config-item">
-                                                        <span>% cupón:</span> <strong>{configForm.cupon_descuento_porcentaje}%</strong>
-                                                    </div>
-                                                )}
-                                                {program.tipo_programa === 'regalo' && (
-                                                    <div className="cliente-config-item">
-                                                        <span>Valor máximo:</span> <strong>${Number(configForm.regalo_valor_maximo || 0).toLocaleString('es-CL')}</strong>
-                                                    </div>
-                                                )}
+                                                </div>
                                                 <div className="cliente-config-item">
                                                     <span>PIN de Validación:</span> <strong>{tenant.validation_pin || 'No definido'}</strong>
                                                 </div>

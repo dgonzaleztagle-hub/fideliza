@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit'
+import { getMotorConfig } from '@/lib/motorConfig'
 
 function normalizeWhatsapp(value: string): string {
     return value.replace(/[^\d+]/g, '')
@@ -125,7 +126,7 @@ export async function GET(req: NextRequest) {
                     puntos_meta: program.puntos_meta,
                     descripcion_premio: program.descripcion_premio,
                     tipo_programa: program.tipo_programa,
-                    config: program.config
+                    config: getMotorConfig(program.config, program.tipo_programa)
                 } : null,
                 premios_pendientes: rewards || [],
                 membership: memberships?.[0] || null

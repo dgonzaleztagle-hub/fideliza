@@ -242,7 +242,11 @@ export default function QRPageClient({ tenant, program }: Props) {
             const res = await fetch('/api/wallet/save-link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tenant_id: tenant.id, whatsapp: wsp })
+                body: JSON.stringify({
+                    tenant_id: tenant.id,
+                    whatsapp: wsp,
+                    tipo_programa: tipoPrograma
+                })
             })
             const data = await res.json()
             if (res.ok && data.saveLink) {
