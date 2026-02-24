@@ -137,8 +137,9 @@ export async function POST(req: NextRequest) {
         let walletResult: {
             enviadas: number
             errores: number
+            silenciosas: number
             error_samples: Array<{ object_id: string; reason: string }>
-        } = { enviadas: 0, errores: 0, error_samples: [] }
+        } = { enviadas: 0, errores: 0, silenciosas: 0, error_samples: [] }
         try {
             // Formato actual: ISSUER.vuelve-SLUG-CUSTOMER_ID
             // Fallback legacy: ISSUER.vuelve-SLUG-WHATSAPP
@@ -146,6 +147,7 @@ export async function POST(req: NextRequest) {
 
             let delivered = 0
             let failed = 0
+            let silent = 0
             const errorSamples: Array<{ object_id: string; reason: string }> = []
 
             for (const c of customers) {
@@ -163,6 +165,7 @@ export async function POST(req: NextRequest) {
                 )
                 if (attempt.success) {
                     delivered += 1
+                    if (attempt.mode === 'silent') silent += 1
                 } else {
                     failed += 1
                     if (errorSamples.length < 5) {
@@ -178,7 +181,7 @@ export async function POST(req: NextRequest) {
                 }
             }
 
-            walletResult = { enviadas: delivered, errores: failed, error_samples: errorSamples }
+            walletResult = { enviadas: delivered, errores: failed, silenciosas: silent, error_samples: errorSamples }
         } catch (walletError) {
             console.warn('Google Wallet push no disponible, notificación registrada:', walletError)
         }
@@ -188,9 +191,12 @@ export async function POST(req: NextRequest) {
             enviadas: customers.length,
             wallet_push: walletResult.enviadas,
             wallet_errores: walletResult.errores,
+            wallet_silent: walletResult.silenciosas,
             wallet_hint: walletResult.errores > 0
                 ? 'Si no llegó a algunos, normalmente es porque ese cliente aún no agregó su tarjeta en Google Wallet o tiene notificaciones desactivadas.'
-                : 'Entrega en Wallet completada para todos los destinatarios.',
+                : walletResult.silenciosas > 0
+                    ? 'Entrega completada: parte de los mensajes se enviaron en modo silencioso para evitar saturación en 24h.'
+                    : 'Entrega en Wallet completada para todos los destinatarios.',
             wallet_error_samples: walletResult.error_samples,
             tipologia_aplicada: normalized.type,
             normalizacion: normalized.warnings,

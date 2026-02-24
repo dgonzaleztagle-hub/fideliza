@@ -33,12 +33,24 @@ type CandidateSendResult = {
     objectId?: string
     attempts: number
     error?: string
+    mode?: 'notify' | 'silent'
+    reason?: 'ok' | 'throttled_24h' | 'duplicate_recent'
 }
 
 const TITLE_MAX = 45
 const TITLE_MIN = 6
 const BODY_MAX = 140
 const BODY_MIN = 12
+const MAX_NOTIFY_PER_24H = 3
+const DUPLICATE_WINDOW_MS = 10 * 60 * 1000
+const DAY_WINDOW_MS = 24 * 60 * 60 * 1000
+
+type WalletMessageInfo = {
+    id?: string
+    header?: string
+    body?: string
+    messageType?: string
+}
 
 function sleep(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms))
@@ -117,6 +129,63 @@ function getApiErrorMessage(payload: unknown, fallback: string): string {
     return fallback
 }
 
+function extractTimestampFromMessageId(id: string | undefined): number | null {
+    if (!id) return null
+    const match = id.match(/-(\d{10,13})$/)
+    if (!match) return null
+    const raw = Number(match[1])
+    if (!Number.isFinite(raw)) return null
+    // compat: si viniera en segundos
+    return raw < 10_000_000_000 ? raw * 1000 : raw
+}
+
+async function getWalletObjectMessages(accessToken: string, objectId: string): Promise<WalletMessageInfo[]> {
+    try {
+        const response = await fetch(
+            `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}`,
+            {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${accessToken}` },
+            }
+        )
+        if (!response.ok) return []
+        const data = await response.json() as { messages?: WalletMessageInfo[] }
+        return Array.isArray(data.messages) ? data.messages : []
+    } catch {
+        return []
+    }
+}
+
+function evaluateDeliveryPolicy(
+    messages: WalletMessageInfo[],
+    titulo: string,
+    mensaje: string
+): { mode: 'notify' | 'silent'; reason: 'ok' | 'throttled_24h' | 'duplicate_recent' } {
+    const now = Date.now()
+    let notifyCount24h = 0
+    let duplicateRecent = false
+
+    for (const msg of messages) {
+        const ts = extractTimestampFromMessageId(msg.id)
+        if (!ts) continue
+        if (now - ts <= DAY_WINDOW_MS) {
+            // contamos solo los que intentaron notificar
+            if (msg.messageType === 'TEXT_AND_NOTIFY') notifyCount24h += 1
+        }
+        if (
+            msg.header === titulo &&
+            msg.body === mensaje &&
+            now - ts <= DUPLICATE_WINDOW_MS
+        ) {
+            duplicateRecent = true
+        }
+    }
+
+    if (duplicateRecent) return { mode: 'silent', reason: 'duplicate_recent' }
+    if (notifyCount24h >= MAX_NOTIFY_PER_24H) return { mode: 'silent', reason: 'throttled_24h' }
+    return { mode: 'notify', reason: 'ok' }
+}
+
 /**
  * Obtiene un access token de Google para la API de Wallet
  */
@@ -163,21 +232,31 @@ export async function sendWalletNotification(
     objectId: string,
     titulo: string,
     mensaje: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+    success: boolean
+    error?: string
+    mode?: 'notify' | 'silent'
+    reason?: 'ok' | 'throttled_24h' | 'duplicate_recent'
+}> {
     try {
         const accessToken = await getAccessToken()
+        const currentMessages = await getWalletObjectMessages(accessToken, objectId)
+        const policy = evaluateDeliveryPolicy(currentMessages, titulo, mensaje)
         const messagePayload = {
             message: {
                 header: titulo,
                 body: mensaje,
                 id: `msg-${objectId.split('.').pop() || 'wallet'}-${Date.now()}`,
-                messageType: 'TEXT_AND_NOTIFY',
+                messageType: policy.mode === 'notify' ? 'TEXT_AND_NOTIFY' : 'TEXT',
             }
         }
 
         // Camino principal: endpoint dedicado de mensaje (más confiable para notificación visible).
+        const addMessageUrl = policy.mode === 'notify'
+            ? `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}/addMessage?notifyPreference=NOTIFY`
+            : `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}/addMessage`
         const addMessageResponse = await fetch(
-            `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}/addMessage?notifyPreference=NOTIFY`,
+            addMessageUrl,
             {
                 method: 'POST',
                 headers: {
@@ -188,7 +267,7 @@ export async function sendWalletNotification(
             }
         )
         if (addMessageResponse.ok) {
-            return { success: true }
+            return { success: true, mode: policy.mode, reason: policy.reason }
         }
 
         let addMessageError = 'Error desconocido en addMessage'
@@ -200,8 +279,11 @@ export async function sendWalletNotification(
         }
 
         // Fallback: PATCH directo del objeto (compatibilidad).
+        const patchUrl = policy.mode === 'notify'
+            ? `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}?notifyPreference=NOTIFY`
+            : `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}`
         const patchResponse = await fetch(
-            `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}?notifyPreference=NOTIFY`,
+            patchUrl,
             {
                 method: 'PATCH',
                 headers: {
@@ -214,14 +296,14 @@ export async function sendWalletNotification(
                             header: titulo,
                             body: mensaje,
                             id: `msg-${objectId.split('.').pop() || 'wallet'}-${Date.now()}`,
-                            messageType: 'TEXT_AND_NOTIFY',
+                            messageType: policy.mode === 'notify' ? 'TEXT_AND_NOTIFY' : 'TEXT',
                         }
                     ],
                 }),
             }
         )
         if (patchResponse.ok) {
-            return { success: true }
+            return { success: true, mode: policy.mode, reason: policy.reason }
         }
 
         let patchError = 'Error desconocido en PATCH'
@@ -233,7 +315,7 @@ export async function sendWalletNotification(
         }
 
         console.error('Error enviando notificación Wallet:', { addMessageError, patchError, objectId })
-        return { success: false, error: `${addMessageError} | fallback: ${patchError}` }
+        return { success: false, error: `${addMessageError} | fallback: ${patchError}`, mode: policy.mode, reason: policy.reason }
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Error enviando notificación Wallet'
         console.error('Error enviando notificación Wallet:', message)
@@ -265,7 +347,13 @@ export async function sendWalletNotificationWithCandidates(
             attempts += 1
             const result = await sendWalletNotification(objectId, titulo, mensaje)
             if (result.success) {
-                return { success: true, objectId, attempts }
+                return {
+                    success: true,
+                    objectId,
+                    attempts,
+                    mode: result.mode || 'notify',
+                    reason: result.reason || 'ok',
+                }
             }
             lastError = result.error || 'Error desconocido'
             if (attempt < maxAttemptsPerCandidate) {

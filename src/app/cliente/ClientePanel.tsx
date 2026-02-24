@@ -107,6 +107,7 @@ interface NotificationResult {
     enviadas: number
     wallet_push?: number
     wallet_errores?: number
+    wallet_silent?: number
     wallet_hint?: string
     wallet_error_samples?: Array<{ object_id: string; reason: string }>
     tipologia_aplicada?: string
@@ -2276,6 +2277,9 @@ export default function ClientePanel() {
                                                 <div style={{ marginTop: '0.35rem', fontSize: '0.85rem', opacity: 0.9 }}>
                                                     Wallet entregadas: <strong>{notifResult.wallet_push}</strong> ·
                                                     No entregadas: <strong>{notifResult.wallet_errores}</strong>
+                                                    {typeof notifResult.wallet_silent === 'number' && (
+                                                        <> · Silenciosas: <strong>{notifResult.wallet_silent}</strong></>
+                                                    )}
                                                 </div>
                                             )}
                                             {notifResult.wallet_hint && (
