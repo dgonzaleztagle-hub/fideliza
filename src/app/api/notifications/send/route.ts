@@ -121,10 +121,34 @@ export async function POST(req: NextRequest) {
         // Intentar enviar via Google Wallet (degradación elegante si falla)
         let walletResult: { enviadas: number; errores: number } = { enviadas: 0, errores: 0 }
         try {
-            // El objectId real es: ISSUER_ID.vuelve-SLUG-CUSTOMER_ID
-            const { sendBulkWalletNotifications, ISSUER_ID } = await import('@/lib/walletNotifications')
-            const objectIds = customers.map(c => `${ISSUER_ID}.vuelve-${tenant.slug}-${c.id}`)
-            walletResult = await sendBulkWalletNotifications(objectIds, titulo, mensaje)
+            // Formato actual: ISSUER.vuelve-SLUG-CUSTOMER_ID
+            // Fallback legacy: ISSUER.vuelve-SLUG-WHATSAPP
+            const { sendWalletNotification, ISSUER_ID } = await import('@/lib/walletNotifications')
+
+            let delivered = 0
+            let failed = 0
+
+            await Promise.all(customers.map(async (c) => {
+                const objectIdCurrent = `${ISSUER_ID}.vuelve-${tenant.slug}-${c.id}`
+                const objectIdLegacy = `${ISSUER_ID}.vuelve-${tenant.slug}-${c.whatsapp}`
+
+                const currentTry = await sendWalletNotification(objectIdCurrent, titulo, mensaje)
+                if (currentTry.success) {
+                    delivered += 1
+                    return
+                }
+
+                // Retry automático para tarjetas generadas con formato histórico.
+                const legacyTry = await sendWalletNotification(objectIdLegacy, titulo, mensaje)
+                if (legacyTry.success) {
+                    delivered += 1
+                    return
+                }
+
+                failed += 1
+            }))
+
+            walletResult = { enviadas: delivered, errores: failed }
         } catch (walletError) {
             console.warn('Google Wallet push no disponible, notificación registrada:', walletError)
         }
