@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
     LayoutDashboard,
     Store,
@@ -12,6 +12,7 @@ import {
     RefreshCw,
     Calendar
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import './admin.css'
 
 interface AdminStats {
@@ -46,12 +47,19 @@ interface TenantAdminData {
 type AdminTab = 'stats' | 'negocios' | 'logs'
 
 export default function AdminPanel() {
+    const supabase = useMemo(() => createClient(), [])
     const [tab, setTab] = useState<AdminTab>('stats')
     const [stats, setStats] = useState<AdminStats | null>(null)
     const [tenants, setTenants] = useState<TenantAdminData[]>([])
     const [loading, setLoading] = useState(true)
     const [updating, setUpdating] = useState<string | null>(null)
     const [errorMsg, setErrorMsg] = useState('')
+    const [authChecked, setAuthChecked] = useState(false)
+    const [isAuthenticated, setIsAuthenticated] = useState(false)
+    const [adminEmail, setAdminEmail] = useState('')
+    const [adminPassword, setAdminPassword] = useState('')
+    const [authError, setAuthError] = useState('')
+    const [signingIn, setSigningIn] = useState(false)
 
     function isAdminStats(data: unknown): data is AdminStats {
         if (!data || typeof data !== 'object') return false
@@ -111,8 +119,31 @@ export default function AdminPanel() {
     }, [loadStats, loadTenants])
 
     useEffect(() => {
+        let mounted = true
+        ;(async () => {
+            const { data } = await supabase.auth.getSession()
+            if (!mounted) return
+            setIsAuthenticated(!!data.session)
+            setAuthChecked(true)
+        })()
+
+        const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+            setIsAuthenticated(!!session)
+        })
+
+        return () => {
+            mounted = false
+            subscription.subscription.unsubscribe()
+        }
+    }, [supabase])
+
+    useEffect(() => {
+        if (!authChecked || !isAuthenticated) {
+            setLoading(false)
+            return
+        }
         void loadAll()
-    }, [loadAll])
+    }, [authChecked, isAuthenticated, loadAll])
 
     const handleAction = async (tenantId: string, action: string) => {
         setUpdating(tenantId)
@@ -130,6 +161,95 @@ export default function AdminPanel() {
         } finally {
             setUpdating(null)
         }
+    }
+
+    const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setAuthError('')
+
+        if (!adminEmail || !adminPassword) {
+            setAuthError('Ingresa email y contraseña')
+            return
+        }
+
+        setSigningIn(true)
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email: adminEmail.trim(),
+                password: adminPassword
+            })
+            if (error) {
+                setAuthError(error.message || 'No se pudo iniciar sesión')
+                return
+            }
+            setAdminPassword('')
+            setIsAuthenticated(true)
+        } finally {
+            setSigningIn(false)
+        }
+    }
+
+    const handleSignOut = async () => {
+        try {
+            await supabase.auth.signOut()
+        } finally {
+            setIsAuthenticated(false)
+            setStats(null)
+            setTenants([])
+            setLoading(false)
+            setErrorMsg('')
+        }
+    }
+
+    if (!authChecked) {
+        return (
+            <div className="admin-page">
+                <main className="admin-main">
+                    <div className="admin-loading">Validando sesión admin...</div>
+                </main>
+            </div>
+        )
+    }
+
+    if (!isAuthenticated) {
+        return (
+            <div className="admin-page">
+                <main className="admin-main admin-auth-wrap">
+                    <form className="admin-auth-card" onSubmit={handleSignIn}>
+                        <div className="admin-logo" style={{ marginBottom: '1rem' }}>
+                            <ShieldCheck size={24} color="#3b82f6" />
+                            <span>HojaCero <span>Admin</span></span>
+                        </div>
+                        <h1>Ingresar a Admin</h1>
+                        <p className="admin-subtitle">Acceso solo para correos autorizados en SUPER_ADMIN_EMAILS.</p>
+                        <label className="admin-auth-label">
+                            <span>Email</span>
+                            <input
+                                type="email"
+                                value={adminEmail}
+                                onChange={(e) => setAdminEmail(e.target.value)}
+                                autoComplete="email"
+                                placeholder="contacto@vuelve.vip"
+                            />
+                        </label>
+                        <label className="admin-auth-label">
+                            <span>Contraseña</span>
+                            <input
+                                type="password"
+                                value={adminPassword}
+                                onChange={(e) => setAdminPassword(e.target.value)}
+                                autoComplete="current-password"
+                                placeholder="••••••••"
+                            />
+                        </label>
+                        {authError && <div className="admin-auth-error">{authError}</div>}
+                        <button className="admin-btn-action admin-auth-submit" type="submit" disabled={signingIn}>
+                            {signingIn ? 'Ingresando...' : 'Entrar'}
+                        </button>
+                    </form>
+                </main>
+            </div>
+        )
     }
 
     return (
@@ -166,9 +286,9 @@ export default function AdminPanel() {
                 </nav>
 
                 <div className="admin-sidebar-footer">
-                    <button className="admin-nav-btn" onClick={() => window.location.href = '/'}>
+                    <button className="admin-nav-btn" onClick={handleSignOut}>
                         <LogOut size={20} />
-                        <span>Ver Landing</span>
+                        <span>Cerrar sesión</span>
                     </button>
                 </div>
             </aside>
