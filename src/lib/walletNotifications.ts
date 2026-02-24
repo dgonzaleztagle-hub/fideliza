@@ -10,6 +10,105 @@ type WalletNotificationResult = {
     error?: string
 }
 
+export type WalletMessageType =
+    | 'promocion'
+    | 'recordatorio'
+    | 'cumpleanos'
+    | 'beneficio'
+    | 'general'
+
+type NormalizeOptions = {
+    type?: WalletMessageType
+}
+
+type NormalizedWalletMessage = {
+    titulo: string
+    mensaje: string
+    type: WalletMessageType
+    warnings: string[]
+}
+
+type CandidateSendResult = {
+    success: boolean
+    objectId?: string
+    attempts: number
+    error?: string
+}
+
+const TITLE_MAX = 45
+const TITLE_MIN = 6
+const BODY_MAX = 140
+const BODY_MIN = 12
+
+function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function normalizeSpaces(text: string): string {
+    return text.replace(/\s+/g, ' ').trim()
+}
+
+function clampText(text: string, max: number): string {
+    if (text.length <= max) return text
+    return `${text.slice(0, Math.max(0, max - 1)).trim()}…`
+}
+
+function getDefaultTitle(type: WalletMessageType): string {
+    switch (type) {
+        case 'promocion':
+            return 'Promo especial para ti'
+        case 'recordatorio':
+            return 'Te esperamos hoy'
+        case 'cumpleanos':
+            return 'Feliz cumpleaños'
+        case 'beneficio':
+            return 'Tienes un beneficio activo'
+        default:
+            return 'Actualización de tu tarjeta'
+    }
+}
+
+export function normalizeWalletMessage(
+    tituloRaw: string,
+    mensajeRaw: string,
+    options: NormalizeOptions = {}
+): NormalizedWalletMessage {
+    const warnings: string[] = []
+    const type = options.type || 'general'
+
+    let titulo = normalizeSpaces(tituloRaw || '')
+    let mensaje = normalizeSpaces(mensajeRaw || '')
+
+    if (!titulo) {
+        titulo = getDefaultTitle(type)
+        warnings.push('Título vacío: se aplicó título por defecto.')
+    }
+    if (!mensaje) {
+        mensaje = 'Revisa tu tarjeta para ver esta actualización.'
+        warnings.push('Mensaje vacío: se aplicó texto por defecto.')
+    }
+
+    if (titulo.length < TITLE_MIN) {
+        titulo = `${titulo} ahora`
+        warnings.push('Título muy corto: se normalizó para mejor legibilidad.')
+    }
+    if (mensaje.length < BODY_MIN) {
+        mensaje = `${mensaje} Abre tu tarjeta para más detalle.`
+        warnings.push('Mensaje muy corto: se expandió para mayor contexto.')
+    }
+
+    if (titulo.length > TITLE_MAX) {
+        titulo = clampText(titulo, TITLE_MAX)
+        warnings.push(`Título recortado a ${TITLE_MAX} caracteres.`)
+    }
+    if (mensaje.length > BODY_MAX) {
+        mensaje = clampText(mensaje, BODY_MAX)
+        warnings.push(`Mensaje recortado a ${BODY_MAX} caracteres.`)
+    }
+
+    return { titulo, mensaje, type, warnings }
+}
+
 function getApiErrorMessage(payload: unknown, fallback: string): string {
     if (typeof payload === 'object' && payload !== null) {
         const error = (payload as { error?: { message?: string } }).error
@@ -22,6 +121,9 @@ function getApiErrorMessage(payload: unknown, fallback: string): string {
  * Obtiene un access token de Google para la API de Wallet
  */
 async function getAccessToken(): Promise<string> {
+    if (!SERVICE_ACCOUNT_EMAIL || !PRIVATE_KEY) {
+        throw new Error('Google Wallet no está configurado (SERVICE_ACCOUNT_EMAIL / PRIVATE_KEY)')
+    }
     const now = Math.floor(Date.now() / 1000)
     const jwtPayload = {
         iss: SERVICE_ACCOUNT_EMAIL,
@@ -69,6 +171,7 @@ export async function sendWalletNotification(
                 header: titulo,
                 body: mensaje,
                 id: `msg-${objectId.split('.').pop() || 'wallet'}-${Date.now()}`,
+                messageType: 'TEXT_AND_NOTIFY',
             }
         }
 
@@ -111,7 +214,7 @@ export async function sendWalletNotification(
                             header: titulo,
                             body: mensaje,
                             id: `msg-${objectId.split('.').pop() || 'wallet'}-${Date.now()}`,
-                            messageType: 'TEXT',
+                            messageType: 'TEXT_AND_NOTIFY',
                         }
                     ],
                 }),
@@ -138,6 +241,42 @@ export async function sendWalletNotification(
     }
 }
 
+export async function sendWalletNotificationWithCandidates(
+    objectIds: string[],
+    titulo: string,
+    mensaje: string,
+    opts?: { maxAttemptsPerCandidate?: number }
+): Promise<CandidateSendResult> {
+    const maxAttemptsPerCandidate = Math.max(1, opts?.maxAttemptsPerCandidate || 2)
+
+    if (!objectIds.length) {
+        return {
+            success: false,
+            attempts: 0,
+            error: 'No hay objectId candidato para notificar',
+        }
+    }
+
+    let attempts = 0
+    let lastError = ''
+
+    for (const objectId of objectIds) {
+        for (let attempt = 1; attempt <= maxAttemptsPerCandidate; attempt++) {
+            attempts += 1
+            const result = await sendWalletNotification(objectId, titulo, mensaje)
+            if (result.success) {
+                return { success: true, objectId, attempts }
+            }
+            lastError = result.error || 'Error desconocido'
+            if (attempt < maxAttemptsPerCandidate) {
+                await sleep(200 * attempt)
+            }
+        }
+    }
+
+    return { success: false, attempts, error: lastError }
+}
+
 /**
  * Envía una notificación masiva a múltiples pases de Google Wallet.
  * 
@@ -154,26 +293,19 @@ export async function sendBulkWalletNotifications(
     let enviadas = 0
     let errores = 0
 
-    // Procesar en lotes de 10 para no saturar la API
-    const batchSize = 10
-    for (let i = 0; i < objectIds.length; i += batchSize) {
-        const batch = objectIds.slice(i, i + batchSize)
-        const promises = batch.map(async (objectId) => {
-            const result = await sendWalletNotification(objectId, titulo, mensaje)
-            if (result.success) {
-                enviadas++
-            } else {
-                errores++
-            }
-            return { objectId, ...result }
-        })
+    // Modo estable: secuencial y con pausa corta para no gatillar límites.
+    for (let i = 0; i < objectIds.length; i++) {
+        const objectId = objectIds[i]
+        const result = await sendWalletNotification(objectId, titulo, mensaje)
+        if (result.success) {
+            enviadas++
+        } else {
+            errores++
+        }
+        resultados.push({ objectId, ...result })
 
-        const batchResults = await Promise.all(promises)
-        resultados.push(...batchResults)
-
-        // Pequeña pausa entre lotes
-        if (i + batchSize < objectIds.length) {
-            await new Promise(resolve => setTimeout(resolve, 200))
+        if (i < objectIds.length - 1) {
+            await sleep(150)
         }
     }
 

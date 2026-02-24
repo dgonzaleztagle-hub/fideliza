@@ -1,4 +1,4 @@
-import { sendWalletNotification } from '../walletNotifications'
+import { normalizeWalletMessage, sendWalletNotificationWithCandidates, type WalletMessageType } from '../walletNotifications'
 
 interface PushOptions {
     tenant_slug: string
@@ -6,6 +6,7 @@ interface PushOptions {
     whatsapp?: string
     titulo: string
     mensaje: string
+    tipologia?: WalletMessageType
 }
 
 /**
@@ -19,15 +20,27 @@ export async function triggerWalletPush(options: PushOptions) {
         return { success: false, error: 'Issuer ID no configurado' }
     }
 
-    // El objectId sigue el patrón: ISSUER.vuelve-SLUG-CUSTOMERID
-    // Usamos prioritariamente customer_id si está disponible.
-    const identifier = options.customer_id || options.whatsapp
-
-    if (!identifier) {
+    if (!options.customer_id && !options.whatsapp) {
         return { success: false, error: 'Falta identificador de cliente (id o whatsapp)' }
     }
+    const candidates: string[] = []
+    if (options.customer_id) {
+        candidates.push(`${issuerId}.vuelve-${options.tenant_slug}-${options.customer_id}`)
+    }
+    if (options.whatsapp) {
+        candidates.push(`${issuerId}.vuelve-${options.tenant_slug}-${options.whatsapp}`)
+    }
+    const uniqueCandidates = Array.from(new Set(candidates))
 
-    const objectId = `${issuerId}.vuelve-${options.tenant_slug}-${identifier}`
+    const normalized = normalizeWalletMessage(options.titulo, options.mensaje, {
+        type: options.tipologia || 'general',
+    })
 
-    return await sendWalletNotification(objectId, options.titulo, options.mensaje)
+    const result = await sendWalletNotificationWithCandidates(
+        uniqueCandidates,
+        normalized.titulo,
+        normalized.mensaje,
+        { maxAttemptsPerCandidate: 2 }
+    )
+    return { success: result.success, error: result.error }
 }

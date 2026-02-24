@@ -2,13 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase/admin'
 import { requireTenantOwnerById } from '@/lib/authz'
 import { PLAN_CATALOG, getEffectiveBillingPlan } from '@/lib/plans'
+import { normalizeWalletMessage, type WalletMessageType } from '@/lib/walletNotifications'
 
 // POST /api/notifications/send
 // Envía notificación manual a clientes vía Google Wallet
 export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     try {
-        const { tenant_id, titulo, mensaje, segmento } = await req.json()
+        const {
+            tenant_id,
+            titulo,
+            mensaje,
+            segmento,
+            tipologia,
+        }: {
+            tenant_id?: string
+            titulo?: string
+            mensaje?: string
+            segmento?: string
+            tipologia?: WalletMessageType
+        } = await req.json()
 
         if (!tenant_id || !titulo || !mensaje) {
             return NextResponse.json(
@@ -16,6 +29,8 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             )
         }
+
+        const normalized = normalizeWalletMessage(titulo, mensaje, { type: tipologia || 'general' })
 
         const owner = await requireTenantOwnerById(tenant_id)
         if (!owner.ok) return owner.response
@@ -104,8 +119,8 @@ export async function POST(req: NextRequest) {
             .from('notifications')
             .insert({
                 tenant_id,
-                titulo,
-                mensaje,
+                titulo: normalized.titulo,
+                mensaje: normalized.mensaje,
                 segmento: segmento || 'todos',
                 total_destinatarios: customers.length,
                 estado: 'enviada'
@@ -127,37 +142,41 @@ export async function POST(req: NextRequest) {
         try {
             // Formato actual: ISSUER.vuelve-SLUG-CUSTOMER_ID
             // Fallback legacy: ISSUER.vuelve-SLUG-WHATSAPP
-            const { sendWalletNotification, ISSUER_ID } = await import('@/lib/walletNotifications')
+            const { sendWalletNotificationWithCandidates, ISSUER_ID } = await import('@/lib/walletNotifications')
 
             let delivered = 0
             let failed = 0
             const errorSamples: Array<{ object_id: string; reason: string }> = []
 
-            await Promise.all(customers.map(async (c) => {
+            for (const c of customers) {
                 const objectIdCurrent = `${ISSUER_ID}.vuelve-${tenant.slug}-${c.id}`
                 const objectIdLegacy = `${ISSUER_ID}.vuelve-${tenant.slug}-${c.whatsapp}`
+                const objectIds = c.whatsapp
+                    ? [objectIdCurrent, objectIdLegacy]
+                    : [objectIdCurrent]
 
-                const currentTry = await sendWalletNotification(objectIdCurrent, titulo, mensaje)
-                if (currentTry.success) {
+                const attempt = await sendWalletNotificationWithCandidates(
+                    objectIds,
+                    normalized.titulo,
+                    normalized.mensaje,
+                    { maxAttemptsPerCandidate: 2 }
+                )
+                if (attempt.success) {
                     delivered += 1
-                    return
+                } else {
+                    failed += 1
+                    if (errorSamples.length < 5) {
+                        errorSamples.push({
+                            object_id: objectIdCurrent,
+                            reason: attempt.error || 'unknown'
+                        })
+                    }
                 }
-
-                // Retry automático para tarjetas generadas con formato histórico.
-                const legacyTry = await sendWalletNotification(objectIdLegacy, titulo, mensaje)
-                if (legacyTry.success) {
-                    delivered += 1
-                    return
+                // Evita ráfagas al mismo tiempo y mejora la estabilidad de entrega.
+                if (customers.length > 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 150))
                 }
-
-                failed += 1
-                if (errorSamples.length < 5) {
-                    errorSamples.push({
-                        object_id: objectIdCurrent,
-                        reason: legacyTry.error || currentTry.error || 'unknown'
-                    })
-                }
-            }))
+            }
 
             walletResult = { enviadas: delivered, errores: failed, error_samples: errorSamples }
         } catch (walletError) {
@@ -165,7 +184,7 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json({
-            message: `📨 Notificación "${titulo}" enviada a ${customers.length} clientes`,
+            message: `📨 Notificación "${normalized.titulo}" enviada a ${customers.length} clientes`,
             enviadas: customers.length,
             wallet_push: walletResult.enviadas,
             wallet_errores: walletResult.errores,
@@ -173,6 +192,8 @@ export async function POST(req: NextRequest) {
                 ? 'Si no llegó a algunos, normalmente es porque ese cliente aún no agregó su tarjeta en Google Wallet o tiene notificaciones desactivadas.'
                 : 'Entrega en Wallet completada para todos los destinatarios.',
             wallet_error_samples: walletResult.error_samples,
+            tipologia_aplicada: normalized.type,
+            normalizacion: normalized.warnings,
             segmento: segmento || 'todos',
             notification_id: notification?.id || null,
             destinatarios: customers.map(c => ({

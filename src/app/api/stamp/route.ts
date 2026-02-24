@@ -305,6 +305,7 @@ async function scheduleReview(supabase: SupabaseAdminClient, customer_id: string
 
 async function notifyWallet(params: {
     customer_id: string
+    whatsapp?: string | null
     tenant_slug: string | null | undefined
     titulo: string
     mensaje: string
@@ -312,6 +313,7 @@ async function notifyWallet(params: {
     if (!params.tenant_slug) return
     await triggerWalletPush({
         customer_id: params.customer_id,
+        whatsapp: params.whatsapp || undefined,
         tenant_slug: params.tenant_slug,
         titulo: params.titulo,
         mensaje: params.mensaje
@@ -356,6 +358,7 @@ async function handleSellos(supabase: SupabaseAdminClient, customer: CustomerRow
         const tenantData = getTenantInfo(customer.tenants)
         await notifyWallet({
             customer_id: customer.id,
+            whatsapp: customer.whatsapp,
             tenant_slug: tenantData?.slug,
             titulo: `¡Sello sumado en ${tenantData?.nombre || 'tu negocio'}!`,
             mensaje: `Llevas ${rpcData.points_actual || 0} / ${program.puntos_meta} sellos. ¡Falta poco!`
@@ -436,6 +439,7 @@ async function handleCashback(supabase: SupabaseAdminClient, customer: CustomerR
     const tenantData = getTenantInfo(customer.tenants)
     await notifyWallet({
         customer_id: customer.id,
+        whatsapp: customer.whatsapp,
         tenant_slug: tenantData?.slug,
         titulo: `💰 ¡Cashback en ${tenantData?.nombre || 'tu negocio'}!`,
         mensaje: `Ganaste $${cashbackGanado}. Nuevo saldo: $${saldoActual + cashbackGanado}`
@@ -503,6 +507,7 @@ async function handleMultipase(supabase: SupabaseAdminClient, customer: Customer
     const tenantData = getTenantInfo(customer.tenants)
     await notifyWallet({
         customer_id: customer.id,
+        whatsapp: customer.whatsapp,
         tenant_slug: tenantData?.slug,
         titulo: `🎟️ Pase usado en ${tenantData?.nombre || 'tu negocio'}`,
         mensaje: nuevosUsos > 0
@@ -572,6 +577,7 @@ async function handleDescuentoNiveles(supabase: SupabaseAdminClient, customer: C
     const tenantData = getTenantInfo(customer.tenants)
     await notifyWallet({
         customer_id: customer.id,
+        whatsapp: customer.whatsapp,
         tenant_slug: tenantData?.slug,
         titulo: subioDeNivel ? `🎉 ¡Subiste de nivel en ${tenantData?.nombre || 'tu negocio'}!` : `✅ Visita registrada`,
         mensaje: subioDeNivel
@@ -660,6 +666,7 @@ async function handleMembresia(
     const tenantData = getTenantInfo(customer.tenants)
     await notifyWallet({
         customer_id: customer.id,
+        whatsapp: customer.whatsapp,
         tenant_slug: tenantData?.slug,
         titulo: `👑 ¡Bienvenido VIP a ${tenantData?.nombre || 'tu negocio'}!`,
         mensaje: `Tu visita ha sido registrada. ¡Disfruta tus beneficios!`
@@ -704,6 +711,7 @@ async function handleAfiliacion(supabase: SupabaseAdminClient, customer: Custome
     const tenantData = getTenantInfo(customer.tenants)
     await notifyWallet({
         customer_id: customer.id,
+        whatsapp: customer.whatsapp,
         tenant_slug: tenantData?.slug,
         titulo: `✅ Visita registrada en ${tenantData?.nombre || 'tu negocio'}`,
         mensaje: `¡Gracias por visitarnos! Recibirás promos exclusivas por aquí.`
@@ -771,6 +779,7 @@ async function handleCupon(supabase: SupabaseAdminClient, customer: CustomerRow,
     const tenantData = getTenantInfo(customer.tenants)
     await notifyWallet({
         customer_id: customer.id,
+        whatsapp: customer.whatsapp,
         tenant_slug: tenantData?.slug,
         titulo: `🎫 ¡Cupón generado en ${tenantData?.nombre || 'tu negocio'}!`,
         mensaje: `Tienes un ${descuentoPorcentaje}% de descuento listo para usar.`
@@ -852,6 +861,7 @@ async function handleRegalo(supabase: SupabaseAdminClient, customer: CustomerRow
     const tenantData = getTenantInfo(customer.tenants)
     await notifyWallet({
         customer_id: customer.id,
+        whatsapp: customer.whatsapp,
         tenant_slug: tenantData?.slug,
         titulo: `🎁 Consumo de Gift Card en ${tenantData?.nombre || 'tu negocio'}`,
         mensaje: `Descuento: -$${monto_compra}. Tu nuevo saldo es: $${nuevoSaldo}.`

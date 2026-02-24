@@ -99,7 +99,8 @@ export async function GET(req: NextRequest) {
                         tenant_slug: tenantInfo.slug,
                         customer_id: c.id,
                         titulo: `¡Feliz Cumpleaños! 🎂`,
-                        mensaje: bdayMsg
+                        mensaje: bdayMsg,
+                        tipologia: 'cumpleanos',
                     })
                     results.birthdays++
                 } catch (err: unknown) {
@@ -124,21 +125,39 @@ export async function GET(req: NextRequest) {
 
         if (campaigns) {
             for (const camp of campaigns as CampaignRow[]) {
-                // Obtener todos los clientes según segmento
-                let query = supabase.from('customers').select('id, whatsapp').eq('tenant_id', camp.tenant_id)
+                // Obtener todos los clientes del tenant y luego aplicar la misma
+                // lógica de segmentación que el envío manual.
+                const { data: allCustomers } = await supabase
+                    .from('customers')
+                    .select('id, whatsapp, puntos_actuales')
+                    .eq('tenant_id', camp.tenant_id)
 
-                // Aplicar segmentación básica
-                if (camp.segmento === 'activos') {
-                    const thirtyDaysAgo = new Date()
-                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-                    query = query.gte('updated_at', thirtyDaysAgo.toISOString())
-                } else if (camp.segmento === 'inactivos') {
-                    const thirtyDaysAgo = new Date()
-                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-                    query = query.lt('updated_at', thirtyDaysAgo.toISOString())
+                let customers = allCustomers || []
+                if (camp.segmento === 'activos' || camp.segmento === 'inactivos') {
+                    const hace30Dias = new Date()
+                    hace30Dias.setDate(hace30Dias.getDate() - 30)
+                    const { data: recentStamps } = await supabase
+                        .from('stamps')
+                        .select('customer_id')
+                        .eq('tenant_id', camp.tenant_id)
+                        .gte('fecha', hace30Dias.toISOString().split('T')[0])
+                    const activeIds = new Set((recentStamps || []).map((s) => s.customer_id))
+                    customers = camp.segmento === 'activos'
+                        ? customers.filter((c) => activeIds.has(c.id))
+                        : customers.filter((c) => !activeIds.has(c.id))
+                } else if (camp.segmento === 'cercanos_premio') {
+                    const { data: program } = await supabase
+                        .from('programs')
+                        .select('puntos_meta')
+                        .eq('tenant_id', camp.tenant_id)
+                        .eq('activo', true)
+                        .single()
+                    if (program?.puntos_meta) {
+                        customers = customers.filter((c) => c.puntos_actuales >= program.puntos_meta - 2)
+                    } else {
+                        customers = []
+                    }
                 }
-
-                const { data: customers } = await query
 
                 if (customers) {
                     for (const cust of customers) {
@@ -148,8 +167,10 @@ export async function GET(req: NextRequest) {
                             await triggerWalletPush({
                                 tenant_slug: tenantInfo.slug,
                                 customer_id: cust.id,
+                                whatsapp: cust.whatsapp || undefined,
                                 titulo: camp.titulo_notif,
-                                mensaje: camp.mensaje_notif
+                                mensaje: camp.mensaje_notif,
+                                tipologia: 'promocion',
                             })
                         } catch { /* Ignorar errores individuales */ }
                     }
