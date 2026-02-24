@@ -67,7 +67,7 @@ export async function sendWalletNotification(
 
         // Actualizar el objeto del pase con un nuevo mensaje
         const response = await fetch(
-            `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}`,
+            `https://walletobjects.googleapis.com/walletobjects/v1/loyaltyObject/${objectId}?notifyPreference=NOTIFY`,
             {
                 method: 'PATCH',
                 headers: {
@@ -75,7 +75,6 @@ export async function sendWalletNotification(
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    notifyPreference: 'NOTIFY',
                     messages: [
                         {
                             header: titulo,
