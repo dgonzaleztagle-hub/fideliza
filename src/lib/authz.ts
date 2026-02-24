@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSupabase } from '@/lib/supabase/admin'
+import { getAdminEmailFromCookie, isAllowedAdminEmail } from '@/lib/adminSession'
 
 interface AuthUser {
     id: string
@@ -127,6 +128,14 @@ export async function requireTenantOwnerBySlug(slug: string): Promise<AuthzResul
 }
 
 export async function requireSuperAdmin(): Promise<AuthzResult<never>> {
+    const adminEmailFromCookie = await getAdminEmailFromCookie()
+    if (adminEmailFromCookie && isAllowedAdminEmail(adminEmailFromCookie)) {
+        return {
+            ok: true,
+            user: { id: 'admin-cookie', email: adminEmailFromCookie }
+        }
+    }
+
     const auth = await requireAuthenticatedUser()
     if (!auth.ok) return auth
 

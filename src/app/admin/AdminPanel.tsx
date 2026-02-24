@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
     LayoutDashboard,
     Store,
@@ -12,7 +12,6 @@ import {
     RefreshCw,
     Calendar
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import './admin.css'
 
 interface AdminStats {
@@ -47,7 +46,6 @@ interface TenantAdminData {
 type AdminTab = 'stats' | 'negocios' | 'logs'
 
 export default function AdminPanel() {
-    const supabase = useMemo(() => createClient(), [])
     const [tab, setTab] = useState<AdminTab>('stats')
     const [stats, setStats] = useState<AdminStats | null>(null)
     const [tenants, setTenants] = useState<TenantAdminData[]>([])
@@ -121,21 +119,16 @@ export default function AdminPanel() {
     useEffect(() => {
         let mounted = true
         ;(async () => {
-            const { data } = await supabase.auth.getSession()
+            const res = await fetch('/api/admin/auth/session', { cache: 'no-store' })
             if (!mounted) return
-            setIsAuthenticated(!!data.session)
+            setIsAuthenticated(res.ok)
             setAuthChecked(true)
         })()
 
-        const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-            setIsAuthenticated(!!session)
-        })
-
         return () => {
             mounted = false
-            subscription.subscription.unsubscribe()
         }
-    }, [supabase])
+    }, [])
 
     useEffect(() => {
         if (!authChecked || !isAuthenticated) {
@@ -174,12 +167,17 @@ export default function AdminPanel() {
 
         setSigningIn(true)
         try {
-            const { error } = await supabase.auth.signInWithPassword({
-                email: adminEmail.trim(),
-                password: adminPassword
+            const res = await fetch('/api/admin/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: adminEmail.trim(),
+                    password: adminPassword
+                })
             })
-            if (error) {
-                setAuthError(error.message || 'No se pudo iniciar sesión')
+            const data = await res.json()
+            if (!res.ok) {
+                setAuthError(data?.error || 'No se pudo iniciar sesión')
                 return
             }
             setAdminPassword('')
@@ -191,7 +189,7 @@ export default function AdminPanel() {
 
     const handleSignOut = async () => {
         try {
-            await supabase.auth.signOut()
+            await fetch('/api/admin/auth/logout', { method: 'POST' })
         } finally {
             setIsAuthenticated(false)
             setStats(null)
