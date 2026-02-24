@@ -51,14 +51,39 @@ export default function AdminPanel() {
     const [tenants, setTenants] = useState<TenantAdminData[]>([])
     const [loading, setLoading] = useState(true)
     const [updating, setUpdating] = useState<string | null>(null)
+    const [errorMsg, setErrorMsg] = useState('')
+
+    function isAdminStats(data: unknown): data is AdminStats {
+        if (!data || typeof data !== 'object') return false
+        const v = data as Partial<AdminStats>
+        return !!v.statsPlan &&
+            typeof v.totalTenants === 'number' &&
+            typeof v.totalCustomers === 'number' &&
+            typeof v.totalStamps === 'number' &&
+            typeof v.totalPremios === 'number' &&
+            typeof v.mrrProyectado === 'number' &&
+            typeof v.activeCustomers === 'number'
+    }
 
     const loadStats = useCallback(async () => {
         try {
             const res = await fetch('/api/admin/stats')
             const data = await res.json()
+            if (!res.ok) {
+                setStats(null)
+                setErrorMsg(data?.error || 'No tienes permisos para ver /admin')
+                return
+            }
+            if (!isAdminStats(data)) {
+                setStats(null)
+                setErrorMsg('Respuesta inválida del módulo admin.')
+                return
+            }
             setStats(data)
         } catch (err) {
             console.error('Error loading admin stats:', err)
+            setStats(null)
+            setErrorMsg('No se pudo cargar el panel admin.')
         }
     }, [])
 
@@ -66,13 +91,20 @@ export default function AdminPanel() {
         try {
             const res = await fetch('/api/admin/tenants')
             const data = await res.json()
-            setTenants(data.tenants || [])
+            if (!res.ok) {
+                setTenants([])
+                if (!errorMsg) setErrorMsg(data?.error || 'No autorizado para listar negocios')
+                return
+            }
+            setTenants(Array.isArray(data?.tenants) ? data.tenants : [])
         } catch (err) {
             console.error('Error loading admin tenants:', err)
+            setTenants([])
         }
-    }, [])
+    }, [errorMsg])
 
     const loadAll = useCallback(async () => {
+        setErrorMsg('')
         setLoading(true)
         await Promise.all([loadStats(), loadTenants()])
         setLoading(false)
@@ -158,6 +190,11 @@ export default function AdminPanel() {
                     <div className="admin-loading">Cargando datos maestros...</div>
                 ) : (
                     <>
+                        {errorMsg && (
+                            <div className="admin-loading" style={{ marginBottom: '1rem', color: '#ef4444' }}>
+                                {errorMsg}
+                            </div>
+                        )}
                         {tab === 'stats' && stats && (
                             <div className="admin-stats-view">
                                 <div className="admin-stats-grid">
