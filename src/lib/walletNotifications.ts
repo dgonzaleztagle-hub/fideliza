@@ -75,11 +75,12 @@ export async function sendWalletNotification(
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    notifyPreference: 'NOTIFY',
                     messages: [
                         {
                             header: titulo,
                             body: mensaje,
-                            id: `msg-${Date.now()}`,
+                            id: `msg-${objectId.split('.').pop() || 'wallet'}-${Date.now()}`,
                             messageType: 'TEXT',
                         }
                     ],
