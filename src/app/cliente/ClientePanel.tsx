@@ -109,6 +109,8 @@ interface NotificationResult {
     wallet_errores?: number
     wallet_hint?: string
     wallet_error_samples?: Array<{ object_id: string; reason: string }>
+    tipologia_aplicada?: string
+    normalizacion?: string[]
 }
 
 interface NotificationHistoryItem {
@@ -137,6 +139,7 @@ interface StaffMember {
 
 type Tab = 'dashboard' | 'clientes' | 'configuracion' | 'qr' | 'analytics' | 'notificaciones' | 'ayuda' | 'personal'
 type ConfigSection = 'plan' | 'business' | 'program' | 'geo' | 'marketing'
+type NotificationType = 'promocion' | 'recordatorio' | 'cumpleanos' | 'beneficio' | 'general'
 
 const PROGRAM_TYPE_LABELS: Record<string, string> = {
     sellos: '⭐ Tarjeta de Sellos',
@@ -147,6 +150,37 @@ const PROGRAM_TYPE_LABELS: Record<string, string> = {
     cupon: '🎫 Cupón',
     regalo: '🎁 Gift Card',
     afiliacion: '📱 Afiliación'
+}
+
+const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
+    promocion: '🔥 Promoción',
+    recordatorio: '⏰ Recordatorio',
+    cumpleanos: '🎂 Cumpleaños',
+    beneficio: '🎁 Beneficio',
+    general: '📣 General'
+}
+
+const NOTIFICATION_TEMPLATES: Record<NotificationType, { titulo: string; mensaje: string }> = {
+    promocion: {
+        titulo: '¡Promo especial por hoy!',
+        mensaje: 'Solo hoy tienes un beneficio exclusivo en tu próxima visita. Muestra tu tarjeta al pagar.'
+    },
+    recordatorio: {
+        titulo: 'Te esperamos hoy',
+        mensaje: 'Pasa a visitarnos y sigue acumulando beneficios en tu tarjeta de fidelidad.'
+    },
+    cumpleanos: {
+        titulo: '¡Feliz cumpleaños! 🎉',
+        mensaje: 'Tenemos un beneficio especial para ti por tu cumpleaños. Te esperamos para celebrarlo.'
+    },
+    beneficio: {
+        titulo: 'Tienes un nuevo beneficio',
+        mensaje: 'Tu tarjeta fue actualizada con un beneficio activo. Revisa el detalle y úsalo en tu próxima compra.'
+    },
+    general: {
+        titulo: 'Novedad en tu tarjeta',
+        mensaje: 'Actualizamos tu tarjeta con información importante. Revisa el detalle cuando puedas.'
+    }
 }
 
 function formatProgramTypeLabel(tipo?: string | null) {
@@ -384,6 +418,7 @@ export default function ClientePanel() {
     const [notifTitulo, setNotifTitulo] = useState('')
     const [notifMensaje, setNotifMensaje] = useState('')
     const [notifSegmento, setNotifSegmento] = useState('todos')
+    const [notifTipologia, setNotifTipologia] = useState<NotificationType>('promocion')
     const [insights, setInsights] = useState<Insight[]>([])
     const [sendingNotif, setSendingNotif] = useState(false)
     const [notifResult, setNotifResult] = useState<NotificationResult | null>(null)
@@ -398,6 +433,7 @@ export default function ClientePanel() {
         mensaje_notif: '',
         segmento: 'todos'
     })
+    const [campanaTipologia, setCampanaTipologia] = useState<NotificationType>('promocion')
     const [guardandoCampana, setGuardandoCampana] = useState(false)
 
     // Membresía
@@ -651,6 +687,23 @@ export default function ClientePanel() {
         }
     }
 
+    function applyManualNotificationTemplate(type: NotificationType) {
+        const template = NOTIFICATION_TEMPLATES[type]
+        setNotifTipologia(type)
+        setNotifTitulo(template.titulo)
+        setNotifMensaje(template.mensaje)
+    }
+
+    function applyScheduledCampaignTemplate(type: NotificationType) {
+        const template = NOTIFICATION_TEMPLATES[type]
+        setCampanaTipologia(type)
+        setNuevaCampana((prev) => ({
+            ...prev,
+            titulo_notif: template.titulo,
+            mensaje_notif: template.mensaje
+        }))
+    }
+
     async function handleSaveScheduledCampaign() {
         if (!tenant || !nuevaCampana.nombre || !nuevaCampana.fecha_envio || !nuevaCampana.titulo_notif || !nuevaCampana.mensaje_notif) {
             alert('Por favor completa todos los campos de la campaña')
@@ -674,6 +727,7 @@ export default function ClientePanel() {
                     mensaje_notif: '',
                     segmento: 'todos'
                 })
+                setCampanaTipologia('promocion')
                 loadCampanasProgramadas()
                 alert('✅ Campaña programada con éxito')
             } else {
@@ -886,7 +940,8 @@ export default function ClientePanel() {
                     tenant_id: tenant.id,
                     titulo: notifTitulo,
                     mensaje: notifMensaje,
-                    segmento: notifSegmento
+                    segmento: notifSegmento,
+                    tipologia: notifTipologia
                 })
             })
             const data = await res.json()
@@ -2156,6 +2211,27 @@ export default function ClientePanel() {
                                     <h3>📨 Nueva notificación</h3>
                                     <div className="cliente-config-form">
                                         <label>
+                                            <span>Tipología</span>
+                                            <select
+                                                value={notifTipologia}
+                                                onChange={e => setNotifTipologia(e.target.value as NotificationType)}
+                                            >
+                                                {Object.entries(NOTIFICATION_TYPE_LABELS).map(([value, label]) => (
+                                                    <option key={value} value={value}>{label}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            <button
+                                                type="button"
+                                                className="cliente-save-btn"
+                                                style={{ padding: '0.45rem 0.7rem', fontSize: '0.82rem' }}
+                                                onClick={() => applyManualNotificationTemplate(notifTipologia)}
+                                            >
+                                                ✨ Cargar plantilla
+                                            </button>
+                                        </div>
+                                        <label>
                                             <span>Título</span>
                                             <input
                                                 type="text"
@@ -2207,6 +2283,14 @@ export default function ClientePanel() {
                                                     💡 {notifResult.wallet_hint}
                                                 </div>
                                             )}
+                                            {!!notifResult.normalizacion?.length && (
+                                                <div style={{ marginTop: '0.35rem', fontSize: '0.8rem', opacity: 0.9 }}>
+                                                    🛠️ Ajustes automáticos:
+                                                    {notifResult.normalizacion.map((line, idx) => (
+                                                        <div key={`${line}-${idx}`}>• {line}</div>
+                                                    ))}
+                                                </div>
+                                            )}
                                             {!!notifResult.wallet_error_samples?.length && (
                                                 <div style={{ marginTop: '0.45rem', fontSize: '0.8rem', opacity: 0.92 }}>
                                                     <div><strong>Detalle de fallos (muestra):</strong></div>
@@ -2249,6 +2333,27 @@ export default function ClientePanel() {
                                     <h3>📅 Campañas Programadas (Calendario)</h3>
                                     <p className="cliente-content-subtitle">Programa tus eventos especiales, aniversarios y promos futuras.</p>
                                     <div className="cliente-config-form" style={{ marginTop: '1rem' }}>
+                                        <label>
+                                            <span>Tipología sugerida</span>
+                                            <select
+                                                value={campanaTipologia}
+                                                onChange={e => setCampanaTipologia(e.target.value as NotificationType)}
+                                            >
+                                                {Object.entries(NOTIFICATION_TYPE_LABELS).map(([value, label]) => (
+                                                    <option key={value} value={value}>{label}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            <button
+                                                type="button"
+                                                className="cliente-save-btn"
+                                                style={{ padding: '0.45rem 0.7rem', fontSize: '0.82rem' }}
+                                                onClick={() => applyScheduledCampaignTemplate(campanaTipologia)}
+                                            >
+                                                ✨ Cargar plantilla
+                                            </button>
+                                        </div>
                                         <div className="marketing-row">
                                             <label>
                                                 <span>Nombre del Evento</span>
