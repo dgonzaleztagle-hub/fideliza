@@ -250,9 +250,13 @@ export default function QRPageClient({ tenant, program }: Props) {
                 return data.saveLink
             }
 
-            const message = typeof data?.error === 'string'
+            const baseMessage = typeof data?.error === 'string'
                 ? data.error
                 : `No pudimos generar tu tarjeta de Google Wallet (HTTP ${res.status})`
+            const detail = typeof data?.detail === 'string' ? data.detail : ''
+            const message = detail
+                ? `${baseMessage} (${detail})`
+                : baseMessage
             setWalletError(message)
             return null
         } catch {
