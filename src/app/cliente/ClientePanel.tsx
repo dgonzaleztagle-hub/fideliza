@@ -108,6 +108,7 @@ interface NotificationResult {
     wallet_push?: number
     wallet_errores?: number
     wallet_hint?: string
+    wallet_error_samples?: Array<{ object_id: string; reason: string }>
 }
 
 interface NotificationHistoryItem {
@@ -2204,6 +2205,16 @@ export default function ClientePanel() {
                                             {notifResult.wallet_hint && (
                                                 <div style={{ marginTop: '0.35rem', fontSize: '0.82rem', opacity: 0.9 }}>
                                                     💡 {notifResult.wallet_hint}
+                                                </div>
+                                            )}
+                                            {!!notifResult.wallet_error_samples?.length && (
+                                                <div style={{ marginTop: '0.45rem', fontSize: '0.8rem', opacity: 0.92 }}>
+                                                    <div><strong>Detalle de fallos (muestra):</strong></div>
+                                                    {notifResult.wallet_error_samples.map((item, idx) => (
+                                                        <div key={`${item.object_id}-${idx}`}>
+                                                            • {item.reason}
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>

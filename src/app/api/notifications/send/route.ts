@@ -119,7 +119,11 @@ export async function POST(req: NextRequest) {
         }
 
         // Intentar enviar via Google Wallet (degradación elegante si falla)
-        let walletResult: { enviadas: number; errores: number } = { enviadas: 0, errores: 0 }
+        let walletResult: {
+            enviadas: number
+            errores: number
+            error_samples: Array<{ object_id: string; reason: string }>
+        } = { enviadas: 0, errores: 0, error_samples: [] }
         try {
             // Formato actual: ISSUER.vuelve-SLUG-CUSTOMER_ID
             // Fallback legacy: ISSUER.vuelve-SLUG-WHATSAPP
@@ -127,6 +131,7 @@ export async function POST(req: NextRequest) {
 
             let delivered = 0
             let failed = 0
+            const errorSamples: Array<{ object_id: string; reason: string }> = []
 
             await Promise.all(customers.map(async (c) => {
                 const objectIdCurrent = `${ISSUER_ID}.vuelve-${tenant.slug}-${c.id}`
@@ -146,9 +151,15 @@ export async function POST(req: NextRequest) {
                 }
 
                 failed += 1
+                if (errorSamples.length < 5) {
+                    errorSamples.push({
+                        object_id: objectIdCurrent,
+                        reason: legacyTry.error || currentTry.error || 'unknown'
+                    })
+                }
             }))
 
-            walletResult = { enviadas: delivered, errores: failed }
+            walletResult = { enviadas: delivered, errores: failed, error_samples: errorSamples }
         } catch (walletError) {
             console.warn('Google Wallet push no disponible, notificación registrada:', walletError)
         }
@@ -161,6 +172,7 @@ export async function POST(req: NextRequest) {
             wallet_hint: walletResult.errores > 0
                 ? 'Si no llegó a algunos, normalmente es porque ese cliente aún no agregó su tarjeta en Google Wallet o tiene notificaciones desactivadas.'
                 : 'Entrega en Wallet completada para todos los destinatarios.',
+            wallet_error_samples: walletResult.error_samples,
             segmento: segmento || 'todos',
             notification_id: notification?.id || null,
             destinatarios: customers.map(c => ({
