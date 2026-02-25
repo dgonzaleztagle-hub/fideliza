@@ -10,6 +10,14 @@ async function safeTableSelect<T>(query: PromiseLike<{ data: T | null; error: { 
     return (data ?? fallback) as T
 }
 
+async function safeCount(
+    query: PromiseLike<{ count: number | null; error: { message: string } | null }>
+) {
+    const { count, error } = await query
+    if (error) return 0
+    return count || 0
+}
+
 export async function GET(_req: Request, { params }: Params) {
     const admin = await requireSuperAdmin()
     if (!admin.ok) return admin.response
@@ -66,7 +74,7 @@ export async function GET(_req: Request, { params }: Params) {
         if (tenantError) throw new Error(tenantError.message)
         if (!tenant) return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
 
-        const [customers, recentStamps, recentRewards, notifications, scheduledCampaigns, topCustomers, auditLogs, program] = await Promise.all([
+        const [customers, recentStamps, recentRewards, notifications, scheduledCampaigns, topCustomers, auditLogs, program, totalStampsCount, totalRewardsCount, totalRewardsRedeemedCount, totalNotificationsCount, totalCampaignsCount] = await Promise.all([
             safeTableSelect(
                 supabase
                     .from('customers')
@@ -139,6 +147,37 @@ export async function GET(_req: Request, { params }: Params) {
                     .limit(1)
                     .maybeSingle(),
                 null
+            ),
+            safeCount(
+                supabase
+                    .from('stamps')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tenant_id', id)
+            ),
+            safeCount(
+                supabase
+                    .from('rewards')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tenant_id', id)
+            ),
+            safeCount(
+                supabase
+                    .from('rewards')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tenant_id', id)
+                    .eq('canjeado', true)
+            ),
+            safeCount(
+                supabase
+                    .from('notifications')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tenant_id', id)
+            ),
+            safeCount(
+                supabase
+                    .from('scheduled_campaigns')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('tenant_id', id)
             )
         ])
 
@@ -156,11 +195,15 @@ export async function GET(_req: Request, { params }: Params) {
 
         const summary = {
             total_customers: (customers || []).length,
-            total_stamps: (recentStamps || []).length,
-            total_rewards: (recentRewards || []).length,
-            total_rewards_redeemed: (recentRewards || []).filter((r: { canjeado?: boolean }) => !!r.canjeado).length,
-            total_notifications: (notifications || []).length,
-            total_campaigns: (scheduledCampaigns || []).length,
+            total_stamps: totalStampsCount || 0,
+            total_rewards: totalRewardsCount || 0,
+            total_rewards_redeemed: totalRewardsRedeemedCount || 0,
+            total_notifications: totalNotificationsCount || 0,
+            total_campaigns: totalCampaignsCount || 0,
+            sample_stamps: (recentStamps || []).length,
+            sample_rewards: (recentRewards || []).length,
+            sample_notifications: (notifications || []).length,
+            sample_campaigns: (scheduledCampaigns || []).length,
             last_customer_at: (customers || [])[0]?.created_at || null,
             last_stamp_at: (recentStamps || [])[0]?.created_at || null,
             last_notification_at: (notifications || [])[0]?.created_at || null

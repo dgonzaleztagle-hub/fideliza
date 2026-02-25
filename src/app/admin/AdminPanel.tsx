@@ -10,7 +10,10 @@ import {
     CheckCircle,
     XCircle,
     RefreshCw,
-    Calendar
+    Calendar,
+    Search,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react'
 import './admin.css'
 
@@ -46,6 +49,13 @@ interface TenantAdminData {
     pilot_notes?: string | null
 }
 
+interface TenantsPagination {
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
+}
+
 type AdminTab = 'stats' | 'negocios' | 'logs'
 
 interface AdminAuditLog {
@@ -76,6 +86,10 @@ interface AdminTenantDetail {
         total_rewards_redeemed: number
         total_notifications: number
         total_campaigns: number
+        sample_stamps?: number
+        sample_rewards?: number
+        sample_notifications?: number
+        sample_campaigns?: number
         last_customer_at: string | null
         last_stamp_at: string | null
         last_notification_at: string | null
@@ -96,9 +110,18 @@ export default function AdminPanel() {
     const [tab, setTab] = useState<AdminTab>('stats')
     const [stats, setStats] = useState<AdminStats | null>(null)
     const [tenants, setTenants] = useState<TenantAdminData[]>([])
-    const [loading, setLoading] = useState(true)
+    const [tenantsPage, setTenantsPage] = useState<TenantsPagination>({
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1
+    })
+    const [loadingStats, setLoadingStats] = useState(false)
+    const [loadingTenants, setLoadingTenants] = useState(false)
+    const [loadingLogs, setLoadingLogs] = useState(false)
     const [updating, setUpdating] = useState<string | null>(null)
     const [errorMsg, setErrorMsg] = useState('')
+    const [successMsg, setSuccessMsg] = useState('')
     const [authChecked, setAuthChecked] = useState(false)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [adminEmail, setAdminEmail] = useState('')
@@ -108,6 +131,12 @@ export default function AdminPanel() {
     const [logs, setLogs] = useState<AdminAuditLog[]>([])
     const [selectedTenantDetail, setSelectedTenantDetail] = useState<AdminTenantDetail | null>(null)
     const [detailLoading, setDetailLoading] = useState(false)
+    const [query, setQuery] = useState('')
+    const [planFilter, setPlanFilter] = useState('')
+    const [statusFilter, setStatusFilter] = useState('')
+    const [pilotFilter, setPilotFilter] = useState('')
+    const [sortBy, setSortBy] = useState<'created_at' | 'nombre' | 'plan' | 'estado' | 'trial_hasta'>('created_at')
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
     function isAdminStats(data: unknown): data is AdminStats {
         if (!data || typeof data !== 'object') return false
@@ -121,13 +150,30 @@ export default function AdminPanel() {
             typeof v.activeCustomers === 'number'
     }
 
+    const isLoading = loadingStats || loadingTenants || loadingLogs
+
+    const safeDate = (value?: string | null) => {
+        if (!value) return '-'
+        const dt = new Date(value)
+        if (Number.isNaN(dt.getTime())) return '-'
+        return dt.toLocaleDateString('es-CL')
+    }
+
+    const safeDateTime = (value?: string | null) => {
+        if (!value) return '-'
+        const dt = new Date(value)
+        if (Number.isNaN(dt.getTime())) return '-'
+        return dt.toLocaleString('es-CL')
+    }
+
     const loadStats = useCallback(async () => {
+        setLoadingStats(true)
         try {
-            const res = await fetch('/api/admin/stats')
+            const res = await fetch('/api/admin/stats', { cache: 'no-store' })
             const data = await res.json()
             if (!res.ok) {
                 setStats(null)
-                setErrorMsg(data?.error || 'No tienes permisos para ver /admin')
+                setErrorMsg(data?.error || 'No tienes permisos para ver métricas globales.')
                 return
             }
             if (!isAdminStats(data)) {
@@ -139,13 +185,29 @@ export default function AdminPanel() {
         } catch (err) {
             console.error('Error loading admin stats:', err)
             setStats(null)
-            setErrorMsg('No se pudo cargar el panel admin.')
+            setErrorMsg('No se pudo cargar el módulo de métricas.')
+        } finally {
+            setLoadingStats(false)
         }
     }, [])
 
-    const loadTenants = useCallback(async () => {
+    const loadTenants = useCallback(async (opts?: { keepPage?: boolean; page?: number }) => {
+        setLoadingTenants(true)
         try {
-            const res = await fetch('/api/admin/tenants')
+            const page = typeof opts?.page === 'number'
+                ? opts.page
+                : (opts?.keepPage ? tenantsPage.page : 1)
+            const params = new URLSearchParams({
+                q: query.trim(),
+                plan: planFilter,
+                estado: statusFilter,
+                pilot: pilotFilter,
+                page: String(page),
+                pageSize: String(tenantsPage.pageSize),
+                sortBy,
+                sortDir
+            })
+            const res = await fetch(`/api/admin/tenants?${params.toString()}`, { cache: 'no-store' })
             const data = await res.json()
             if (!res.ok) {
                 setTenants([])
@@ -153,30 +215,54 @@ export default function AdminPanel() {
                 return
             }
             setTenants(Array.isArray(data?.tenants) ? data.tenants : [])
+            setTenantsPage({
+                total: Number(data?.pagination?.total || 0),
+                page: Number(data?.pagination?.page || 1),
+                pageSize: Number(data?.pagination?.pageSize || 20),
+                totalPages: Number(data?.pagination?.totalPages || 1)
+            })
         } catch (err) {
             console.error('Error loading admin tenants:', err)
             setTenants([])
+            setErrorMsg((prev) => prev || 'No se pudo cargar la lista de negocios.')
+        } finally {
+            setLoadingTenants(false)
         }
-    }, [])
+    }, [pilotFilter, planFilter, query, sortBy, sortDir, statusFilter, tenantsPage.page, tenantsPage.pageSize])
 
     const loadLogs = useCallback(async () => {
+        setLoadingLogs(true)
         try {
-            const res = await fetch('/api/admin/logs')
+            const res = await fetch('/api/admin/logs', { cache: 'no-store' })
             const data = await res.json()
-            if (!res.ok) return
+            if (!res.ok) {
+                setLogs([])
+                setErrorMsg((prev) => prev || data?.error || 'No fue posible cargar los logs.')
+                return
+            }
             setLogs(Array.isArray(data?.logs) ? data.logs : [])
         } catch (err) {
             console.error('Error loading admin logs:', err)
             setLogs([])
+            setErrorMsg((prev) => prev || 'No se pudo cargar el módulo de auditoría.')
+        } finally {
+            setLoadingLogs(false)
         }
     }, [])
 
-    const loadAll = useCallback(async () => {
+    const loadCurrentTab = useCallback(async () => {
         setErrorMsg('')
-        setLoading(true)
-        await Promise.all([loadStats(), loadTenants(), loadLogs()])
-        setLoading(false)
-    }, [loadStats, loadTenants, loadLogs])
+        setSuccessMsg('')
+        if (tab === 'stats') {
+            await loadStats()
+            return
+        }
+        if (tab === 'negocios') {
+            await loadTenants({ keepPage: true })
+            return
+        }
+        await loadLogs()
+    }, [loadLogs, loadStats, loadTenants, tab])
 
     useEffect(() => {
         let mounted = true
@@ -193,29 +279,44 @@ export default function AdminPanel() {
     }, [])
 
     useEffect(() => {
-        if (!authChecked || !isAuthenticated) {
-            setLoading(false)
-            return
-        }
-        void loadAll()
-    }, [authChecked, isAuthenticated, loadAll])
+        if (!authChecked || !isAuthenticated) return
+        void loadCurrentTab()
+    }, [authChecked, isAuthenticated, loadCurrentTab, tab])
+
+    useEffect(() => {
+        if (!authChecked || !isAuthenticated || tab !== 'negocios') return
+        const timer = setTimeout(() => {
+            void loadTenants()
+        }, 250)
+        return () => clearTimeout(timer)
+    }, [authChecked, isAuthenticated, loadTenants, pilotFilter, planFilter, query, sortBy, sortDir, statusFilter, tab])
 
     const handleAction = async (tenantId: string, action: string, extra?: Record<string, unknown>) => {
         setUpdating(tenantId)
+        setErrorMsg('')
+        setSuccessMsg('')
         try {
             const res = await fetch(`/api/admin/tenant/${tenantId}/status`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action, ...(extra || {}) })
             })
-            if (res.ok) {
-                await loadAll()
-                if (selectedTenantDetail?.tenant?.id === tenantId) {
-                    await openTenantDetail(tenantId)
-                }
+            const data = await res.json()
+            if (!res.ok) {
+                setErrorMsg(data?.error || 'No se pudo aplicar la acción.')
+                return
+            }
+            setSuccessMsg('Acción aplicada correctamente.')
+            await loadTenants({ keepPage: true })
+            if (selectedTenantDetail?.tenant?.id === tenantId) {
+                await openTenantDetail(tenantId)
+            }
+            if (tab === 'logs') {
+                await loadLogs()
             }
         } catch (err) {
             console.error('Error updating tenant:', err)
+            setErrorMsg('Error al actualizar el negocio.')
         } finally {
             setUpdating(null)
         }
@@ -223,17 +324,18 @@ export default function AdminPanel() {
 
     const openTenantDetail = async (tenantId: string) => {
         setDetailLoading(true)
+        setErrorMsg('')
         try {
-            const res = await fetch(`/api/admin/tenant/${tenantId}/detail`)
+            const res = await fetch(`/api/admin/tenant/${tenantId}/detail`, { cache: 'no-store' })
             const data = await res.json()
             if (!res.ok) {
-                alert(data?.error || 'No se pudo cargar el detalle')
+                setErrorMsg(data?.error || 'No se pudo cargar el detalle.')
                 return
             }
             setSelectedTenantDetail(data as AdminTenantDetail)
         } catch (err) {
             console.error('Error loading tenant detail:', err)
-            alert('No se pudo cargar el detalle del negocio')
+            setErrorMsg('No se pudo cargar el detalle del negocio.')
         } finally {
             setDetailLoading(false)
         }
@@ -277,8 +379,10 @@ export default function AdminPanel() {
             setIsAuthenticated(false)
             setStats(null)
             setTenants([])
-            setLoading(false)
+            setLogs([])
             setErrorMsg('')
+            setSuccessMsg('')
+            setSelectedTenantDetail(null)
         }
     }
 
@@ -381,22 +485,20 @@ export default function AdminPanel() {
                         <h1>{tab === 'stats' ? 'Centro de Mando' : tab === 'negocios' ? 'Negocios Registrados' : 'Auditoría'}</h1>
                         <p className="admin-subtitle">Gestión global de la plataforma Vuelve+</p>
                     </div>
-                    <button className="admin-btn-action" onClick={loadAll} disabled={loading}>
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                    <button className="admin-btn-action" onClick={loadCurrentTab} disabled={isLoading}>
+                        <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
                         Actualizar
                     </button>
                 </header>
 
-                {loading ? (
-                    <div className="admin-loading">Cargando datos maestros...</div>
-                ) : (
+                {successMsg && <div className="admin-message success">{successMsg}</div>}
+                {errorMsg && <div className="admin-message error">{errorMsg}</div>}
+
+                {tab === 'stats' && (
                     <>
-                        {errorMsg && (
-                            <div className="admin-loading" style={{ marginBottom: '1rem', color: '#ef4444' }}>
-                                {errorMsg}
-                            </div>
-                        )}
-                        {tab === 'stats' && stats && (
+                        {loadingStats ? (
+                            <div className="admin-loading">Cargando métricas globales...</div>
+                        ) : stats && (
                             <div className="admin-stats-view">
                                 <div className="admin-stats-grid">
                                     <div className="admin-stat-card">
@@ -436,8 +538,88 @@ export default function AdminPanel() {
                                 </div>
                             </div>
                         )}
+                    </>
+                )}
 
-                        {tab === 'negocios' && (
+                {tab === 'negocios' && (
+                    <>
+                        <section className="admin-filters">
+                            <div className="admin-filter-search">
+                                <Search size={16} />
+                                <input
+                                    value={query}
+                                    onChange={(e) => {
+                                        setTenantsPage((prev) => ({ ...prev, page: 1 }))
+                                        setQuery(e.target.value)
+                                    }}
+                                    placeholder="Buscar por nombre o slug..."
+                                />
+                            </div>
+                            <select value={planFilter} onChange={(e) => { setTenantsPage((prev) => ({ ...prev, page: 1 })); setPlanFilter(e.target.value) }}>
+                                <option value="">Todos los planes</option>
+                                <option value="trial">Trial</option>
+                                <option value="pyme">Pyme</option>
+                                <option value="pro">Pro</option>
+                                <option value="full">Full</option>
+                            </select>
+                            <select value={statusFilter} onChange={(e) => { setTenantsPage((prev) => ({ ...prev, page: 1 })); setStatusFilter(e.target.value) }}>
+                                <option value="">Todos los estados</option>
+                                <option value="activo">Activo</option>
+                                <option value="pausado">Pausado</option>
+                            </select>
+                            <select value={pilotFilter} onChange={(e) => { setTenantsPage((prev) => ({ ...prev, page: 1 })); setPilotFilter(e.target.value) }}>
+                                <option value="">Piloto: todos</option>
+                                <option value="on">Solo piloto</option>
+                                <option value="off">Sin piloto</option>
+                            </select>
+                            <select
+                                value={`${sortBy}:${sortDir}`}
+                                onChange={(e) => {
+                                    const [nextSortBy, nextSortDir] = e.target.value.split(':')
+                                    setSortBy(nextSortBy as typeof sortBy)
+                                    setSortDir(nextSortDir as typeof sortDir)
+                                }}
+                            >
+                                <option value="created_at:desc">Más nuevos</option>
+                                <option value="created_at:asc">Más antiguos</option>
+                                <option value="trial_hasta:asc">Trial por vencer</option>
+                                <option value="nombre:asc">Nombre A-Z</option>
+                                <option value="nombre:desc">Nombre Z-A</option>
+                            </select>
+                        </section>
+
+                        <div className="admin-table-toolbar">
+                            <div>{tenantsPage.total} negocios encontrados</div>
+                            <div className="admin-pagination">
+                                <button
+                                    className="admin-btn-action"
+                                    disabled={loadingTenants || tenantsPage.page <= 1}
+                                    onClick={() => {
+                                        const nextPage = Math.max(1, tenantsPage.page - 1)
+                                        setTenantsPage((prev) => ({ ...prev, page: nextPage }))
+                                        void loadTenants({ keepPage: true, page: nextPage })
+                                    }}
+                                >
+                                    <ChevronLeft size={14} /> Anterior
+                                </button>
+                                <span>Página {tenantsPage.page} / {tenantsPage.totalPages}</span>
+                                <button
+                                    className="admin-btn-action"
+                                    disabled={loadingTenants || tenantsPage.page >= tenantsPage.totalPages}
+                                    onClick={() => {
+                                        const nextPage = Math.min(tenantsPage.totalPages, tenantsPage.page + 1)
+                                        setTenantsPage((prev) => ({ ...prev, page: nextPage }))
+                                        void loadTenants({ keepPage: true, page: nextPage })
+                                    }}
+                                >
+                                    Siguiente <ChevronRight size={14} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {loadingTenants ? (
+                            <div className="admin-loading">Cargando negocios...</div>
+                        ) : (
                             <div className="admin-table-container">
                                 <table className="admin-table">
                                     <thead>
@@ -452,7 +634,11 @@ export default function AdminPanel() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {tenants.map(t => (
+                                        {tenants.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={7}>No hay negocios con ese filtro.</td>
+                                            </tr>
+                                        ) : tenants.map(t => (
                                             <tr key={t.id}>
                                                 <td>
                                                     <div className="admin-tenant-name">{t.nombre}</div>
@@ -469,7 +655,7 @@ export default function AdminPanel() {
                                                     )}
                                                 </td>
                                                 <td>
-                                                    {new Date(t.trial_hasta).toLocaleDateString('es-CL')}
+                                                    {safeDate(t.trial_hasta)}
                                                 </td>
                                                 <td>{t.total_customers}</td>
                                                 <td>
@@ -549,8 +735,14 @@ export default function AdminPanel() {
                                 </table>
                             </div>
                         )}
+                    </>
+                )}
 
-                        {tab === 'logs' && (
+                {tab === 'logs' && (
+                    <>
+                        {loadingLogs ? (
+                            <div className="admin-loading">Cargando logs de auditoría...</div>
+                        ) : (
                             <div className="admin-table-container">
                                 <table className="admin-table">
                                     <thead>
@@ -569,7 +761,7 @@ export default function AdminPanel() {
                                             </tr>
                                         ) : logs.map((l) => (
                                             <tr key={l.id}>
-                                                <td>{new Date(l.created_at).toLocaleString('es-CL')}</td>
+                                                <td>{safeDateTime(l.created_at)}</td>
                                                 <td>{l.admin_email}</td>
                                                 <td>{l.action}</td>
                                                 <td>{l.tenant_id || '-'}</td>
@@ -599,9 +791,9 @@ export default function AdminPanel() {
                                     <div className="admin-stat-card"><span className="admin-stat-label">Plan</span><span className="admin-stat-value">{selectedTenantDetail.tenant.plan}</span></div>
                                     <div className="admin-stat-card"><span className="admin-stat-label">Estado</span><span className="admin-stat-value">{selectedTenantDetail.tenant.estado}</span></div>
                                     <div className="admin-stat-card"><span className="admin-stat-label">Clientes</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_customers}</span></div>
-                                    <div className="admin-stat-card"><span className="admin-stat-label">Stamps (muestra)</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_stamps}</span></div>
-                                    <div className="admin-stat-card"><span className="admin-stat-label">Notificaciones (muestra)</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_notifications}</span></div>
-                                    <div className="admin-stat-card"><span className="admin-stat-label">Campañas (muestra)</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_campaigns}</span></div>
+                                    <div className="admin-stat-card"><span className="admin-stat-label">Stamps</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_stamps}</span></div>
+                                    <div className="admin-stat-card"><span className="admin-stat-label">Notificaciones</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_notifications}</span></div>
+                                    <div className="admin-stat-card"><span className="admin-stat-label">Campañas</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_campaigns}</span></div>
                                 </div>
                                 <div className="admin-table-container" style={{ marginBottom: '1rem' }}>
                                     <table className="admin-table">
@@ -625,7 +817,45 @@ export default function AdminPanel() {
                                         <tbody>
                                             {selectedTenantDetail.recent_stamps.slice(0, 15).map((s) => (
                                                 <tr key={s.id}>
-                                                    <td>Stamp</td><td>{s.customer_name} ({s.customer_whatsapp})</td><td>{new Date(s.created_at).toLocaleString('es-CL')}</td>
+                                                    <td>Stamp</td><td>{s.customer_name} ({s.customer_whatsapp})</td><td>{safeDateTime(s.created_at)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="admin-table-container" style={{ marginTop: '1rem' }}>
+                                    <table className="admin-table">
+                                        <thead>
+                                            <tr><th>Notificación</th><th>Segmento</th><th>Destinatarios</th><th>Fecha</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedTenantDetail.notifications.length === 0 ? (
+                                                <tr><td colSpan={4}>Sin notificaciones registradas.</td></tr>
+                                            ) : selectedTenantDetail.notifications.slice(0, 10).map((n) => (
+                                                <tr key={n.id}>
+                                                    <td>{n.titulo}</td>
+                                                    <td>{n.segmento}</td>
+                                                    <td>{n.total_destinatarios}</td>
+                                                    <td>{safeDateTime(n.created_at)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="admin-table-container" style={{ marginTop: '1rem' }}>
+                                    <table className="admin-table">
+                                        <thead>
+                                            <tr><th>Campaña</th><th>Estado</th><th>Fecha envío</th><th>Creada</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedTenantDetail.scheduled_campaigns.length === 0 ? (
+                                                <tr><td colSpan={4}>Sin campañas registradas.</td></tr>
+                                            ) : selectedTenantDetail.scheduled_campaigns.slice(0, 10).map((c) => (
+                                                <tr key={c.id}>
+                                                    <td>{c.nombre}</td>
+                                                    <td>{c.estado}</td>
+                                                    <td>{safeDateTime(c.fecha_envio)}</td>
+                                                    <td>{safeDateTime(c.created_at)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

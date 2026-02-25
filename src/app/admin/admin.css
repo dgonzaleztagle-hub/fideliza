@@ -160,6 +160,76 @@
     font-size: 1rem;
 }
 
+.admin-message {
+    margin-bottom: 1rem;
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--admin-border);
+    font-size: 0.9rem;
+}
+
+.admin-message.success {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.25);
+    color: #86efac;
+}
+
+.admin-message.error {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+}
+
+.admin-filters {
+    display: grid;
+    grid-template-columns: 1.5fr repeat(4, minmax(150px, 1fr));
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+}
+
+.admin-filters select {
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text);
+    border-radius: 10px;
+    padding: 0.65rem 0.7rem;
+    outline: none;
+}
+
+.admin-filter-search {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.65);
+    padding: 0 0.7rem;
+}
+
+.admin-filter-search input {
+    border: none;
+    background: transparent;
+    color: var(--admin-text);
+    width: 100%;
+    height: 40px;
+    outline: none;
+}
+
+.admin-table-toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.8rem;
+    color: var(--admin-text-dim);
+    font-size: 0.9rem;
+}
+
+.admin-pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 /* ═══ Stats Grid ═══ */
 .admin-stats-grid {
     display: grid;
@@ -201,7 +271,7 @@
     background: var(--admin-card);
     border: 1px solid var(--admin-border);
     border-radius: 16px;
-    overflow: hidden;
+    overflow: auto;
 }
 
 .admin-table {
@@ -270,6 +340,7 @@
 .admin-actions {
     display: flex;
     gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .admin-btn-action {
@@ -323,6 +394,8 @@
     max-width: 500px;
     padding: 2rem;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    max-height: 90vh;
+    overflow: auto;
 }
 
 /* ═══ Responsive ═══ */
@@ -335,6 +408,26 @@
     .admin-logo span,
     .admin-nav-btn span:not(.lucide) {
         display: none;
+    }
+
+    .admin-main {
+        padding: 1.2rem;
+    }
+
+    .admin-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .admin-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-table-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
 

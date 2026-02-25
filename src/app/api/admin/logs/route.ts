@@ -20,7 +20,6 @@ export async function GET() {
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Error interno'
         console.error('Error fetching admin logs:', message)
-        return NextResponse.json({ logs: [], error: 'No fue posible cargar los logs' }, { status: 200 })
+        return NextResponse.json({ logs: [], error: 'No fue posible cargar los logs' }, { status: 500 })
     }
 }
-
