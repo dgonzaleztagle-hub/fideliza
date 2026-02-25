@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/next-script-for-ga */
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 
 import './globals.css'
 import './landing.css'
@@ -10,6 +10,18 @@ export const metadata: Metadata = {
   title: 'Vuelve+ — Fidelización en Google Wallet',
   description: 'Sistema de lealtad digital para negocios. Tus clientes suman puntos con su celular y tarjeta digital en Google Wallet. Sin apps, sin plástico.',
   keywords: 'fidelización, lealtad, google wallet, tarjeta digital, puntos, premios, marketing, retención',
+  manifest: '/logos/site.webmanifest',
+  icons: {
+    icon: [
+      { url: '/logos/favicon.ico', sizes: 'any' },
+      { url: '/logos/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/logos/favicon-32x32.png', sizes: '32x32', type: 'image/png' }
+    ],
+    apple: [
+      { url: '/logos/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
+    ],
+    shortcut: ['/logos/favicon.ico']
+  },
   openGraph: {
     title: 'Vuelve+ — Tus clientes siempre vuelven',
     description: 'Convierte visitas ocasionales en clientes frecuentes con tu propia tarjeta digital.',
@@ -21,6 +33,10 @@ export const metadata: Metadata = {
   verification: {
     google: 'Ksg9y4FmVH7dx6J5A9oYAI89o1tb0A8shOgukFziocQ',
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#0f172a'
 }
 
 export default function RootLayout({
