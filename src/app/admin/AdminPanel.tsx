@@ -41,9 +41,56 @@ interface TenantAdminData {
     total_customers: number
     total_stamps: number
     total_rewards: number
+    is_pilot?: boolean
+    pilot_started_at?: string | null
+    pilot_notes?: string | null
 }
 
 type AdminTab = 'stats' | 'negocios' | 'logs'
+
+interface AdminAuditLog {
+    id: string
+    admin_email: string
+    action: string
+    tenant_id: string | null
+    meta?: Record<string, unknown>
+    created_at: string
+}
+
+interface AdminTenantDetail {
+    tenant: TenantAdminData & {
+        selected_plan?: string | null
+        trial_hasta?: string | null
+        estado: string
+        plan: string
+        slug: string
+        nombre: string
+        rubro?: string | null
+        direccion?: string | null
+        telefono?: string | null
+    }
+    summary: {
+        total_customers: number
+        total_stamps: number
+        total_rewards: number
+        total_rewards_redeemed: number
+        total_notifications: number
+        total_campaigns: number
+        last_customer_at: string | null
+        last_stamp_at: string | null
+        last_notification_at: string | null
+    }
+    program?: {
+        tipo_programa?: string
+        puntos_meta?: number
+        descripcion_premio?: string
+    } | null
+    top_customers: Array<{ id: string; nombre: string; whatsapp: string; total_puntos_historicos: number }>
+    recent_stamps: Array<{ id: string; created_at: string; customer_name: string; customer_whatsapp: string }>
+    notifications: Array<{ id: string; titulo: string; segmento: string; total_destinatarios: number; created_at: string }>
+    scheduled_campaigns: Array<{ id: string; nombre: string; fecha_envio: string; estado: string; created_at: string }>
+    audit_logs: AdminAuditLog[]
+}
 
 export default function AdminPanel() {
     const [tab, setTab] = useState<AdminTab>('stats')
@@ -58,6 +105,9 @@ export default function AdminPanel() {
     const [adminPassword, setAdminPassword] = useState('')
     const [authError, setAuthError] = useState('')
     const [signingIn, setSigningIn] = useState(false)
+    const [logs, setLogs] = useState<AdminAuditLog[]>([])
+    const [selectedTenantDetail, setSelectedTenantDetail] = useState<AdminTenantDetail | null>(null)
+    const [detailLoading, setDetailLoading] = useState(false)
 
     function isAdminStats(data: unknown): data is AdminStats {
         if (!data || typeof data !== 'object') return false
@@ -109,12 +159,24 @@ export default function AdminPanel() {
         }
     }, [])
 
+    const loadLogs = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/logs')
+            const data = await res.json()
+            if (!res.ok) return
+            setLogs(Array.isArray(data?.logs) ? data.logs : [])
+        } catch (err) {
+            console.error('Error loading admin logs:', err)
+            setLogs([])
+        }
+    }, [])
+
     const loadAll = useCallback(async () => {
         setErrorMsg('')
         setLoading(true)
-        await Promise.all([loadStats(), loadTenants()])
+        await Promise.all([loadStats(), loadTenants(), loadLogs()])
         setLoading(false)
-    }, [loadStats, loadTenants])
+    }, [loadStats, loadTenants, loadLogs])
 
     useEffect(() => {
         let mounted = true
@@ -138,21 +200,42 @@ export default function AdminPanel() {
         void loadAll()
     }, [authChecked, isAuthenticated, loadAll])
 
-    const handleAction = async (tenantId: string, action: string) => {
+    const handleAction = async (tenantId: string, action: string, extra?: Record<string, unknown>) => {
         setUpdating(tenantId)
         try {
             const res = await fetch(`/api/admin/tenant/${tenantId}/status`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action })
+                body: JSON.stringify({ action, ...(extra || {}) })
             })
             if (res.ok) {
                 await loadAll()
+                if (selectedTenantDetail?.tenant?.id === tenantId) {
+                    await openTenantDetail(tenantId)
+                }
             }
         } catch (err) {
             console.error('Error updating tenant:', err)
         } finally {
             setUpdating(null)
+        }
+    }
+
+    const openTenantDetail = async (tenantId: string) => {
+        setDetailLoading(true)
+        try {
+            const res = await fetch(`/api/admin/tenant/${tenantId}/detail`)
+            const data = await res.json()
+            if (!res.ok) {
+                alert(data?.error || 'No se pudo cargar el detalle')
+                return
+            }
+            setSelectedTenantDetail(data as AdminTenantDetail)
+        } catch (err) {
+            console.error('Error loading tenant detail:', err)
+            alert('No se pudo cargar el detalle del negocio')
+        } finally {
+            setDetailLoading(false)
         }
     }
 
@@ -379,6 +462,11 @@ export default function AdminPanel() {
                                                     <span className={`admin-badge admin-badge-${t.plan}`}>
                                                         {t.plan}
                                                     </span>
+                                                    {t.is_pilot && (
+                                                        <span className="admin-badge admin-badge-pilot" style={{ marginLeft: '0.35rem' }}>
+                                                            piloto
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     {new Date(t.trial_hasta).toLocaleDateString('es-CL')}
@@ -422,7 +510,70 @@ export default function AdminPanel() {
                                                             <Calendar size={16} />
                                                         </button>
                                                     )}
+                                                    <button
+                                                        className="admin-btn-action"
+                                                        title="Extender 7 días"
+                                                        onClick={() => handleAction(t.id, 'extend_trial', { days: 7 })}
+                                                        disabled={updating === t.id}
+                                                    >
+                                                        +7d
+                                                    </button>
+                                                    <button
+                                                        className="admin-btn-action"
+                                                        title="Extender 30 días"
+                                                        onClick={() => handleAction(t.id, 'extend_trial', { days: 30 })}
+                                                        disabled={updating === t.id}
+                                                    >
+                                                        +30d
+                                                    </button>
+                                                    <button
+                                                        className="admin-btn-action"
+                                                        title={t.is_pilot ? 'Desactivar piloto' : 'Activar piloto'}
+                                                        onClick={() => handleAction(t.id, 'set_pilot', { enabled: !t.is_pilot })}
+                                                        disabled={updating === t.id}
+                                                    >
+                                                        {t.is_pilot ? 'Piloto OFF' : 'Piloto ON'}
+                                                    </button>
+                                                    <button
+                                                        className="admin-btn-action"
+                                                        title="Ver detalle"
+                                                        onClick={() => openTenantDetail(t.id)}
+                                                        disabled={updating === t.id}
+                                                    >
+                                                        Detalle
+                                                    </button>
                                                 </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {tab === 'logs' && (
+                            <div className="admin-table-container">
+                                <table className="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Admin</th>
+                                            <th>Acción</th>
+                                            <th>Tenant</th>
+                                            <th>Meta</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {logs.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5}>Sin actividad registrada todavía.</td>
+                                            </tr>
+                                        ) : logs.map((l) => (
+                                            <tr key={l.id}>
+                                                <td>{new Date(l.created_at).toLocaleString('es-CL')}</td>
+                                                <td>{l.admin_email}</td>
+                                                <td>{l.action}</td>
+                                                <td>{l.tenant_id || '-'}</td>
+                                                <td style={{ maxWidth: 280, whiteSpace: 'pre-wrap' }}>{JSON.stringify(l.meta || {})}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -432,6 +583,59 @@ export default function AdminPanel() {
                     </>
                 )}
             </main>
+
+            {selectedTenantDetail && (
+                <div className="admin-modal-overlay" onClick={() => setSelectedTenantDetail(null)}>
+                    <div className="admin-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 980 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h3 style={{ margin: 0 }}>Detalle: {selectedTenantDetail.tenant.nombre}</h3>
+                            <button className="admin-btn-action" onClick={() => setSelectedTenantDetail(null)}>Cerrar</button>
+                        </div>
+                        {detailLoading ? (
+                            <div className="admin-loading">Cargando detalle...</div>
+                        ) : (
+                            <>
+                                <div className="admin-stats-grid" style={{ marginBottom: '1rem' }}>
+                                    <div className="admin-stat-card"><span className="admin-stat-label">Plan</span><span className="admin-stat-value">{selectedTenantDetail.tenant.plan}</span></div>
+                                    <div className="admin-stat-card"><span className="admin-stat-label">Estado</span><span className="admin-stat-value">{selectedTenantDetail.tenant.estado}</span></div>
+                                    <div className="admin-stat-card"><span className="admin-stat-label">Clientes</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_customers}</span></div>
+                                    <div className="admin-stat-card"><span className="admin-stat-label">Stamps (muestra)</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_stamps}</span></div>
+                                    <div className="admin-stat-card"><span className="admin-stat-label">Notificaciones (muestra)</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_notifications}</span></div>
+                                    <div className="admin-stat-card"><span className="admin-stat-label">Campañas (muestra)</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_campaigns}</span></div>
+                                </div>
+                                <div className="admin-table-container" style={{ marginBottom: '1rem' }}>
+                                    <table className="admin-table">
+                                        <thead>
+                                            <tr><th>Top clientes</th><th>WhatsApp</th><th>Puntos</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedTenantDetail.top_customers.map((c) => (
+                                                <tr key={c.id}>
+                                                    <td>{c.nombre}</td><td>{c.whatsapp}</td><td>{c.total_puntos_historicos}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="admin-table-container">
+                                    <table className="admin-table">
+                                        <thead>
+                                            <tr><th>Últimos movimientos</th><th>Cliente</th><th>Fecha</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedTenantDetail.recent_stamps.slice(0, 15).map((s) => (
+                                                <tr key={s.id}>
+                                                    <td>Stamp</td><td>{s.customer_name} ({s.customer_whatsapp})</td><td>{new Date(s.created_at).toLocaleString('es-CL')}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

@@ -337,3 +337,9 @@
         display: none;
     }
 }
+
+.admin-badge-pilot {
+    background: rgba(139, 92, 246, 0.14);
+    color: #c4b5fd;
+    border: 1px solid rgba(139, 92, 246, 0.35);
+}
