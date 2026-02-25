@@ -18,15 +18,52 @@ export async function GET(_req: Request, { params }: Params) {
     const { id } = await params
 
     try {
-        const { data: tenant, error: tenantError } = await supabase
-            .from('tenants')
-            .select(`
-                id, nombre, slug, plan, selected_plan, estado, trial_hasta, is_pilot, pilot_started_at, pilot_notes,
-                created_at, telefono, direccion, rubro, color_primario
-            `)
-            .eq('id', id)
-            .maybeSingle()
-        if (tenantError) throw tenantError
+        let tenant: Record<string, unknown> | null = null
+        let tenantError: { message: string } | null = null
+
+        // Esquema nuevo (con columnas de piloto)
+        {
+            const result = await supabase
+                .from('tenants')
+                .select(`
+                    id, nombre, slug, plan, selected_plan, estado, trial_hasta, is_pilot, pilot_started_at, pilot_notes,
+                    created_at, telefono, direccion, rubro, color_primario
+                `)
+                .eq('id', id)
+                .maybeSingle()
+            tenant = (result.data as Record<string, unknown> | null) ?? null
+            tenantError = result.error ? { message: result.error.message } : null
+        }
+
+        // Fallback esquema anterior (sin columnas de piloto/selected_plan)
+        if (tenantError && (
+            tenantError.message.includes('column tenants.is_pilot does not exist')
+            || tenantError.message.includes('column tenants.pilot_started_at does not exist')
+            || tenantError.message.includes('column tenants.pilot_notes does not exist')
+            || tenantError.message.includes('column tenants.selected_plan does not exist')
+        )) {
+            const fallback = await supabase
+                .from('tenants')
+                .select(`
+                    id, nombre, slug, plan, estado, trial_hasta,
+                    created_at, telefono, direccion, rubro, color_primario
+                `)
+                .eq('id', id)
+                .maybeSingle()
+            tenant = (fallback.data as Record<string, unknown> | null) ?? null
+            tenantError = fallback.error ? { message: fallback.error.message } : null
+            if (tenant) {
+                tenant = {
+                    ...tenant,
+                    selected_plan: null,
+                    is_pilot: false,
+                    pilot_started_at: null,
+                    pilot_notes: null,
+                }
+            }
+        }
+
+        if (tenantError) throw new Error(tenantError.message)
         if (!tenant) return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
 
         const [customers, recentStamps, recentRewards, notifications, scheduledCampaigns, topCustomers, auditLogs, program] = await Promise.all([
@@ -147,4 +184,3 @@ export async function GET(_req: Request, { params }: Params) {
         return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }
 }
-

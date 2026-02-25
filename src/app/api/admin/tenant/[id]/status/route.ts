@@ -50,13 +50,49 @@ export async function POST(
             return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
         }
 
-        const { data: currentTenant, error: currentTenantError } = await supabase
-            .from('tenants')
-            .select('id, plan, selected_plan, estado, trial_hasta, is_pilot, pilot_started_at')
-            .eq('id', id)
-            .maybeSingle()
+        let currentTenant: {
+            id: string
+            plan: string | null
+            selected_plan: string | null
+            estado: string | null
+            trial_hasta: string | null
+            is_pilot: boolean
+            pilot_started_at: string | null
+        } | null = null
+        let currentTenantError: { message: string } | null = null
 
-        if (currentTenantError) throw currentTenantError
+        {
+            const result = await supabase
+                .from('tenants')
+                .select('id, plan, selected_plan, estado, trial_hasta, is_pilot, pilot_started_at')
+                .eq('id', id)
+                .maybeSingle()
+            currentTenant = (result.data as typeof currentTenant) ?? null
+            currentTenantError = result.error ? { message: result.error.message } : null
+        }
+
+        if (currentTenantError && (
+            currentTenantError.message.includes('column tenants.is_pilot does not exist')
+            || currentTenantError.message.includes('column tenants.pilot_started_at does not exist')
+            || currentTenantError.message.includes('column tenants.selected_plan does not exist')
+        )) {
+            const fallback = await supabase
+                .from('tenants')
+                .select('id, plan, estado, trial_hasta')
+                .eq('id', id)
+                .maybeSingle()
+            currentTenant = fallback.data
+                ? {
+                    ...(fallback.data as { id: string; plan: string | null; estado: string | null; trial_hasta: string | null }),
+                    selected_plan: null,
+                    is_pilot: false,
+                    pilot_started_at: null
+                }
+                : null
+            currentTenantError = fallback.error ? { message: fallback.error.message } : null
+        }
+
+        if (currentTenantError) throw new Error(currentTenantError.message)
         if (!currentTenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
         let updateData: Record<string, unknown> = {}
@@ -120,6 +156,36 @@ export async function POST(
             .eq('id', id)
             .select()
             .single()
+
+        if (error && (
+            `${error.message || ''} ${error.details || ''}`.includes('is_pilot')
+            || `${error.message || ''} ${error.details || ''}`.includes('pilot_started_at')
+            || `${error.message || ''} ${error.details || ''}`.includes('pilot_notes')
+            || `${error.message || ''} ${error.details || ''}`.includes('selected_plan')
+        )) {
+            const fallbackData = { ...updateData }
+            delete fallbackData.is_pilot
+            delete fallbackData.pilot_started_at
+            delete fallbackData.pilot_notes
+            delete fallbackData.selected_plan
+            const fallback = await supabase
+                .from('tenants')
+                .update(fallbackData)
+                .eq('id', id)
+                .select()
+                .single()
+            if (fallback.error) throw fallback.error
+            await insertAuditLog({
+                admin_email: admin.user.email || 'admin@local',
+                action,
+                tenant_id: id,
+                meta: { ...auditMeta, schema_fallback: true }
+            })
+            return NextResponse.json({
+                message: 'Tenant actualizado con éxito',
+                tenant: fallback.data
+            })
+        }
 
         if (error) throw error
 
