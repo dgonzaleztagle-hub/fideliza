@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import {
     LayoutDashboard,
     Store,
@@ -67,45 +68,6 @@ interface AdminAuditLog {
     created_at: string
 }
 
-interface AdminTenantDetail {
-    tenant: TenantAdminData & {
-        selected_plan?: string | null
-        trial_hasta?: string | null
-        estado: string
-        plan: string
-        slug: string
-        nombre: string
-        rubro?: string | null
-        direccion?: string | null
-        telefono?: string | null
-    }
-    summary: {
-        total_customers: number
-        total_stamps: number
-        total_rewards: number
-        total_rewards_redeemed: number
-        total_notifications: number
-        total_campaigns: number
-        sample_stamps?: number
-        sample_rewards?: number
-        sample_notifications?: number
-        sample_campaigns?: number
-        last_customer_at: string | null
-        last_stamp_at: string | null
-        last_notification_at: string | null
-    }
-    program?: {
-        tipo_programa?: string
-        puntos_meta?: number
-        descripcion_premio?: string
-    } | null
-    top_customers: Array<{ id: string; nombre: string; whatsapp: string; total_puntos_historicos: number }>
-    recent_stamps: Array<{ id: string; created_at: string; customer_name: string; customer_whatsapp: string }>
-    notifications: Array<{ id: string; titulo: string; segmento: string; total_destinatarios: number; created_at: string }>
-    scheduled_campaigns: Array<{ id: string; nombre: string; fecha_envio: string; estado: string; created_at: string }>
-    audit_logs: AdminAuditLog[]
-}
-
 export default function AdminPanel() {
     const [tab, setTab] = useState<AdminTab>('stats')
     const [stats, setStats] = useState<AdminStats | null>(null)
@@ -129,8 +91,6 @@ export default function AdminPanel() {
     const [authError, setAuthError] = useState('')
     const [signingIn, setSigningIn] = useState(false)
     const [logs, setLogs] = useState<AdminAuditLog[]>([])
-    const [selectedTenantDetail, setSelectedTenantDetail] = useState<AdminTenantDetail | null>(null)
-    const [detailLoading, setDetailLoading] = useState(false)
     const [query, setQuery] = useState('')
     const [planFilter, setPlanFilter] = useState('')
     const [statusFilter, setStatusFilter] = useState('')
@@ -308,9 +268,6 @@ export default function AdminPanel() {
             }
             setSuccessMsg('Acción aplicada correctamente.')
             await loadTenants({ keepPage: true })
-            if (selectedTenantDetail?.tenant?.id === tenantId) {
-                await openTenantDetail(tenantId)
-            }
             if (tab === 'logs') {
                 await loadLogs()
             }
@@ -319,25 +276,6 @@ export default function AdminPanel() {
             setErrorMsg('Error al actualizar el negocio.')
         } finally {
             setUpdating(null)
-        }
-    }
-
-    const openTenantDetail = async (tenantId: string) => {
-        setDetailLoading(true)
-        setErrorMsg('')
-        try {
-            const res = await fetch(`/api/admin/tenant/${tenantId}/detail`, { cache: 'no-store' })
-            const data = await res.json()
-            if (!res.ok) {
-                setErrorMsg(data?.error || 'No se pudo cargar el detalle.')
-                return
-            }
-            setSelectedTenantDetail(data as AdminTenantDetail)
-        } catch (err) {
-            console.error('Error loading tenant detail:', err)
-            setErrorMsg('No se pudo cargar el detalle del negocio.')
-        } finally {
-            setDetailLoading(false)
         }
     }
 
@@ -382,7 +320,6 @@ export default function AdminPanel() {
             setLogs([])
             setErrorMsg('')
             setSuccessMsg('')
-            setSelectedTenantDetail(null)
         }
     }
 
@@ -720,14 +657,9 @@ export default function AdminPanel() {
                                                     >
                                                         {t.is_pilot ? 'Piloto OFF' : 'Piloto ON'}
                                                     </button>
-                                                    <button
-                                                        className="admin-btn-action"
-                                                        title="Ver detalle"
-                                                        onClick={() => openTenantDetail(t.id)}
-                                                        disabled={updating === t.id}
-                                                    >
+                                                    <Link className="admin-btn-action" href={`/admin/negocios/${t.id}`} title="Ver detalle">
                                                         Detalle
-                                                    </button>
+                                                    </Link>
                                                 </td>
                                             </tr>
                                         ))}
@@ -775,97 +707,6 @@ export default function AdminPanel() {
                     </>
                 )}
             </main>
-
-            {selectedTenantDetail && (
-                <div className="admin-modal-overlay" onClick={() => setSelectedTenantDetail(null)}>
-                    <div className="admin-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 980 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <h3 style={{ margin: 0 }}>Detalle: {selectedTenantDetail.tenant.nombre}</h3>
-                            <button className="admin-btn-action" onClick={() => setSelectedTenantDetail(null)}>Cerrar</button>
-                        </div>
-                        {detailLoading ? (
-                            <div className="admin-loading">Cargando detalle...</div>
-                        ) : (
-                            <>
-                                <div className="admin-stats-grid" style={{ marginBottom: '1rem' }}>
-                                    <div className="admin-stat-card"><span className="admin-stat-label">Plan</span><span className="admin-stat-value">{selectedTenantDetail.tenant.plan}</span></div>
-                                    <div className="admin-stat-card"><span className="admin-stat-label">Estado</span><span className="admin-stat-value">{selectedTenantDetail.tenant.estado}</span></div>
-                                    <div className="admin-stat-card"><span className="admin-stat-label">Clientes</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_customers}</span></div>
-                                    <div className="admin-stat-card"><span className="admin-stat-label">Stamps</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_stamps}</span></div>
-                                    <div className="admin-stat-card"><span className="admin-stat-label">Notificaciones</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_notifications}</span></div>
-                                    <div className="admin-stat-card"><span className="admin-stat-label">Campañas</span><span className="admin-stat-value">{selectedTenantDetail.summary.total_campaigns}</span></div>
-                                </div>
-                                <div className="admin-table-container" style={{ marginBottom: '1rem' }}>
-                                    <table className="admin-table">
-                                        <thead>
-                                            <tr><th>Top clientes</th><th>WhatsApp</th><th>Puntos</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedTenantDetail.top_customers.map((c) => (
-                                                <tr key={c.id}>
-                                                    <td>{c.nombre}</td><td>{c.whatsapp}</td><td>{c.total_puntos_historicos}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div className="admin-table-container">
-                                    <table className="admin-table">
-                                        <thead>
-                                            <tr><th>Últimos movimientos</th><th>Cliente</th><th>Fecha</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedTenantDetail.recent_stamps.slice(0, 15).map((s) => (
-                                                <tr key={s.id}>
-                                                    <td>Stamp</td><td>{s.customer_name} ({s.customer_whatsapp})</td><td>{safeDateTime(s.created_at)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div className="admin-table-container" style={{ marginTop: '1rem' }}>
-                                    <table className="admin-table">
-                                        <thead>
-                                            <tr><th>Notificación</th><th>Segmento</th><th>Destinatarios</th><th>Fecha</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedTenantDetail.notifications.length === 0 ? (
-                                                <tr><td colSpan={4}>Sin notificaciones registradas.</td></tr>
-                                            ) : selectedTenantDetail.notifications.slice(0, 10).map((n) => (
-                                                <tr key={n.id}>
-                                                    <td>{n.titulo}</td>
-                                                    <td>{n.segmento}</td>
-                                                    <td>{n.total_destinatarios}</td>
-                                                    <td>{safeDateTime(n.created_at)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div className="admin-table-container" style={{ marginTop: '1rem' }}>
-                                    <table className="admin-table">
-                                        <thead>
-                                            <tr><th>Campaña</th><th>Estado</th><th>Fecha envío</th><th>Creada</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedTenantDetail.scheduled_campaigns.length === 0 ? (
-                                                <tr><td colSpan={4}>Sin campañas registradas.</td></tr>
-                                            ) : selectedTenantDetail.scheduled_campaigns.slice(0, 10).map((c) => (
-                                                <tr key={c.id}>
-                                                    <td>{c.nombre}</td>
-                                                    <td>{c.estado}</td>
-                                                    <td>{safeDateTime(c.fecha_envio)}</td>
-                                                    <td>{safeDateTime(c.created_at)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     )
 }
