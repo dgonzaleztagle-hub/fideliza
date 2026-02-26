@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
             color_primario = '#3b82f6',
             puntos_meta = 10,
             descripcion_premio = 'Premio Sorpresa',
-            plan = 'trial'
+            plan = 'pyme'
         } = body as {
             nombre?: string
             email?: string
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 
         // 2. Crear tenant en la tabla
         const trialHasta = new Date()
-        trialHasta.setDate(trialHasta.getDate() + 14) // 14 días de trial
+        trialHasta.setDate(trialHasta.getDate() + 365) // 1 año activo para cliente H0
 
         const qrCode = `${process.env.NEXT_PUBLIC_APP_URL || 'https://vuelve.vip'}/qr/${slug}`
 
@@ -104,11 +104,13 @@ export async function POST(req: NextRequest) {
                 slug,
                 rubro,
                 color_primario,
-                plan,
-                estado: 'activo',
+                plan,                       // 'pyme' — cliente H0 activo
+                estado: 'activo',           // activo desde el primer día
                 trial_hasta: trialHasta.toISOString(),
                 qr_code: qrCode,
-                auth_user_id: authUserId
+                auth_user_id: authUserId,
+                selected_plan: plan,        // sincroniza la vista del panel
+                selected_program_types: ['sellos']  // motor H0 white-label
             })
             .select('id, slug, nombre')
             .single()
