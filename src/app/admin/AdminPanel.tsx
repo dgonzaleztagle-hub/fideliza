@@ -14,7 +14,9 @@ import {
     Calendar,
     Search,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    PlusCircle,
+    X
 } from 'lucide-react'
 import './admin.css'
 
@@ -97,6 +99,25 @@ export default function AdminPanel() {
     const [pilotFilter, setPilotFilter] = useState('')
     const [sortBy, setSortBy] = useState<'created_at' | 'nombre' | 'plan' | 'estado' | 'trial_hasta'>('created_at')
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+    // Modal de creación de nuevo negocio
+    const [showCreateModal, setShowCreateModal] = useState(false)
+    const [creating, setCreating] = useState(false)
+    const [createResult, setCreateResult] = useState<{
+        tenant_id: string
+        tenant_slug: string
+        email: string
+        temp_password: string
+        panel_url: string
+    } | null>(null)
+    const [createForm, setCreateForm] = useState({
+        nombre: '',
+        email: '',
+        rubro: 'Negocio Local',
+        color_primario: '#3b82f6',
+        puntos_meta: 10,
+        descripcion_premio: 'Premio Sorpresa'
+    })
 
     function isAdminStats(data: unknown): data is AdminStats {
         if (!data || typeof data !== 'object') return false
@@ -226,12 +247,12 @@ export default function AdminPanel() {
 
     useEffect(() => {
         let mounted = true
-        ;(async () => {
-            const res = await fetch('/api/admin/auth/session', { cache: 'no-store' })
-            if (!mounted) return
-            setIsAuthenticated(res.ok)
-            setAuthChecked(true)
-        })()
+            ; (async () => {
+                const res = await fetch('/api/admin/auth/session', { cache: 'no-store' })
+                if (!mounted) return
+                setIsAuthenticated(res.ok)
+                setAuthChecked(true)
+            })()
 
         return () => {
             mounted = false
@@ -250,6 +271,30 @@ export default function AdminPanel() {
         }, 250)
         return () => clearTimeout(timer)
     }, [authChecked, isAuthenticated, loadTenants, pilotFilter, planFilter, query, sortBy, sortDir, statusFilter, tab])
+
+    const handleCreateTenant = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setCreating(true)
+        setErrorMsg('')
+        try {
+            const res = await fetch('/api/admin/tenants/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(createForm)
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                setErrorMsg(data?.error || 'Error al crear el negocio')
+                return
+            }
+            setCreateResult(data)
+            await loadTenants()
+        } catch {
+            setErrorMsg('Error de conexión al crear el negocio')
+        } finally {
+            setCreating(false)
+        }
+    }
 
     const handleAction = async (tenantId: string, action: string, extra?: Record<string, unknown>) => {
         setUpdating(tenantId)
@@ -527,31 +572,39 @@ export default function AdminPanel() {
 
                         <div className="admin-table-toolbar">
                             <div>{tenantsPage.total} negocios encontrados</div>
-                            <div className="admin-pagination">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <button
-                                    className="admin-btn-action"
-                                    disabled={loadingTenants || tenantsPage.page <= 1}
-                                    onClick={() => {
-                                        const nextPage = Math.max(1, tenantsPage.page - 1)
-                                        setTenantsPage((prev) => ({ ...prev, page: nextPage }))
-                                        void loadTenants({ keepPage: true, page: nextPage })
-                                    }}
+                                    className="admin-btn-action success"
+                                    onClick={() => { setCreateResult(null); setShowCreateModal(true) }}
                                 >
-                                    <ChevronLeft size={14} /> Anterior
+                                    <PlusCircle size={15} />
+                                    Nuevo Negocio
                                 </button>
-                                <span>Página {tenantsPage.page} / {tenantsPage.totalPages}</span>
-                                <button
-                                    className="admin-btn-action"
-                                    disabled={loadingTenants || tenantsPage.page >= tenantsPage.totalPages}
-                                    onClick={() => {
-                                        const nextPage = Math.min(tenantsPage.totalPages, tenantsPage.page + 1)
-                                        setTenantsPage((prev) => ({ ...prev, page: nextPage }))
-                                        void loadTenants({ keepPage: true, page: nextPage })
-                                    }}
-                                >
-                                    Siguiente <ChevronRight size={14} />
-                                </button>
-                            </div>
+                                <div className="admin-pagination">
+                                    <button
+                                        className="admin-btn-action"
+                                        disabled={loadingTenants || tenantsPage.page <= 1}
+                                        onClick={() => {
+                                            const nextPage = Math.max(1, tenantsPage.page - 1)
+                                            setTenantsPage((prev) => ({ ...prev, page: nextPage }))
+                                            void loadTenants({ keepPage: true, page: nextPage })
+                                        }}
+                                    >
+                                        <ChevronLeft size={14} /> Anterior
+                                    </button>
+                                    <span>Página {tenantsPage.page} / {tenantsPage.totalPages}</span>
+                                    <button
+                                        className="admin-btn-action"
+                                        disabled={loadingTenants || tenantsPage.page >= tenantsPage.totalPages}
+                                        onClick={() => {
+                                            const nextPage = Math.min(tenantsPage.totalPages, tenantsPage.page + 1)
+                                            setTenantsPage((prev) => ({ ...prev, page: nextPage }))
+                                            void loadTenants({ keepPage: true, page: nextPage })
+                                        }}
+                                    >
+                                        Siguiente <ChevronRight size={14} />
+                                    </button>
+                                </div></div>
                         </div>
 
                         {loadingTenants ? (
@@ -707,6 +760,154 @@ export default function AdminPanel() {
                     </>
                 )}
             </main>
+
+            {/* Modal: Crear Nuevo Negocio */}
+            {showCreateModal && (
+                <div
+                    style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        zIndex: 999, padding: '1rem'
+                    }}
+                    onClick={(e) => { if (e.target === e.currentTarget) { setShowCreateModal(false); setCreateResult(null) } }}
+                >
+                    <div style={{
+                        background: '#1a1a2e', border: '1px solid #2d2d4e', borderRadius: '12px',
+                        padding: '2rem', width: '100%', maxWidth: '480px', position: 'relative'
+                    }}>
+                        <button
+                            onClick={() => { setShowCreateModal(false); setCreateResult(null) }}
+                            style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}
+                        >
+                            <X size={20} />
+                        </button>
+
+                        {!createResult ? (
+                            <>
+                                <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.1rem', color: '#e2e8f0' }}>
+                                    <PlusCircle size={18} style={{ marginRight: '0.5rem', verticalAlign: 'middle', color: '#22c55e' }} />
+                                    Crear Nuevo Negocio
+                                </h2>
+                                <p style={{ margin: '0 0 1.5rem', fontSize: '0.8rem', color: '#64748b' }}>
+                                    Se creará una cuenta en Supabase Auth + el tenant vinculado.
+                                </p>
+
+                                <form onSubmit={handleCreateTenant} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                                    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                        <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Nombre del negocio *</span>
+                                        <input
+                                            required
+                                            value={createForm.nombre}
+                                            onChange={(e) => setCreateForm(p => ({ ...p, nombre: e.target.value }))}
+                                            placeholder="Ej: Barbería Don Pedro"
+                                            className="admin-auth-label"
+                                            style={{ padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #2d2d4e', background: '#0f0f1f', color: '#e2e8f0', fontSize: '0.875rem' }}
+                                        />
+                                    </label>
+                                    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                        <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Email del dueño *</span>
+                                        <input
+                                            required type="email"
+                                            value={createForm.email}
+                                            onChange={(e) => setCreateForm(p => ({ ...p, email: e.target.value }))}
+                                            placeholder="dueno@negocio.cl"
+                                            style={{ padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #2d2d4e', background: '#0f0f1f', color: '#e2e8f0', fontSize: '0.875rem' }}
+                                        />
+                                    </label>
+                                    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                        <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Rubro</span>
+                                        <input
+                                            value={createForm.rubro}
+                                            onChange={(e) => setCreateForm(p => ({ ...p, rubro: e.target.value }))}
+                                            placeholder="Barbería, Restaurante, Cafetería..."
+                                            style={{ padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #2d2d4e', background: '#0f0f1f', color: '#e2e8f0', fontSize: '0.875rem' }}
+                                        />
+                                    </label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Meta de puntos</span>
+                                            <input
+                                                type="number" min={1} max={50}
+                                                value={createForm.puntos_meta}
+                                                onChange={(e) => setCreateForm(p => ({ ...p, puntos_meta: parseInt(e.target.value) || 10 }))}
+                                                style={{ padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #2d2d4e', background: '#0f0f1f', color: '#e2e8f0', fontSize: '0.875rem' }}
+                                            />
+                                        </label>
+                                        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                            <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Color principal</span>
+                                            <input
+                                                type="color"
+                                                value={createForm.color_primario}
+                                                onChange={(e) => setCreateForm(p => ({ ...p, color_primario: e.target.value }))}
+                                                style={{ padding: '0.2rem', height: '2.2rem', borderRadius: '8px', border: '1px solid #2d2d4e', background: '#0f0f1f', cursor: 'pointer', width: '100%' }}
+                                            />
+                                        </label>
+                                    </div>
+                                    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                        <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Premio</span>
+                                        <input
+                                            value={createForm.descripcion_premio}
+                                            onChange={(e) => setCreateForm(p => ({ ...p, descripcion_premio: e.target.value }))}
+                                            placeholder="1 Café gratis, 20% descuento..."
+                                            style={{ padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #2d2d4e', background: '#0f0f1f', color: '#e2e8f0', fontSize: '0.875rem' }}
+                                        />
+                                    </label>
+
+                                    <button
+                                        type="submit"
+                                        disabled={creating}
+                                        className="admin-btn-action success"
+                                        style={{ marginTop: '0.5rem', justifyContent: 'center', padding: '0.75rem' }}
+                                    >
+                                        {creating ? 'Creando...' : '✨ Crear Negocio'}
+                                    </button>
+                                </form>
+                            </>
+                        ) : (
+                            <>
+                                <h2 style={{ margin: '0 0 0.25rem', fontSize: '1.1rem', color: '#22c55e' }}>
+                                    ✅ Negocio Creado
+                                </h2>
+                                <p style={{ margin: '0 0 1.25rem', fontSize: '0.8rem', color: '#64748b' }}>
+                                    Guarda estas credenciales — la contraseña no se puede recuperar más tarde.
+                                </p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {[
+                                        { label: 'Tenant ID', value: createResult.tenant_id },
+                                        { label: 'Slug', value: createResult.tenant_slug },
+                                        { label: 'Email', value: createResult.email },
+                                        { label: 'Contraseña Temporal', value: createResult.temp_password },
+                                        { label: 'URL del Panel', value: createResult.panel_url }
+                                    ].map(({ label, value }) => (
+                                        <div key={label}>
+                                            <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: '0.2rem' }}>{label}</div>
+                                            <div
+                                                onClick={() => navigator.clipboard.writeText(value)}
+                                                style={{
+                                                    background: '#0f0f1f', border: '1px solid #2d2d4e', borderRadius: '6px',
+                                                    padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: '#e2e8f0',
+                                                    cursor: 'pointer', wordBreak: 'break-all',
+                                                    transition: 'background 0.15s'
+                                                }}
+                                                title="Click para copiar"
+                                            >
+                                                {value}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => { setShowCreateModal(false); setCreateResult(null); setCreateForm({ nombre: '', email: '', rubro: 'Negocio Local', color_primario: '#3b82f6', puntos_meta: 10, descripcion_premio: 'Premio Sorpresa' }) }}
+                                    className="admin-btn-action"
+                                    style={{ marginTop: '1.25rem', width: '100%', justifyContent: 'center' }}
+                                >
+                                    Cerrar
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
