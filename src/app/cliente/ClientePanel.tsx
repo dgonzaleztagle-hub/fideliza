@@ -1179,22 +1179,59 @@ export default function ClientePanel() {
     }, [authEmail, authPassword, loadMyTenants, supabase.auth])
 
     useEffect(() => {
-        void loadMyTenants()
+        // ── SSO White Label (HojaCero → Vuelve+) ──────────────────────────────
+        // Si la URL tiene ?sso_token=xxx, canjear el token one-time por una sesión
+        // real de Supabase antes de intentar cargar el panel normalmente.
+        // Esto permite inyectar el dashboard como módulo oculto en paneles de clientes H0.
+        const bootPanel = async () => {
+            if (typeof window !== 'undefined') {
+                const urlParams = new URLSearchParams(window.location.search)
+                const ssoToken = urlParams.get('sso_token')
 
-        // Hide sidebar if embedded
-        if (typeof window !== 'undefined') {
-            const urlParams = new URLSearchParams(window.location.search)
-            if (urlParams.get('iframe') === 'true' || window.self !== window.top) {
-                setIsIframe(true)
+                if (ssoToken) {
+                    try {
+                        const res = await fetch('/api/sso/redeem', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ sso_token: ssoToken })
+                        })
+
+                        if (res.ok) {
+                            const { access_token, refresh_token } = await res.json()
+                            // Establecer la sesión en Supabase — ya no se necesita login
+                            await supabase.auth.setSession({ access_token, refresh_token })
+                        } else {
+                            console.warn('[SSO] Token inválido o expirado, cargando login normal')
+                        }
+                    } catch (err) {
+                        console.error('[SSO] Error al canjear token:', err)
+                    } finally {
+                        // Limpiar el token de la URL para que no quede expuesto en el browser
+                        const cleanUrl = new URL(window.location.href)
+                        cleanUrl.searchParams.delete('sso_token')
+                        window.history.replaceState({}, '', cleanUrl.toString())
+                    }
+                }
+
+                // Detectar si está embebido en iframe (para ocultar sidebar)
+                if (urlParams.get('iframe') === 'true' || window.self !== window.top) {
+                    setIsIframe(true)
+                }
             }
+
+            // Cargar el panel normalmente (ya con sesión si SSO funcionó)
+            void loadMyTenants()
         }
+
+        void bootPanel()
 
         return () => {
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop())
             }
         }
-    }, [loadMyTenants])
+    }, [loadMyTenants, supabase.auth])
+
 
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
