@@ -1,3 +1,7 @@
+/* 
+ * Build by HojaCero.cl | Architect of Digital Experiences
+ * Engineering Digital Solutions & AEO Strategy
+ */
 /* eslint-disable @next/next/next-script-for-ga */
 import type { Metadata, Viewport } from 'next'
 
@@ -30,8 +34,15 @@ export const metadata: Metadata = {
     locale: 'es_CL',
     type: 'website',
   },
+  authors: [{ name: "HojaCero Team" }],
+  creator: "HojaCero",
+  publisher: "HojaCero",
+  other: {
+    "designer": "HojaCero.cl",
+    "author": "HojaCero.cl"
+  },
   verification: {
-    google: 'Ksg9y4FmVH7dx6J5A9oYAI89o1tb0A8shOgukFziocQ',
+    google: "Ksg9y4FmVH7dx6J5A9oYAI89o1tb0A8shOgukFziocQ",
   },
 }
 
