@@ -16,11 +16,8 @@ export function SignatureSEO() {
         "description": "El sistema de fidelización digital más simple de Chile. Crea tarjetas de puntos para Google Wallet en 2 minutos. Sin apps, sin hardware.",
         "image": "https://vuelve.vip/og-image.jpg",
         "url": "https://vuelve.vip",
-        "author": {
-            "@type": "Organization",
-            "name": "HojaCero",
-            "url": "https://hojacero.com"
-        },
+        "author": { "@id": "https://hojacero.cl/#organization" },
+        "publisher": { "@id": "https://hojacero.cl/#organization" },
         "aggregateRating": {
             "@type": "AggregateRating",
             "ratingValue": "4.9",
