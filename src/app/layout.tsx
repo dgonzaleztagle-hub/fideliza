@@ -11,9 +11,12 @@ import { SignatureSEO } from '@/components/seo/SignatureSEO'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://vuelve.vip'),
-  title: 'Vuelve+ — Fidelización en Google Wallet',
-  description: 'Sistema de lealtad digital para negocios. Tus clientes suman puntos con su celular y tarjeta digital en Google Wallet. Sin apps, sin plástico.',
-  keywords: 'fidelización, lealtad, google wallet, tarjeta digital, puntos, premios, marketing, retención',
+  title: 'Vuelve+ — Fidelización Digital con Google Wallet para Negocios en Chile',
+  description: 'Sistema de lealtad digital para negocios. Tus clientes suman puntos con su celular y tarjeta digital en Google Wallet. Sin apps, sin plástico. Desde $19.990 CLP/mes.',
+  keywords: 'fidelización, lealtad, google wallet, tarjeta digital, puntos, premios, marketing, retención, barbería, café, estética',
+  alternates: {
+    canonical: 'https://vuelve.vip',
+  },
   manifest: '/logos/site.webmanifest',
   icons: {
     icon: [
@@ -28,11 +31,24 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Vuelve+ — Tus clientes siempre vuelven',
-    description: 'Convierte visitas ocasionales en clientes frecuentes con tu propia tarjeta digital.',
+    description: 'Convierte visitas ocasionales en clientes frecuentes con tu propia tarjeta digital en Google Wallet. Sin apps, sin hardware.',
     url: 'https://vuelve.vip',
     siteName: 'Vuelve+',
     locale: 'es_CL',
     type: 'website',
+    images: [
+      {
+        url: 'https://vuelve.vip/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Vuelve+ — Fidelización Digital con Google Wallet',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Vuelve+ — Fidelización Digital con Google Wallet',
+    description: 'Tarjetas de puntos digitales para negocios. Tus clientes las guardan en Google Wallet. Desde $19.990/mes.',
   },
   authors: [{ name: "HojaCero Team" }],
   creator: "HojaCero",
@@ -78,6 +94,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             src="https://www.googletagmanager.com/ns.html?id=GTM-PPDDCZ4B"
             height="0"
             width="0"
+            title="Google Tag Manager"
             style={{ display: 'none', visibility: 'hidden' }}
           ></iframe>
         </noscript>
